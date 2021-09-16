@@ -1,8 +1,8 @@
 #pragma once
 
-#define LOW_MEM
+// #define LOW_MEMORY_LOGGING
 
-#ifndef LOW_MEM
+#ifndef LOW_MEMORY_LOGGING
 #include <inttypes.h>
 #include <stdarg.h>
 #endif
@@ -62,10 +62,14 @@ private:
 
   void CheckInit();
 
-#ifndef LOW_MEM
-  void print(const char *format, va_list *args);
+#ifndef LOW_MEMORY_LOGGING
   void printFormat(const char format, va_list *args);
+
+  void print(const char *format, va_list *args);
   void printLevel(int level, const char *msg, va_list *args);
+
+  void print(const __FlashStringHelper *format, va_list *args);
+  void printLevel(int level, const __FlashStringHelper *msg, va_list *args);
 #endif
 
 public:
@@ -97,7 +101,7 @@ public:
 
   void SetSerialBaud(int newBaud) { _serialBaud = newBaud; }
 
-#ifndef LOW_MEM
+#ifndef LOW_MEMORY_LOGGING
 #define LOG_HELPER(LEVEL)        \
   va_list args;                  \
   va_start(args, msg);           \
@@ -107,15 +111,19 @@ public:
 #define LOG_HELPER(LEVEL) ;
 #endif
 
-  void Fatal(const char *msg, ...)
-  {
-    LOG_HELPER(LOG_LEVEL_FATAL)
-  }
+  void Fatal(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_FATAL) }
   void Error(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_ERROR) }
   void Warning(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_WARNING) }
   void Info(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_INFO) }
   void Debug(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_DEBUG) }
   void Verbose(const char *msg, ...) { LOG_HELPER(LOG_LEVEL_VERBOSE) }
+
+  void Fatal(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_FATAL) }
+  void Error(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_ERROR) }
+  void Warning(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_WARNING) }
+  void Info(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_INFO) }
+  void Debug(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_DEBUG) }
+  void Verbose(const __FlashStringHelper *msg, ...) { LOG_HELPER(LOG_LEVEL_VERBOSE) }
 };
 
 extern Logging Logger;

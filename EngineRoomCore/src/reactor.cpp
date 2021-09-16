@@ -6,16 +6,16 @@
 const unsigned int REACTOR_SEGMENTS = 4;
 
 // If true, we will animate pure white LED's that will progress along each section at random speeds.
-const bool SHOW_CHASERS = true;
+const bool SHOW_CHASERS = false;
 
 // If true, the "background fog" palette will shift from a dark blue to a nearly blue-white as the cruise level increases.
-const bool SHIFT_PALETTE = true;
+const bool SHIFT_PALETTE = false;
 
 // If true, the "background fog" twinkle speed will shift increase as the cruise level increases.
 const bool SHIFT_TWINKLE_SPEED = true;
 
 // If true, the entire LED strip brightness will increase as the cruise level increases
-const bool SHIFT_BRIGHTNESS = true;
+const bool SHIFT_BRIGHTNESS = false;
 
 // If true, we will render a vertical strobing 'pulse; of white light that will increase in speed and intensity as the
 // cruise level increases
@@ -232,6 +232,30 @@ float chaserPosition[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
 float chaserSpeed[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
 uint8_t cruiseLevel;
 
+int totalBytes = 0;
+
+void resetMemoryUsage()
+{
+  totalBytes = 0;
+}
+
+void addMemoryUsage(const char *name, int size)
+{
+  Logger.Info(F("Meory Usage: %s size: %d"), name, size);
+  totalBytes += size;
+}
+
+void logMemoryUsage()
+{
+  resetMemoryUsage();
+  addMemoryUsage("reactorPalette", sizeof(reactorPalette));
+  addMemoryUsage("ActivePalette", sizeof(ActivePalette));
+  addMemoryUsage("chaserPosition", sizeof(chaserPosition));
+  addMemoryUsage("chaserSpeed", sizeof(chaserSpeed));
+
+  Logger.Info(F("Total Meory Usage: %d"), totalBytes);
+}
+
 float cruiseLevelProgress()
 {
   return ((float)cruiseLevel / CRUISE_LEVEL_MAX);
@@ -264,15 +288,17 @@ bool showDiags = false;
 
 void reactor_setup()
 {
-  Logger.Info("Setup Chaser: Segs: %d, SegSize: %d", REACTOR_SEGMENTS, SEGMENT_SIZE);
+  logMemoryUsage();
+
+  Logger.Info(F("Setup Chaser: Segs: %d, SegSize: %d"), REACTOR_SEGMENTS, SEGMENT_SIZE);
 
   ActivePalette = *(CruiseLevelPaletteList[0]);
   reactor_cruise(0);
 
   if (showDiags)
   {
-    Logger.Info("Init Chaser: Chaser Speed (sec/seg): %f", MAX_CHASER_SPEED_SECONDS_PER_SEGMENT);
-    Logger.Info("Init Chaser: Chaser Speed (px/sec): %f", MAX_CHASER_SPEED_PIXELS_PER_SECOND);
+    Logger.Info(F("Init Chaser: Chaser Speed (sec/seg): %f"), MAX_CHASER_SPEED_SECONDS_PER_SEGMENT);
+    Logger.Info(F("Init Chaser: Chaser Speed (px/sec): %f"), MAX_CHASER_SPEED_PIXELS_PER_SECOND);
   }
   for (unsigned int segmentIndex = 0; segmentIndex < REACTOR_SEGMENTS; segmentIndex++)
   {
@@ -288,7 +314,7 @@ void reactor_setup()
       chaserSpeed[flatIndex] = (20 + random(80)) / 100.0;
       if (showDiags)
       {
-        Logger.Info("Init Chaser: Seg: %d, Chaser: %d, index: %d, offset: %d, pos: %f, speed: %f",
+        Logger.Info(F("Init Chaser: Seg: %d, Chaser: %d, index: %d, offset: %d, pos: %f, speed: %f"),
                     segmentIndex, chaserIndex, flatIndex, segmentOffset, chaserPosition[flatIndex], chaserSpeed[flatIndex]);
       }
     }
@@ -301,13 +327,9 @@ void reactor_cruise(uint8_t newCruiseLevel)
   cruiseLevel = clamp(newCruiseLevel, 0, CRUISE_LEVEL_MAX);
 
   uint8_t brightness = cruiseBrightness();
-  uint8_t newSpeed = 4 + cruiseLevelProgress() * 4;
+  uint8_t newSpeed = 0 + cruiseLevelProgress() * 8;
 
-  Logger.Info("reactor_cruise: Setting cruise level to %d, brightness to: %d, "
-              "speed to: %d",
-              cruiseLevel,
-              brightness,
-              newSpeed);
+  // Logger.Info(F("reactor_cruise: Setting cruise level to %d, brightness to: %d, speed to: %d"), cruiseLevel, brightness, newSpeed);
 
   if (SHIFT_PALETTE)
   {
@@ -342,7 +364,7 @@ void drawChasers(CRGBSet &leds)
 
   if (showDiags)
   {
-    Logger.Info("Updating Chasers: %d segments, %d per, total: %d, elapsed: %f, distance: %f",
+    Logger.Info(F("Updating Chasers: %d segments, %d per, total: %d, elapsed: %f, distance: %f"),
                 REACTOR_SEGMENTS, CHASERS_PER_SEGMENT, totalChasers, millisElapsed, chaserDistance);
   }
 
@@ -365,7 +387,7 @@ void drawChasers(CRGBSet &leds)
 
       if (showDiags)
       {
-        Logger.Info("Updating Chaser: Seg: %d, Chaser: %d, index: %d, pix: %d", segmentIndex, chaserIndex, flatIndex, pixelIndex);
+        Logger.Info(F("Updating Chaser: Seg: %d, Chaser: %d, index: %d, pix: %d"), segmentIndex, chaserIndex, flatIndex, pixelIndex);
       }
 
       leds[pixelIndex] = CRGB::White;

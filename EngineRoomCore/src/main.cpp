@@ -26,13 +26,13 @@ void setup()
   }
 
   Logger.SetLogLevel(LOG_LEVEL_INFO);
-  Logger.Info("SpaceSimWarp starting up");
+  Logger.Info(F("SpaceSimWarp starting up"));
 
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.setMaxPowerInVoltsAndMilliamps(VOLTS, MAX_MA);
 
-  Logger.Info("SpaceSimWarp starting up: A");
+  Logger.Info(F("SpaceSimWarp starting up: A"));
   switch (mode)
   {
   case StripTest:
@@ -40,7 +40,7 @@ void setup()
     break;
 
   case Reactor:
-  Logger.Info("SpaceSimWarp starting up: B");
+  Logger.Info(F("SpaceSimWarp starting up: B"));
     reactor_setup();
     break;
   }

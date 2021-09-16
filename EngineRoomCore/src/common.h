@@ -13,8 +13,8 @@
 // Arduino library includes constrain(), but I prefer to call it clamp()
 #define clamp constrain
 
-#ifndef LOW_MEM
-#define NUM_LEDS 100
+#ifndef LOW_MEMORY_LOGGING
+#define NUM_LEDS 300
 #else
 #define NUM_LEDS 300
 #endif

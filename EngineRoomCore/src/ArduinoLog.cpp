@@ -1,6 +1,32 @@
 #include "ArduinoLog.h"
 
-#ifndef LOW_MEM
+#ifndef LOW_MEMORY_LOGGING
+
+char printStr[2];
+
+void Logging::print(const __FlashStringHelper *format, va_list *args)
+{
+    PGM_P p = reinterpret_cast<PGM_P>(format);
+    while (true)
+    {
+        unsigned char printChar = pgm_read_byte(p++);
+        if (printChar == 0) {
+            break;
+        }
+
+        if (printChar == '%')
+        {
+            printChar = pgm_read_byte(p++);
+            printFormat(printChar, args);
+        }
+        else
+        {
+            printStr[0] = printChar;
+            Serial.print(printStr);
+        }
+    }
+}
+
 void Logging::print(const char *format, va_list *args)
 {
     for (; *format != 0; ++format)
@@ -35,13 +61,25 @@ void Logging::printFormat(const char format, va_list *args)
         return;
     }
 
-    if (format == 'd' || format == 'i')
+    if (format == 'd')
     {
         Serial.print(va_arg(*args, int), DEC);
         return;
     }
 
+    if (format == 'u')
+    {
+        Serial.print(va_arg(*args, unsigned int), DEC);
+        return;
+    }
+
     if (format == 'f')
+    {
+        Serial.print(va_arg(*args, float), 5);
+        return;
+    }
+
+    if (format == 'F')
     {
         Serial.print(va_arg(*args, double), 5);
         return;
@@ -134,6 +172,36 @@ void PrintTimestamp()
     Serial.print(timeStamp);
 }
 
+void Logging::printLevel(int level, const __FlashStringHelper *msg, va_list *args)
+{
+    CheckInit();
+
+    if (level > _level)
+    {
+        return;
+    }
+
+    if (_prefix != NULL)
+    {
+        _prefix();
+    }
+
+    _timestamp();
+
+    char levels[] = "FEWIDV";
+    Serial.print(levels[level - 1]);
+    Serial.print(": ");
+
+    print(msg, args);
+
+    if (_suffix != NULL)
+    {
+        _suffix();
+    }
+
+    Serial.print('\n');
+}
+
 void Logging::printLevel(int level, const char *msg, va_list *args)
 {
     CheckInit();
@@ -170,12 +238,13 @@ void Logging::CheckInit()
     if (!isInitialized)
     {
         isInitialized = true;
+        printStr[1] = 0;
 
         if (!skipSerialInit)
         {
             Serial.begin(_serialBaud);
         }
-#ifndef LOW_MEM
+#ifndef LOW_MEMORY_LOGGING
         if (_timestamp == NULL)
         {
             _timestamp = PrintTimestamp;
@@ -183,6 +252,5 @@ void Logging::CheckInit()
 #endif
     }
 }
-
 
 Logging Logger = Logging();
