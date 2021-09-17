@@ -11,8 +11,8 @@ const ProgramMode mode = Reactor;
 
 CRGBArray<NUM_LEDS> leds;
 
-void noise_setup();
-void noise_loop(CRGBSet &leds);
+void fog_setup();
+void fog_loop(CRGBSet &leds);
 
 void setup()
 {
@@ -35,7 +35,7 @@ void setup()
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.setMaxPowerInVoltsAndMilliamps(VOLTS, MAX_MA);
 
-  noise_setup();
+  fog_setup();
   return;
 
   switch (mode)
@@ -85,9 +85,9 @@ void loop()
     BLINK_DURATION = 1000 - cruise_level * 100;
   }
 
-  noise_loop(leds);
+  fog_loop(leds);
   return;
-  
+
   switch (mode)
   {
   case StripTest:
