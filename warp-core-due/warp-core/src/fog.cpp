@@ -40,14 +40,14 @@
 
 void initParams()
 {
-    setFogParamSpeed(FogParam_H, 10);
-    setFogParamScale(FogParam_H, 10);
+    setFogParamSpeed(FogParam_H, 7);
+    setFogParamScale(FogParam_H, 7);
 
-    setFogParamSpeed(FogParam_S, 10);
-    setFogParamScale(FogParam_S, 10);
+    setFogParamSpeed(FogParam_S, 5);
+    setFogParamScale(FogParam_S, 5);
 
-    setFogParamSpeed(FogParam_V, 10);
-    setFogParamScale(FogParam_V, 10);
+    setFogParamSpeed(FogParam_V, 5);
+    setFogParamScale(FogParam_V, 5);
 }
 
 // <attribute>Scale determines how far apart the sampling locations in the noise field are for each pixel.  Smaller
@@ -92,17 +92,17 @@ float vScanline;
 // the FastLED hue range:
 //
 // https://github.com/FastLED/FastLED/wiki/FastLED-HSV-Colors
-// float hStart = 140; // Blue-Aqua
-// float hEnd = 165;   // Blue-Purple
+float hStart = 140; // Blue-Aqua
+float hEnd = 165;   // Blue-Purple
 
-float hStart = 0; // Full Range Test
-float hEnd = 254;
+// float hStart = 0; // Full Range Test
+// float hEnd = 254;
 
-float sStart = 250;
-float sEnd = 250;
+float sStart = 200;
+float sEnd = 255;
 
-float vStart = 250;
-float vEnd = 250;
+float vStart = 32;
+float vEnd = 255;
 
 const int STARTING_POSITION_RANGE = 9;
 
@@ -187,7 +187,7 @@ float totalShift = 0;
 float shiftSamples = 0;
 #endif
 
-#define DIAGNOSE_MIN_MAX
+// #define DIAGNOSE_MIN_MAX
 
 #ifdef DIAGNOSE_MIN_MAX
 float minVal = STARTING_POSITION_RANGE;
