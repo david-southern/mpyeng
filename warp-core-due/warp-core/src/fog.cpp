@@ -1,36 +1,57 @@
 #include "common.h"
 #include "limits.h"
 
-// Attribution: This code was copied from the FastLED noise demo code.
-
-// We want to create a 'fog' effect by animating a 1-dimension strip of LEDs, modifying both the hue and the brightness
-// with user-defined ranges.  We'll call FastLED's 2D perlin noise function and use the Y coordinate as 'scan line' to
-// sample noise values along the X axis so that the permuted attribute values will change smoothly from one random value
-// to another.  We'll track separate noise arrays for hue and brightness since they don't need to be related to each
-// other. (If we wanted them to be related, we could shift to a 3D noise function and use the X coordinate for the hue
-// modification and the Y coordinate for the brightness modification, but I don't know that it would add anything to the
-// animation.)
-
-// attriuteSpeed determines how fast the sampling 'scan line' advances - essentially how quickly the sampled values
-// change from one perlin noise area of concentration to another.
+#ifdef FOG_DOUBLE
+// Floating point math on a microcontroller!  Are you nuts!!
 //
-// Speed guidelines: (with a hue range from 1 - 254, these are the average hue 'distance' shifted per second and per
-// single loop iteration, at various speeds.)
+// Well, I initially wrote this fog module using FastLED's Perlin noise function.  However that library is focused on
+// squeezing every last bit of performance and memory use out of older, tiny microcontrollers.  As such, it uses lots of
+// integer math and small datatypes, which make the resulting nose defined over a strange range. (the comments say
+// approximately -18K to +18K, but I was getting very different min/max values) This makes the generation of the
+// interpolated values much more difficult, because I want them to be distributed evenly across the range, so I need
+// noise that is uniformly distributed over a known min/max range. In addition, using their noise led to all sorts of
+// integer overflow and non-normalized problems.  I was able to get it all to mostly work, but it was a bear to maintain
+// and extend, so I decied to re-imp this using floating point math, and just require a more modern MCU.  I also found a
+// public domain implementation of Simplex Noise, which is a successor to Perlin noise that gives smoother gradients
+// than Perlin
+
+// OVERVIEW
 //
-// *        |  Avg hue    |   Avg hue    |
-// * Speed  | Shift/sec   | Shift/loop   | Notes
-// * 100    |  6.5 - 11.7 | 0.08 - 0.17  | - very slow change, approx 4-5 seconds to change from one color to another
-// * 500    | 40.4 - 51.2 | 0.62 - 0.80  | - noticable gradual color changes, approx one per second
-// * 1500   |  135 - 148  | 1.92 - 2.29  | - fast but smooth color changes, 1-3 colors per second
-// * 3000   |  270 - 299  | 3.93 - 4.48  | - fast and more extreme color changes, perhaps 4-5/second
-// * 10000  |  872 - 955  | 12.7 - 14.1  | - Quite 'flickery', but still coherent blobs of color, maybe 10+ color changes per second
-// * 50000  |    2738     |     40       | - Extreme flickering, no coherent colors, just "rainbow shades of white" - persistence of vision across all colors
+// I want to create a 'fog' effect by animating a 1-dimension strip of LEDs, modifying the hues, saturations, and values
+// of the pixel colors over caller-defined ranges.  We'll generate 2D Simplex noise function and use the Y coordinate as
+// a 'scan line' to sample noise values along the X axis so that the permuted attribute values will change smoothly from
+// one random value to another.
 
-uint16_t hueSpeed = 3000;
-uint16_t brightnessSpeed = 3000;
+// <attriute>Speed determines how fast the sampling 'scan line' advances - essentially how quickly the sampled values
+// change from one noise area of concentration to another.
+//
+// Speed guidelines: (with a hue range from 1 - 254, these are the average hue 'distance' shifted per second at various
+// speeds.)
+//
+// *        |   Avg hue   |
+// * Speed  |  Shift/sec  | Notes
+// * 100    |  6.5 - 11.7 | - very slow change, approx 4-5 seconds to change from one color to another
+// * 500    | 40.4 - 51.2 | - noticable gradual color changes, approx one per second
+// * 1500   |  135 - 148  | - fast but smooth color changes, 1-3 colors per second
+// * 3000   |  270 - 299  | - fast and more extreme color changes, perhaps 4-5/second
+// * 10000  |  872 - 955  | - Quite 'flickery', but still coherent blobs of color, maybe 10+ color changes per second
+// * 50000  |    2738     | - Extreme flickering, no coherent colors, just "rainbow shades of white" - persistence of
+//   vision across all colors
 
-// attributeScale determines how far apart the sampling locations in the noise field are for each pixel.  Smaller scale
-// values will tend to cluster multiple pixels in a single perlin noise 'area of concentration', leading to a larger
+void initParams()
+{
+    setFogParamSpeed(FogParam_H, 10);
+    setFogParamScale(FogParam_H, 10);
+
+    setFogParamSpeed(FogParam_S, 10);
+    setFogParamScale(FogParam_S, 10);
+
+    setFogParamSpeed(FogParam_V, 10);
+    setFogParamScale(FogParam_V, 10);
+}
+
+// <attribute>Scale determines how far apart the sampling locations in the noise field are for each pixel.  Smaller
+// scale values will tend to cluster multiple pixels in a single noise 'area of concentration', leading to a larger
 // 'blob' of similarly colored pixels and more gradual color changes between groups of adjacent pixels.  Higher scale
 // values essentially 'zoom out' the sampling of the noise field, making for smaller color blobs and more rapid color
 // changes.
@@ -41,182 +62,306 @@ uint16_t brightnessSpeed = 3000;
 // Scale guidelines: (with a hue range from 1 - 254, and a strip length of 300 pixels these are the average pixel counts
 // of 'color blobs' - areas of pixels that are essentially the same color - at various scale values)
 //
-// *        | Avg pixels/ | Transition |
-// * Scale  | color blob  | pixels     | Notes
-// * 10     | 300         | 0          | - Entire strip is the same color (no visible color change)
-// * 100    | 80          | 30         | - Entire strip consisted of three colors - green to cyan to blue
-// * 500    | 20-40       | 20-40      | - Approx 9 color zones
-// * 1500   | 6 - 15      | 3-5        | - Approx 22 color zones
-// * 15000  | 1 - 3       | 0 - 1      |
-// * 30000  | 1           | 0          | - Every pixel is a different color, but the colors are mostly in adjacent hues
-// * 60000  | 1           | 0          | - no coherence - multiple cases of adjacent pixels jumping across 4-5 hues
-uint16_t hueScale = 16000;
-uint16_t brightnessScale = 16000;
+// *        | Avg pixels/ | Avg delta  |
+// * Scale  | color blob  | hue/pixel  | Notes
+// * 0.02   | 300         | 0          | - Entire strip is the same color (no visible color change)
+// * 0.25   | 80          | 0.81       | - Entire strip consisted of three colors zones
+// * 1.74   | 20-40       | 4.75       | - Approx 9 color zones
+// * 5      | 6 - 15      | 13         | - Approx 22 color zones
+// * 10     | 3-5         | 25         |
+// * 20     | 1           | 44         | - Every pixel is a different color, but the colors are mostly in adjacent hues
+// * 50     | 1           | 64         | - no coherence - almost all adjacent pixels jumping across 4-5 hues
 
-static uint32_t hueTime;
-static uint32_t brightnessTime;
+float hSpeed = 0;
+float sSpeed = 0;
+float vSpeed = 0;
 
-static uint32_t huePosition;
-static uint32_t brightnessPosition;
+float hScale = 0;
+float sScale = 0;
+float vScale = 0;
 
-int16_t hueNoise[NUM_LEDS];
-int16_t brightnessNoise[NUM_LEDS];
+float hPos;
+float sPos;
+float vPos;
 
-uint32_t random32()
+float hScanline;
+float sScanline;
+float vScanline;
+
+// Note: FastLED defines its hue range from 0 - 255, rather than 0-360.  Check this page for a visual representation of
+// the FastLED hue range:
+//
+// https://github.com/FastLED/FastLED/wiki/FastLED-HSV-Colors
+// float hStart = 140; // Blue-Aqua
+// float hEnd = 165;   // Blue-Purple
+
+float hStart = 0; // Full Range Test
+float hEnd = 254;
+
+float sStart = 250;
+float sEnd = 250;
+
+float vStart = 250;
+float vEnd = 250;
+
+const int STARTING_POSITION_RANGE = 9;
+
+// The Simplex noise has trouble if we pass 'large' parameters.  Wrap parameter values that exceed this limit.
+const float MAX_SIMPLEX_PARAM = 100;
+
+void setFogParamRange(FogParam param, float start, float end)
 {
-    uint32_t retval = random16();
-    return (retval << 16) | random16();
+    switch (param)
+    {
+    case FogParam_H:
+        hStart = start;
+        hEnd = end;
+        break;
+    case FogParam_S:
+        sStart = start;
+        sEnd = end;
+        break;
+    case FogParam_V:
+        vStart = start;
+        vEnd = end;
+        break;
+    }
 }
 
-unsigned long HASH_BASE = 5381;
-unsigned long nextHash(unsigned long hash, unsigned long nextInt)
+void setFogParamSpeed(FogParam param, float speed)
 {
-    return ((hash << 5) + hash) + nextInt; /* hash * 33 + nextInt */
+    switch (param)
+    {
+    case FogParam_H:
+        hSpeed = speed / 100;
+        break;
+    case FogParam_S:
+        sSpeed = speed / 100;
+        break;
+    case FogParam_V:
+        vSpeed = speed / 100;
+        break;
+    }
+}
+
+void setFogParamScale(FogParam param, float scale)
+{
+    switch (param)
+    {
+    case FogParam_H:
+        hScale = scale / 100;
+        Logger.Info("Set hScale to %f", hScale);
+        break;
+    case FogParam_S:
+        sScale = scale / 100;
+        break;
+    case FogParam_V:
+        vScale = scale / 100;
+        break;
+    }
 }
 
 void fog_setup()
 {
-    // Lots of Arduino code suggests analogRead() from an unconnected analog pin as a way to generate entropy.  In
-    // practice, though, on my Arduino Due, I see the analogRead of a pin clustering within about 10 integers of the
-    // same value, over multiple resets.  Different pins appear to cluster around different values, but even then they
-    // are close. (i.e. all within the 700-800 range)  Given this, try to get a little bit of entropy by reading four
-    // different pins, and hashing the results together.
-    uint32_t randSeed = nextHash(HASH_BASE, analogRead(0));
-    randSeed = nextHash(randSeed, analogRead(1));
-    randSeed = nextHash(randSeed, analogRead(2));
-    randSeed = nextHash(randSeed, analogRead(3));
-    randSeed = randSeed & 0xffff;
-    // random16_set_seed(randSeed);
-    random16_set_seed(42);
+    MoarRandom.randomizeRandomSeed();
 
     // Initialize our coordinates to some random values
-    huePosition = random32();
-    brightnessPosition = random32();
-    hueTime = random32();
-    brightnessTime = random32();
+    hPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    sPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    vPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    hScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+    sScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+    vScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+
+    Logger.Info(F("Starting with h: (%f, %f), s: (%f, %f), v: (%f, %f)"), hPos, hScanline, sPos, sScanline, vPos, vScanline);
+
+    initParams();
 }
-
-int32_t MIN_RAW_NOISE = -11508;
-int32_t MAX_RAW_NOISE = 10750;
-int32_t RAW_NOISE_DELTA = MAX_RAW_NOISE - MIN_RAW_NOISE;
-
-int16_t adjustableRawNoise(uint32_t x, uint32_t y)
-{
-    int32_t retval = inoise16_raw(x, y);
-
-    if(retval < MIN_RAW_NOISE) {
-        MIN_RAW_NOISE = retval;
-        RAW_NOISE_DELTA = MAX_RAW_NOISE - MIN_RAW_NOISE;
-    }
-
-    if(retval > MAX_RAW_NOISE) {
-        MAX_RAW_NOISE = retval;
-        RAW_NOISE_DELTA = MAX_RAW_NOISE - MIN_RAW_NOISE;
-    }
-
-    return (int16_t)retval;
-}
-
-void fillnoise()
-{
-    for (int i = 0; i < NUM_LEDS; i++)
-    {
-        hueNoise[i] = adjustableRawNoise(huePosition + i * hueScale, hueTime);
-        brightnessNoise[i] = adjustableRawNoise(brightnessPosition + i * brightnessScale, brightnessTime);
-    }
-    hueTime += hueSpeed;
-    brightnessTime += brightnessSpeed;
-}
-
-// Note: FastLED defined its hue range from 0 - 255, rather than 0-360.  Check this page for a visual representation of
-// the FastLED hue range:
-//
-// https://github.com/FastLED/FastLED/wiki/FastLED-HSV-Colors
-uint16_t fogHueStart = 140; // Blue-Aqua
-uint16_t fogHueEnd = 168;   // Blue-Purple
-// uint16_t fogHueStart = 0; // Full Range Test
-// uint16_t fogHueEnd = 255;
-
-uint16_t minBrightness = 16;
-uint16_t maxBrightness = 250;
 
 unsigned int fogDiags = 0;
-double fogDiagFreqSec = 3;
+float fogDiagFreqSec = 1;
 
+#ifdef DIAGNOSE_SHIFT_RATE
 unsigned int prevHue = 0;
-double totalShift = 0;
-double shiftSamples = 0;
+float totalShift = 0;
+float shiftSamples = 0;
+#endif
 
-int32_t minHue = INT32_MAX;
-int32_t maxHue = INT32_MIN;
+#define DIAGNOSE_MIN_MAX
 
-uint16_t normalizeNoise(int16_t rawNoise)
+#ifdef DIAGNOSE_MIN_MAX
+float minVal = STARTING_POSITION_RANGE;
+float maxVal = -STARTING_POSITION_RANGE;
+float maxX = -MAX_SIMPLEX_PARAM;
+float minX = MAX_SIMPLEX_PARAM;
+float maxY = -MAX_SIMPLEX_PARAM;
+float minY = MAX_SIMPLEX_PARAM;
+#endif
+
+float genNoise(float index, float pos, float scale, float scanline)
 {
-    int32_t noise32 = rawNoise;
-    float adj32 = noise32 - MIN_RAW_NOISE;
-    float normalizedNoiseFloat = adj32 / (float)RAW_NOISE_DELTA;
-    uint16_t retval = (uint16_t)(normalizedNoiseFloat * UINT16_MAX);
-    return retval;
+    float xParam = pos + index * scale;
+    float yParam = scanline;
+
+#ifdef DIAGNOSE_MIN_MAX
+    maxX = max(xParam, maxX);
+    minX = min(xParam, minX);
+    maxY = max(yParam, maxY);
+    minY = min(yParam, minY);
+#endif
+
+    float retNoise = SimplexNoise::noiseNormal(xParam, yParam);
+
+    return retNoise;
 }
+
+float advanceScanline(float scanline, float speed)
+{
+    scanline += speed;
+    if (scanline > MAX_SIMPLEX_PARAM)
+    {
+        scanline = 0;
+    }
+
+    return scanline;
+}
+
+bool showFogDiags = false;
+
+float logXParam[NUM_LEDS];
+float logNoise[NUM_LEDS];
+float logDelta[NUM_LEDS];
+float logV[NUM_LEDS];
 
 void fog_loop(CRGBSet &leds)
 {
-    bool canShowDiags = millis() > 2000 && millis() < 3000;
+    // if (showFogDiags)
+    // {
+    //     if (millis() > fogDiags)
+    //     {
+    //         double totalDeltaN = 0;
+    //         double totalDeltaV = 0;
+    //         double prevV = logV[0];
+    //         for (int i = 0; i < NUM_LEDS; i++)
+    //         {
+    //             Logger.Info("LED: %d, scale: %f, xP: %f, noise: %f, v: %f, deltaNoise: %f", i, hScale, logXParam[i], logNoise[i], logV[i], logDelta[i]);
+    //             totalDeltaN += logDelta[i];
+    //             double deltaV = abs(logV[i] - prevV);
+    //             totalDeltaV += deltaV;
+    //             prevV = logV[i];
+    //         }
+    //         Logger.Info("Scale: %f, average deltaNoise: %f, avg deltaV: %f", hScale, totalDeltaN / NUM_LEDS, totalDeltaV / NUM_LEDS);
+    //         fogDiags = LONG_MAX;
+    //     }
+    //     return;
+    // }
 
+    // // float prevNoise = SimplexNoise::noiseNormal(0, 42);
+    // float prevNoise = genNoise(0, hPos, hScale, hScanline);
+
+    // for (int i = 0; i < NUM_LEDS; i++)
+    // {
+    //     float xParam = hPos + i * hScale;
+
+    //     logXParam[i] = xParam;
+
+    //     // float noise = SimplexNoise::noiseNormal(xParam, 42);
+    //     float noise = genNoise(i, hPos, hScale, hScanline);
+    //     logNoise[i] = noise;
+
+    //     uint8_t vNoise = noise * 255;
+
+    //     leds[i] = CHSV(vNoise, 255, 255);
+
+    //     float deltaNoise = abs(noise - prevNoise);
+    //     logDelta[i] = deltaNoise;
+    //     logV[i] = (float)vNoise;
+
+    //     prevNoise = noise;
+
+    //     hScanline = advanceScanline(hScanline, hSpeed);
+    // }
+
+    // FastLED.show();
+
+    // fogDiags = millis() + fogDiagFreqSec * 1000;
+    // showFogDiags = true;
+    // return;
+
+    showFogDiags = false;
     if (millis() > fogDiags)
     {
         fogDiags = millis() + fogDiagFreqSec * 1000;
+        showFogDiags = true;
     }
 
-    fillnoise();
-
-    int32_t loopMinHue = INT32_MAX;
-    int32_t loopMaxHue = INT32_MIN;
+#ifdef DIAGNOSE_MIN_MAX
+    maxX = -MAX_SIMPLEX_PARAM;
+    minX = MAX_SIMPLEX_PARAM;
+    maxY = -MAX_SIMPLEX_PARAM;
+    minY = MAX_SIMPLEX_PARAM;
+    minVal = 10;
+    maxVal = -10;
+#endif
 
     for (int i = 0; i < NUM_LEDS; i++)
     {
-        // uint8_t fogHue = i % 255;
-        // leds[i] = CHSV(fogHue, 255, 128);
-        int32_t normalizedHueNoise = normalizeNoise(hueNoise[i]);
-        int32_t fogHue = lerp16by16(fogHueStart, fogHueEnd, normalizedHueNoise);
+        // Strip Test
+        // uint8_t hFog = i % 255;
+        // leds[i] = CHSV(hFog, 255, 128);
+        // continue;
 
-        int32_t normalizedBrightnessNoise = normalizeNoise(brightnessNoise[i]);
-        int32_t fogBrightness = lerp16by16(minBrightness, maxBrightness, normalizedBrightnessNoise);
-        CHSV pixelColor = CHSV(fogHue, 255, fogBrightness);
+        float hNoise = genNoise(i, hPos, hScale, hScanline);
+        float sNoise = genNoise(i, sPos, sScale, sScanline);
+        float vNoise = genNoise(i, vPos, vScale, vScanline);
+
+        float hFog = lerp(hStart, hEnd, hNoise);
+        float sFog = lerp(sStart, sEnd, sNoise);
+        float vFog = lerp(vStart, vEnd, vNoise);
+
+        CHSV pixelColor = CHSV((uint8_t)hFog, (uint8_t)sFog, (uint8_t)vFog);
         leds[i] = pixelColor;
 
-        minHue = min(fogBrightness, minHue);
-        maxHue = max(fogBrightness, maxHue);
-        loopMinHue = min(fogBrightness, loopMinHue);
-        loopMaxHue = max(fogBrightness, loopMaxHue);
+#ifdef DIAGNOSE_MIN_MAX
+        minVal = min(hNoise, minVal);
+        maxVal = max(hNoise, maxVal);
+#endif
 
+#ifdef DIAGNOSE_SHIFT_RATE
+        if (i == 3)
+        {
+            if (prevHue == 0)
+            {
+                prevHue = hFog;
+            }
+            int thisShift = abs((int)prevHue - (int)hFog);
+            totalShift += thisShift;
+            shiftSamples++;
+            prevHue = hFog;
 
-        // if (i == 3)
-        // {
-        //     if (prevHue == 0)
-        //     {
-        //         prevHue = fogHue;
-        //     }
-        //     int thisShift = abs((int)prevHue - (int)fogHue);
-        //     totalShift += thisShift;
-        //     shiftSamples++;
-        //     prevHue = fogHue;
-
-        //     if (FOGshowDiags)
-        //     {
-        //         Logger.Info(F("Fog[3]: avg shift/sec: %f, avgShift/loop: %f, sampled: %d, hue: %u, brightness: %u"),
-        //                     totalShift / fogDiagFreqSec, (totalShift / shiftSamples), (int)shiftSamples, fogHue, fogBrightness);
-        //         totalShift = 0;
-        //         shiftSamples = 0;
-        //     }
-        // }
+            if (showFogDiags)
+            {
+                Logger.Info(F("Fog[3]: avg shift/sec: %f, avgShift/loop: %f, sampled: %d, hue: %u, brightness: %u"),
+                            totalShift / fogDiagFreqSec, (totalShift / shiftSamples), (int)shiftSamples, hFog, vFog);
+                totalShift = 0;
+                shiftSamples = 0;
+            }
+        }
+#endif // DIAGNOSE_SHIFT_RATE
     }
 
-    // if (FOGshowDiags)
-    // {
-    //     Logger.Info(F("Fog: Loop Min: %d, Loop Max: %d, Overall Min: %d, Overall Max: %d"),
-    //                 (int)loopMinHue, (int)loopMaxHue, (int)minHue, (int)maxHue);
-    // }
+    hScanline = advanceScanline(hScanline, hSpeed);
+    sScanline = advanceScanline(sScanline, sSpeed);
+    vScanline = advanceScanline(vScanline, vSpeed);
 
-    LEDS.show();
+#ifdef DIAGNOSE_MIN_MAX
+    if (showFogDiags)
+    {
+        Logger.Info(F("Fog: hNoise Min: %f, hNoise Max: %f, hPos: %f, hScanline: %f, minX: %f, maxX: %f, minY: %f, maxY: %f"),
+                    minVal, maxVal, hPos, hScanline, minX, maxX, minY, maxY);
+    }
+#endif // DIAGNOSE_MIN_MAX
+
+    FastLED.show();
 }
+#endif

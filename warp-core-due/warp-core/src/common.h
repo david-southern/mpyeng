@@ -6,9 +6,14 @@
 #define FASTLED_INTERNAL
 #include "FastLED.h"
 
-#include "ArduinoLog.h"
+#include "utils.h"
+#include "easing.h"
 
-#include "twinkle.h"
+#include "RandomGenerator.h"
+#include "ArduinoLog.h"
+#include "SimplexNoise.h"
+
+#include "fog.h"
 #include "reactor.h"
 #include "strip_test.h"
 
@@ -26,4 +31,6 @@
 #define LED_TYPE WS2812B
 #define COLOR_ORDER RGB
 #define DATA_PIN 3
-#define BRIGHTNESS 128
+#define BRIGHTNESS 250
+
+#define FOG_DOUBLE

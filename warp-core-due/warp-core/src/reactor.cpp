@@ -32,267 +32,85 @@ const float MAX_PULSE_WIDTH = 0.1;
 
 // Set this flag to true if the segments are arranged in up/down/up/down/etc orientation (to make soldering connections
 // shorter) or false if all the segments are arranged in the same direction.
-const bool SEGMENTS_ALTERNATE_DIRECTION = true; 
+const bool SEGMENTS_ALTERNATE_DIRECTION = true;
 
 // These constants are calculated from the simultion settings above, you should probably not set them directly
 const unsigned int SEGMENT_SIZE = NUM_LEDS / REACTOR_SEGMENTS;
 const float MAX_CHASER_SPEED_PIXELS_PER_SECOND = SEGMENT_SIZE / MAX_CHASER_SPEED_SECONDS_PER_SEGMENT;
 const float MAX_PULSE_SPEED_PIXELS_PER_SECOND = SEGMENT_SIZE / MAX_PULSE_SPEED_SECONDS_PER_SEGMENT;
 
-CRGBPalette16 reactorPalette;
+// The level of power being drawn from the reactor code, expressed as a floating point value on the range [0, 1]
+float cruiseLevel = 0;
 
-enum CruiseBrightnessMode
+class CruiseParam
 {
-  Undefined,
-  CB_Linear,
-  CB_Exp,
-  CB_Log,
-};
-
-const CruiseBrightnessMode brightnessMode = CB_Linear;
-
-const uint8_t CRUISE_LEVEL_MAX = 9;
-
-const uint8_t CRUISE_BRIGHTNESS_MIN = 64;
-const uint8_t CRUISE_BRIGHTNESS_MAX = 250;
-const float cruiseDelta = CRUISE_BRIGHTNESS_MAX - CRUISE_BRIGHTNESS_MIN;
-
-// Darker
-#define Navy CRGB::Navy
-#define DarkBlue CRGB::DarkBlue
-#define MediumBlue CRGB::MediumBlue
-#define Blue CRGB::Blue
-#define DarkCyan CRGB::DarkCyan
-#define DeepSkyBlue CRGB::DeepSkyBlue
-#define Cyan CRGB::Cyan
-#define DodgerBlue CRGB::DodgerBlue
-#define Turquoise CRGB::Turquoise
-#define MediumTurquoise CRGB::MediumTurquoise
-#define CornflowerBlue CRGB::CornflowerBlue
-#define CadetBlue CRGB::CadetBlue
-#define MediumAquamarine CRGB::MediumAquamarine
-#define Aquamarine CRGB::Aquamarine
-// Lighter
-
-const TProgmemRGBPalette16 Cruise0 FL_PROGMEM = {
-    Navy, Navy, Navy, Navy, Navy, Navy, Navy, Navy,
-    DarkBlue, DarkBlue, DarkBlue, DarkBlue, MediumBlue, MediumBlue, Blue, Blue};
-
-const TProgmemRGBPalette16 Cruise1 FL_PROGMEM = {
-    DarkBlue, DarkBlue, DarkBlue, DarkBlue, DarkBlue,
-    DarkBlue, DarkBlue, DarkBlue, MediumBlue, MediumBlue,
-    MediumBlue, Blue, Blue, DarkCyan, DeepSkyBlue};
-
-const TProgmemRGBPalette16 Cruise2 FL_PROGMEM = {
-    DarkBlue, DarkBlue, DarkBlue, DarkBlue, MediumBlue, MediumBlue,
-    MediumBlue, MediumBlue, Blue, Blue, DarkCyan, DarkCyan,
-    DeepSkyBlue, DeepSkyBlue, Cyan, Cyan};
-
-const TProgmemRGBPalette16 Cruise3 FL_PROGMEM = {
-    MediumBlue, MediumBlue, MediumBlue, MediumBlue, MediumBlue, MediumBlue,
-    MediumBlue, MediumBlue, Blue, DarkCyan, DarkCyan, DeepSkyBlue,
-    Cyan, Cyan, DodgerBlue, Turquoise};
-
-const TProgmemRGBPalette16 Cruise4 FL_PROGMEM = {
-    MediumBlue, MediumBlue, MediumBlue, MediumBlue, Blue, Blue,
-    Blue, Blue, DarkCyan, DeepSkyBlue, Cyan, Cyan,
-    DodgerBlue, Turquoise, MediumTurquoise, MediumTurquoise};
-
-const TProgmemRGBPalette16 Cruise5 FL_PROGMEM = {
-    Blue, Blue, Blue, Blue, DarkCyan, DarkCyan, DarkCyan, DeepSkyBlue,
-    Cyan, Cyan, DodgerBlue, Turquoise, MediumTurquoise, MediumTurquoise, CornflowerBlue, CornflowerBlue};
-
-const TProgmemRGBPalette16 Cruise6 FL_PROGMEM = {
-    Blue, Blue, DarkCyan, DarkCyan, DarkCyan, DarkCyan, DeepSkyBlue, DeepSkyBlue,
-    Cyan, DodgerBlue, Turquoise, MediumTurquoise, CornflowerBlue, CornflowerBlue, CadetBlue, MediumAquamarine};
-
-const TProgmemRGBPalette16 Cruise7 FL_PROGMEM = {
-    DarkCyan, DarkCyan, DarkCyan, DarkCyan, DeepSkyBlue, DeepSkyBlue, Cyan, Cyan,
-    DodgerBlue, DodgerBlue, Turquoise, MediumTurquoise, MediumTurquoise, CornflowerBlue, CadetBlue, MediumAquamarine};
-
-/*
-#define CornflowerBlue CRGB::CornflowerBlue
-#define CadetBlue CRGB::CadetBlue
-#define MediumAquamarine CRGB::MediumAquamarine
-#define Aquamarine CRGB::Aquamarine
-*/
-const TProgmemRGBPalette16 Cruise8 FL_PROGMEM = {
-    DarkCyan, DarkCyan, DeepSkyBlue, DeepSkyBlue, Cyan, Cyan, DodgerBlue, DodgerBlue,
-    DodgerBlue, Turquoise, MediumTurquoise, CornflowerBlue, CornflowerBlue, CadetBlue, MediumAquamarine, Aquamarine};
-
-const TProgmemRGBPalette16 Cruise9 FL_PROGMEM = {
-    DeepSkyBlue, DeepSkyBlue, Cyan, Cyan, DodgerBlue, DodgerBlue, Turquoise, Turquoise,
-    MediumTurquoise, CornflowerBlue, CadetBlue, CadetBlue, MediumAquamarine, Aquamarine, Aquamarine, Aquamarine};
-
-const TProgmemRGBPalette16 *CruiseLevelPaletteList[] = {
-    &Cruise0,
-    &Cruise1,
-    &Cruise2,
-    &Cruise3,
-    &Cruise4,
-    &Cruise5,
-    &Cruise6,
-    &Cruise7,
-    &Cruise8,
-    &Cruise9,
-};
-
-/*
-        Amethyst=0x9966CC,
-
-        Coral=0xFF7F50,
-        Crimson=0xDC143C,
-        DeepPink=0xFF1493,
-        HotPink=0xFF69B4,
-        IndianRed=0xCD5C5C,
-        LightCoral=0xF08080,
-        LightPink=0xFFB6C1,
-        LightSalmon=0xFFA07A,
-        Maroon=0x800000,
-        DarkRed=0x8B0000,
-        DarkSalmon=0xE9967A,
-        MediumVioletRed=0xC71585,
-        MistyRose=0xFFE4E1,
-        Pink=0xFFC0CB,
-        Red=0xFF0000,
-        Salmon=0xFA8072,
-        Tomato=0xFF6347,
-
-
-        RosyBrown=0xBC8F8F,
-        Orange=0xFFA500,
-        OrangeRed=0xFF4500,
-        DarkOrange=0xFF8C00,
-        DarkOrchid=0x9932CC,
-
-        LightYellow=0xFFFFE0,
-        Yellow=0xFFFF00,
-
-        AliceBlue=0xF0F8FF,
-        Aqua=0x00FFFF,
-        Aquamarine=0x7FFFD4,
-        Azure=0xF0FFFF,
-        Blue=0x0000FF,
-        BlueViolet=0x8A2BE2,
-        CadetBlue=0x5F9EA0,
-        CornflowerBlue=0x6495ED,
-        Cyan=0x00FFFF,
-        DarkBlue=0x00008B,
-        DarkCyan=0x008B8B,
-        DeepSkyBlue=0x00BFFF,
-        DodgerBlue=0x1E90FF,
-
-        Indigo=0x4B0082,
-        LightBlue=0xADD8E6,
-        LightCyan=0xE0FFFF,
-        LightSkyBlue=0x87CEFA,
-
-        MediumAquamarine=0x66CDAA,
-        MediumBlue=0x0000CD,
-        MediumTurquoise=0x48D1CC,
-        MidnightBlue=0x191970,
-        Navy=0x000080,
-        PowderBlue=0xB0E0E6,
-        RoyalBlue=0x4169E1,
-        SkyBlue=0x87CEEB,
-        Turquoise=0x40E0D0,
-*/
-
-// const TProgmemRGBPalette16 Emergency FL_PROGMEM = {
-//     CRGB::DarkRed,
-//     CRGB::DarkRed,
-//     CRGB::DarkRed,
-//     CRGB::Red,
-//     CRGB::Red,
-//     CRGB::Red,
-//     CRGB::Red,
-//     CRGB::Red,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-//     CRGB::OrangeRed,
-// };
-
-// const TProgmemRGBPalette16 Damaged FL_PROGMEM = {
-//     CRGB::Red, CRGB::Red, CRGB::Red, CRGB::Red,
-//     CRGB::Red, CRGB::Orange, CRGB::Orange, CRGB::Yellow,
-//     CRGB::Yellow, CRGB::Yellow, CRGB::White, CRGB::White,
-//     CRGB::White, CRGB::White, CRGB::White, CRGB::White};
-
-// const TProgmemRGBPalette16 Critical FL_PROGMEM = {
-//     CRGB::White, CRGB::White, CRGB::White, CRGB::White, CRGB::White, CRGB::White,
-//     CRGB::White, CRGB::White, CRGB::White, CRGB::White, CRGB::White, CRGB::White,
-//     CRGB::White, CRGB::White, CRGB::White, CRGB::White};
-
-CRGBPalette16 ActivePalette;
-float chaserPosition[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
-float chaserSpeed[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
-uint8_t cruiseLevel;
-
-int totalBytes = 0;
-
-void resetMemoryUsage()
-{
-  totalBytes = 0;
-}
-
-void addMemoryUsage(const char *name, int size)
-{
-  Logger.Info(F("Meory Usage: %s size: %d"), name, size);
-  totalBytes += size;
-}
-
-void logMemoryUsage()
-{
-  resetMemoryUsage();
-  addMemoryUsage("reactorPalette", sizeof(reactorPalette));
-  addMemoryUsage("ActivePalette", sizeof(ActivePalette));
-  addMemoryUsage("chaserPosition", sizeof(chaserPosition));
-  addMemoryUsage("chaserSpeed", sizeof(chaserSpeed));
-
-  Logger.Info(F("Total Meory Usage: %d"), totalBytes);
-}
-
-float cruiseLevelProgress()
-{
-  return ((float)cruiseLevel / CRUISE_LEVEL_MAX);
-}
-
-uint8_t cruiseBrightness()
-{
-  uint8_t newBrightness = CRUISE_BRIGHTNESS_MIN;
-
-  switch (brightnessMode)
+private:
+  float paramTerp(float lowLevel, float highLevel, easing_functions easingFunc)
   {
-  case CB_Exp:
-    break;
-  case CB_Log:
-    break;
-
-  default: // Default to CB_Linear
-    newBrightness =
-        CRUISE_BRIGHTNESS_MIN + cruiseDelta * cruiseLevelProgress();
-    break;
+    auto easingFunction = getEasingFunction(easingFunc);
+    double progress = easingFunction(cruiseLevel);
+    return lerp(lowLevel, highLevel, progress);
   }
 
-  newBrightness =
-      clamp(newBrightness, CRUISE_BRIGHTNESS_MIN, CRUISE_BRIGHTNESS_MAX);
+public:
+  CruiseParam(float lowStart, float lowEnd, float highStart, float highEnd, easing_functions easingFunc)
+  {
+    LowLevelRangeStart = lowStart;
+    LowLevelRangeEnd = lowEnd;
 
-  return newBrightness;
-}
+    HighLevelRangeStart = highStart;
+    HighLevelRangeEnd = highEnd;
+
+    levelsEasingFunc = easingFunc;
+  }
+
+  // When the engine is at its lowest level, what start/end range of the parameter should be applied to the noise function
+  float LowLevelRangeStart;
+  float LowLevelRangeEnd;
+
+  // When the engine is at its highest level, what start/end range of the parameter should be applied to the noise function
+  float HighLevelRangeStart;
+  float HighLevelRangeEnd;
+
+  // Given the ranges above, how should the cruise level interpolate the range bounds from low/high level. See
+  // https://easings.net/ for a description of what the various easing functions look like
+  easing_functions levelsEasingFunc;
+
+  float RangeStart()
+  {
+    return paramTerp(LowLevelRangeStart, HighLevelRangeStart, levelsEasingFunc);
+  }
+
+  float RangeEnd()
+  {
+    return paramTerp(LowLevelRangeEnd, HighLevelRangeEnd, levelsEasingFunc);
+  }
+};
+
+const int HUE_DARK_BLUE = 165;
+const int HUE_MID_DARK_BLUE = 150;
+const int HUE_MID_LIGHT_BLUE = 145;
+const int HUE_BLUE_AQUA = 130;
+
+// Warp Core Color progression parameter
+CruiseParam hueParam(HUE_DARK_BLUE, HUE_MID_DARK_BLUE, HUE_MID_LIGHT_BLUE, HUE_BLUE_AQUA, EaseInCirc);
+
+// Warp Core Saturation (whiteness) progression parameter -- a fully saturated color has no white, a zero saturated
+// color is pure white.  Higher engine levels push the engine color more towards the white end.
+CruiseParam satParam(230, 255, 30, 180, EaseInExpo);
+
+// Warp Core Value (brightness) parameter
+CruiseParam valueParam(60, 230, 220, 255, EaseOutCubic);
+
+float chaserPosition[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
+float chaserSpeedPct[REACTOR_SEGMENTS * CHASERS_PER_SEGMENT];
 
 bool showDiags = false;
 
 void reactor_setup()
 {
-  logMemoryUsage();
-
   Logger.Info(F("Setup Chaser: Segs: %d, SegSize: %d"), REACTOR_SEGMENTS, SEGMENT_SIZE);
 
-  ActivePalette = *(CruiseLevelPaletteList[0]);
   reactor_cruise(0);
 
   if (showDiags)
@@ -308,42 +126,40 @@ void reactor_setup()
     {
       int flatIndex = segmentIndex * CHASERS_PER_SEGMENT + chaserIndex;
 
-      int segmentPos = random(SEGMENT_SIZE);
+      int segmentPos = MoarRandom.randomInt(SEGMENT_SIZE);
 
       chaserPosition[flatIndex] = segmentPos + segmentOffset;
-      chaserSpeed[flatIndex] = (20 + random(80)) / 100.0;
+      chaserSpeedPct[flatIndex] = MoarRandom.randomFloat() * 80.0 + 20.0;
       if (showDiags)
       {
         Logger.Info(F("Init Chaser: Seg: %d, Chaser: %d, index: %d, offset: %d, pos: %f, speed: %f"),
-                    segmentIndex, chaserIndex, flatIndex, segmentOffset, chaserPosition[flatIndex], chaserSpeed[flatIndex]);
+                    segmentIndex, chaserIndex, flatIndex, segmentOffset, chaserPosition[flatIndex], chaserSpeedPct[flatIndex]);
       }
     }
   }
 }
 
-void reactor_cruise(uint8_t newCruiseLevel)
+void reactor_cruise(float newCruiseLevel)
 {
-  // showDiags = true;
-  cruiseLevel = clamp(newCruiseLevel, 0, CRUISE_LEVEL_MAX);
-
-  uint8_t brightness = cruiseBrightness();
-  uint8_t newSpeed = 0 + cruiseLevelProgress() * 8;
-
-  // Logger.Info(F("reactor_cruise: Setting cruise level to %d, brightness to: %d, speed to: %d"), cruiseLevel, brightness, newSpeed);
+  cruiseLevel = clamp(newCruiseLevel, 0, 1.0);
 
   if (SHIFT_PALETTE)
   {
-    ActivePalette = *(CruiseLevelPaletteList[cruiseLevel]);
+    setFogParamRange(FogParam_H, hueParam.RangeStart(), hueParam.RangeEnd());
+    setFogParamRange(FogParam_S, satParam.RangeStart(), satParam.RangeEnd());
   }
 
   if (SHIFT_TWINKLE_SPEED)
   {
-    setTwinkleSpeed(newSpeed);
+    setFogParamSpeed(FogParam_H, cruiseLevel * 100);
+    setFogParamSpeed(FogParam_S, cruiseLevel * 100);
+    setFogParamScale(FogParam_H, cruiseLevel * 100);
+    setFogParamScale(FogParam_V, cruiseLevel * 100);
   }
 
   if (SHIFT_BRIGHTNESS)
   {
-    FastLED.setBrightness(brightness);
+    setFogParamRange(FogParam_V, valueParam.RangeStart(), valueParam.RangeEnd());
   }
 }
 
@@ -360,7 +176,7 @@ void drawChasers(CRGBSet &leds)
 
   // This is how far each chaser should have moved, based upon the amount of time that has elapsed since we last updated
   float chaserDistance = ((MAX_CHASER_SPEED_PIXELS_PER_SECOND / 1000.0) * millisElapsed);
-  chaserDistance *= clamp(cruiseLevelProgress(), 0.1, 1);
+  chaserDistance *= clamp(cruiseLevel, 0.1, 1);
 
   if (showDiags)
   {
@@ -376,7 +192,7 @@ void drawChasers(CRGBSet &leds)
     {
       unsigned int flatIndex = segmentIndex * CHASERS_PER_SEGMENT + chaserIndex;
 
-      chaserPosition[flatIndex] += chaserDistance * chaserSpeed[flatIndex];
+      chaserPosition[flatIndex] += chaserDistance * chaserSpeedPct[flatIndex];
 
       if (chaserPosition[flatIndex] >= segmentOffset + SEGMENT_SIZE)
       {
@@ -403,16 +219,17 @@ void drawChasers(CRGBSet &leds)
 
 void reactor_loop(CRGBSet &leds)
 {
-  drawTwinkles(ActivePalette, leds);
+  fog_loop(leds);
 
   if (SHOW_CHASERS)
   {
     drawChasers(leds);
   }
 
-  for (unsigned int cruiseDiagIndex = 0; cruiseDiagIndex < cruiseLevel; cruiseDiagIndex++) {
+  for (unsigned int cruiseDiagIndex = 0; cruiseDiagIndex < cruiseLevel; cruiseDiagIndex++)
+  {
     leds[cruiseDiagIndex + 1] = 0x004400;
   }
 
-    FastLED.show();
+  FastLED.show();
 }

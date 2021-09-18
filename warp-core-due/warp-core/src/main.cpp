@@ -60,6 +60,9 @@ unsigned int cruise_level = 0;
 
 void loop()
 {
+  fog_loop(leds);
+  return;
+
   unsigned long simTime = millis();
 
   if (simTime > nextBlink)
@@ -84,9 +87,6 @@ void loop()
 
     BLINK_DURATION = 1000 - cruise_level * 100;
   }
-
-  fog_loop(leds);
-  return;
 
   switch (mode)
   {
