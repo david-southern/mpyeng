@@ -109,9 +109,29 @@ bool showDiags = false;
 
 void reactor_setup()
 {
-  Logger.Info(F("Setup Chaser: Segs: %d, SegSize: %d"), REACTOR_SEGMENTS, SEGMENT_SIZE);
+  // Initialize the fog sim for the reactor animation background
+  fog_setup();
 
-  reactor_cruise(0);
+  Logger.Info(F("Reactor: ##################### INITIALIZING #####################"));
+  Logger.Info(F("Reactor: ##################### INITIALIZING #####################"));
+  Logger.Info(F("Reactor: ##################### INITIALIZING #####################"));
+  Logger.Info(F("Reactor: Segs: %d, SegSize: %d"), REACTOR_SEGMENTS, SEGMENT_SIZE);
+
+  cruiseLevel = 0;
+
+  // Set initial params for all settings so that settings that aren't animating still look correct
+  setFogParamScale(FogParam_H, 5);
+  setFogParamScale(FogParam_S, 1);
+  setFogParamScale(FogParam_V, 1);
+  setFogParamSpeed(FogParam_H, 0);
+  setFogParamSpeed(FogParam_S, 0);
+  setFogParamSpeed(FogParam_V, 0);
+  setFogParamRange(FogParam_H, 150, 165);
+  setFogParamRange(FogParam_S, 255, 255);
+  setFogParamRange(FogParam_V, 128, 128);
+  // setFogParamRange(FogParam_H, hueParam.RangeStart(), hueParam.RangeEnd());
+  // setFogParamRange(FogParam_S, satParam.RangeStart(), satParam.RangeEnd());
+  // setFogParamRange(FogParam_V, valueParam.RangeStart(), valueParam.RangeEnd());
 
   if (showDiags)
   {
@@ -141,7 +161,9 @@ void reactor_setup()
 
 void reactor_cruise(float newCruiseLevel)
 {
+  return;
   cruiseLevel = clamp(newCruiseLevel, 0, 1.0);
+  Logger.Info("Reactor: Setting cruise level to: %f", cruiseLevel);
 
   if (SHIFT_PALETTE)
   {
@@ -151,10 +173,10 @@ void reactor_cruise(float newCruiseLevel)
 
   if (SHIFT_TWINKLE_SPEED)
   {
-    setFogParamSpeed(FogParam_H, cruiseLevel * 100);
-    setFogParamSpeed(FogParam_S, cruiseLevel * 100);
-    setFogParamScale(FogParam_H, cruiseLevel * 100);
-    setFogParamScale(FogParam_V, cruiseLevel * 100);
+    setFogParamSpeed(FogParam_H, 1 + cruiseLevel * 9);
+    // setFogParamSpeed(FogParam_S, 1 + cruiseLevel * 9);
+    // setFogParamScale(FogParam_H, 4 + cruiseLevel * 10);
+    // setFogParamScale(FogParam_V, 4 + cruiseLevel * 10);
   }
 
   if (SHIFT_BRIGHTNESS)

@@ -35,9 +35,6 @@ void setup()
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.setMaxPowerInVoltsAndMilliamps(VOLTS, MAX_MA);
 
-  fog_setup();
-  return;
-
   switch (mode)
   {
   case StripTest:
@@ -56,13 +53,11 @@ int blinkMode = 1;
 
 unsigned long CRUISE_DURATION = 3000;
 unsigned long nextCruiseShift = 0;
-unsigned int cruise_level = 0;
+float cruise_level = 0;
+float cruise_step = 0.1;
 
 void loop()
 {
-  fog_loop(leds);
-  return;
-
   unsigned long simTime = millis();
 
   if (simTime > nextBlink)
@@ -77,13 +72,14 @@ void loop()
   {
     nextCruiseShift = simTime + CRUISE_DURATION;
 
-    reactor_cruise(cruise_level);
+    cruise_level += cruise_step;
 
-    cruise_level++;
-    if (cruise_level >= 10)
+    if (cruise_level > 1)
     {
       cruise_level = 0;
     }
+
+    reactor_cruise(cruise_level);
 
     BLINK_DURATION = 1000 - cruise_level * 100;
   }

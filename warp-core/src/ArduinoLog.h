@@ -1,13 +1,8 @@
 #pragma once
 
+#include "common.h"
+
 // #define LOW_MEMORY_LOGGING
-
-#ifndef LOW_MEMORY_LOGGING
-#include <inttypes.h>
-#include <stdarg.h>
-#endif
-
-#include "Arduino.h"
 
 typedef void (*printfunction)();
 

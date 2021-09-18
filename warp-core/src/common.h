@@ -2,9 +2,17 @@
 
 #include <Arduino.h>
 
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <cmath>
+#include <map>
+
 // This line suppresses the FastLED warning advertising the FastLED version...
 #define FASTLED_INTERNAL
 #include "FastLED.h"
+
 
 #include "utils.h"
 #include "easing.h"
@@ -30,7 +38,7 @@
 #define MAX_MA 4000
 #define LED_TYPE WS2812B
 #define COLOR_ORDER RGB
-#define DATA_PIN 3
+#define DATA_PIN 15
 #define BRIGHTNESS 250
 
 #define FOG_DOUBLE

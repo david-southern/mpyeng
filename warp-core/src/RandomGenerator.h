@@ -1,8 +1,6 @@
 #pragma once
 
-#include <inttypes.h>
-#include <stdarg.h>
-#include "Arduino.h"
+#include "common.h"
 
 #define MAX_ENTROPY_PINS 20
 

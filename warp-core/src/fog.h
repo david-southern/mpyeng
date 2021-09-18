@@ -1,6 +1,6 @@
 #pragma once
 
-#include <FastLED.h>
+#include "common.h"
 
 enum FogParam
 {
@@ -8,6 +8,14 @@ enum FogParam
     FogParam_S,
     FogParam_V
 };
+
+extern const char *FogParamName[];
+
+/**
+ * Set the desired frame rate for the fog animation.  If your processor can run faster than this then the fog sim will
+ * not consume more CPU than needed to achieve this rate.
+ */
+void setFogFrameRate(float framesPerSec);
 
 /**
  * Indicate the start/end range of the parameter that should be applied to the noise function

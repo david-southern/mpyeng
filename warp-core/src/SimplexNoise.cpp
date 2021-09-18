@@ -1,5 +1,3 @@
-#include <stdexcept>
-
 #include "common.h"
 
 // Downloaded from: https://weber.itn.liu.se/~stegu/aqsis/aqsis-newnoise/simplexnoise1234.cpp

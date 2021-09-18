@@ -1,7 +1,11 @@
 #include "common.h"
-#include "limits.h"
 
-#ifdef FOG_DOUBLE
+const char *FogParamName[] = {
+    "FogParam_H",
+    "FogParam_S",
+    "FogParam_V"
+};
+
 // Floating point math on a microcontroller!  Are you nuts!!
 //
 // Well, I initially wrote this fog module using FastLED's Perlin noise function.  However that library is focused on
@@ -13,7 +17,9 @@
 // integer overflow and non-normalized problems.  I was able to get it all to mostly work, but it was a bear to maintain
 // and extend, so I decied to re-imp this using floating point math, and just require a more modern MCU.  I also found a
 // public domain implementation of Simplex Noise, which is a successor to Perlin noise that gives smoother gradients
-// than Perlin
+// than Perlin.
+//
+// For reference, this code running on my ESP32 produces 85 frames/sec
 
 // OVERVIEW
 //
@@ -104,10 +110,19 @@ float sEnd = 255;
 float vStart = 32;
 float vEnd = 255;
 
+// Set to a default of 50 frames/sec
+float desiredMillisPerFrame = 20;
+
 const int STARTING_POSITION_RANGE = 9;
 
 // The Simplex noise has trouble if we pass 'large' parameters.  Wrap parameter values that exceed this limit.
 const float MAX_SIMPLEX_PARAM = 100;
+
+void setFogFrameRate(float framesPerSec)
+{
+    desiredMillisPerFrame = 1000.0 / framesPerSec;
+    Logger.Info("FogSim: Setting frame rate to %f", framesPerSec);
+}
 
 void setFogParamRange(FogParam param, float start, float end)
 {
@@ -126,6 +141,8 @@ void setFogParamRange(FogParam param, float start, float end)
         vEnd = end;
         break;
     }
+
+    Logger.Info("FogSim: Setting param '%s' range to [%f, %f]", FogParamName[param], start, end);
 }
 
 void setFogParamSpeed(FogParam param, float speed)
@@ -142,6 +159,7 @@ void setFogParamSpeed(FogParam param, float speed)
         vSpeed = speed / 100;
         break;
     }
+    Logger.Info("FogSim: Setting param '%s' speed to %f", FogParamName[param], speed);
 }
 
 void setFogParamScale(FogParam param, float scale)
@@ -159,6 +177,7 @@ void setFogParamScale(FogParam param, float scale)
         vScale = scale / 100;
         break;
     }
+    Logger.Info("FogSim: Setting param '%s' scale to %f", FogParamName[param], scale);
 }
 
 void fog_setup()
@@ -178,8 +197,13 @@ void fog_setup()
     initParams();
 }
 
-unsigned int fogDiags = 0;
-float fogDiagFreqSec = 1;
+unsigned int nextFogDiagsMillis = 0;
+float fogDiagsFreqSec = 1;
+bool showFogDiags = false;
+uint32_t nextFogFrameMillis = 0;
+const bool reportFrameRate = false;
+float frameCount = 0;
+float frameMillis = 0;
 
 #ifdef DIAGNOSE_SHIFT_RATE
 unsigned int prevHue = 0;
@@ -226,18 +250,16 @@ float advanceScanline(float scanline, float speed)
     return scanline;
 }
 
-bool showFogDiags = false;
-
-float logXParam[NUM_LEDS];
-float logNoise[NUM_LEDS];
-float logDelta[NUM_LEDS];
-float logV[NUM_LEDS];
+// float logXParam[NUM_LEDS];
+// float logNoise[NUM_LEDS];
+// float logDelta[NUM_LEDS];
+// float logV[NUM_LEDS];
 
 void fog_loop(CRGBSet &leds)
 {
     // if (showFogDiags)
     // {
-    //     if (millis() > fogDiags)
+    //     if (millis() > nextFogDiagsMillis)
     //     {
     //         double totalDeltaN = 0;
     //         double totalDeltaV = 0;
@@ -251,7 +273,7 @@ void fog_loop(CRGBSet &leds)
     //             prevV = logV[i];
     //         }
     //         Logger.Info("Scale: %f, average deltaNoise: %f, avg deltaV: %f", hScale, totalDeltaN / NUM_LEDS, totalDeltaV / NUM_LEDS);
-    //         fogDiags = LONG_MAX;
+    //         nextFogDiagsMillis = LONG_MAX;
     //     }
     //     return;
     // }
@@ -284,14 +306,34 @@ void fog_loop(CRGBSet &leds)
 
     // FastLED.show();
 
-    // fogDiags = millis() + fogDiagFreqSec * 1000;
+    // nextFogDiagsMillis = millis() + fogDiagsFreqSec * 1000;
     // showFogDiags = true;
     // return;
 
-    showFogDiags = false;
-    if (millis() > fogDiags)
+    uint32_t simTime = millis();
+
+    if (simTime < nextFogFrameMillis)
     {
-        fogDiags = millis() + fogDiagFreqSec * 1000;
+        return;
+    }
+
+    nextFogFrameMillis = simTime + desiredMillisPerFrame;
+
+    showFogDiags = false;
+    frameCount++;
+
+    if (millis() > nextFogDiagsMillis)
+    {
+        if (reportFrameRate && frameMillis > 0)
+        {
+            double frameSeconds = (millis() - frameMillis) / 1000.0;
+            Logger.Info(F("Fog: frame rate: %f frames/sec"), frameCount / frameSeconds);
+        }
+
+        frameCount = 0;
+        frameMillis = millis();
+
+        nextFogDiagsMillis = millis() + fogDiagsFreqSec * 1000;
         showFogDiags = true;
     }
 
@@ -342,7 +384,7 @@ void fog_loop(CRGBSet &leds)
             if (showFogDiags)
             {
                 Logger.Info(F("Fog[3]: avg shift/sec: %f, avgShift/loop: %f, sampled: %d, hue: %u, brightness: %u"),
-                            totalShift / fogDiagFreqSec, (totalShift / shiftSamples), (int)shiftSamples, hFog, vFog);
+                            totalShift / fogDiagsFreqSec, (totalShift / shiftSamples), (int)shiftSamples, hFog, vFog);
                 totalShift = 0;
                 shiftSamples = 0;
             }
@@ -364,4 +406,3 @@ void fog_loop(CRGBSet &leds)
 
     FastLED.show();
 }
-#endif
