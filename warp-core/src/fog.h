@@ -33,4 +33,4 @@ void setFogParamSpeed(FogParam param, float speed);
 void setFogParamScale(FogParam param, float scale);
 
 void fog_setup();
-void fog_loop(CRGBSet &leds);
+bool fog_loop(CRGBSet &leds);

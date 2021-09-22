@@ -6,12 +6,14 @@ void RandomGenerator::checkInitialization()
 {
     if (!isInitialized)
     {
+        Logger.Info(F("MoarRandom.checkInit: called"));
         randomizeRandomSeed();
     }
 }
 
 void RandomGenerator::setRandomSeed(uint32_t seed)
 {
+    Logger.Info(F("MoarRandom.setRandomSeed: called"));
     isInitialized = true;
     randomSeed(seed);
 }
@@ -23,6 +25,7 @@ void RandomGenerator::randomizeRandomSeed()
 
 uint32_t RandomGenerator::generateRandomSeed(uint8_t numPins, ...)
 {
+    Logger.Info(F("MoarRandom.genRand: numPins: %u"), numPins);
     // Lots of Arduino code suggests analogRead() from an unconnected analog pin as a way to generate entropy.  In
     // practice, though, on my Arduino Due, I see the analogRead of a pin clustering within about 10 integers of the
     // same value, over multiple resets.  Different pins appear to cluster around different values, but even then they
@@ -30,6 +33,7 @@ uint32_t RandomGenerator::generateRandomSeed(uint8_t numPins, ...)
     // reading four different pins, and hashing the results together.
     if (numPins < 1 || numPins > MAX_ENTROPY_PINS)
     {
+        Logger.Info(F("MoarRandom.genRand: calling default init"));
         return generateRandomSeed(4, 0, 1, 2, 3);
     }
 

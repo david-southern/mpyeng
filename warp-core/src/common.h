@@ -13,6 +13,7 @@
 #define FASTLED_INTERNAL
 #include "FastLED.h"
 
+#include "Bounce2.h"
 
 #include "utils.h"
 #include "easing.h"
@@ -38,7 +39,10 @@
 #define MAX_MA 4000
 #define LED_TYPE WS2812B
 #define COLOR_ORDER RGB
-#define DATA_PIN 15
+#define DATA_PIN 12
 #define BRIGHTNESS 250
+
+#define CRUISE_UP_PIN 11
+#define CRUISE_DOWN_PIN 10
 
 #define FOG_DOUBLE

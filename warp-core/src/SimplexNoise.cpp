@@ -231,7 +231,11 @@ float SimplexNoise::noise(float x, float y) {
 
     // Add contributions from each corner to get the final noise value.
     // The result is scaled to return values in the interval [-1,1].
-    return 40.0f * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
+    // return 40.0f * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
+
+    // This scale factor and translation calculated by sampling 10M points repeatedly.  Generates a pretty uniform
+    // distribution over [-1, 1]
+    return clamp(47.9f * (n0 + n1 + n2) + 0.01, -1, 1); 
   }
 
 // 3D simplex noise

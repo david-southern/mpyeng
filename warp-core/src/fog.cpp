@@ -3,8 +3,7 @@
 const char *FogParamName[] = {
     "FogParam_H",
     "FogParam_S",
-    "FogParam_V"
-};
+    "FogParam_V"};
 
 // Floating point math on a microcontroller!  Are you nuts!!
 //
@@ -112,6 +111,7 @@ float vEnd = 255;
 
 // Set to a default of 50 frames/sec
 float desiredMillisPerFrame = 20;
+bool reportFrameRate = false;
 
 const int STARTING_POSITION_RANGE = 9;
 
@@ -120,7 +120,15 @@ const float MAX_SIMPLEX_PARAM = 100;
 
 void setFogFrameRate(float framesPerSec)
 {
-    desiredMillisPerFrame = 1000.0 / framesPerSec;
+    if (framesPerSec < 0.1)
+    {
+        desiredMillisPerFrame = 0;
+        reportFrameRate = true;
+    }
+    else
+    {
+        desiredMillisPerFrame = 1000.0 / framesPerSec;
+    }
     Logger.Info("FogSim: Setting frame rate to %f", framesPerSec);
 }
 
@@ -142,7 +150,7 @@ void setFogParamRange(FogParam param, float start, float end)
         break;
     }
 
-    Logger.Info("FogSim: Setting param '%s' range to [%f, %f]", FogParamName[param], start, end);
+    // Logger.Info("FogSim: Setting param '%s' range to [%f, %f]", FogParamName[param], start, end);
 }
 
 void setFogParamSpeed(FogParam param, float speed)
@@ -159,7 +167,7 @@ void setFogParamSpeed(FogParam param, float speed)
         vSpeed = speed / 100;
         break;
     }
-    Logger.Info("FogSim: Setting param '%s' speed to %f", FogParamName[param], speed);
+    // Logger.Info("FogSim: Setting param '%s' speed to %f", FogParamName[param], speed);
 }
 
 void setFogParamScale(FogParam param, float scale)
@@ -168,7 +176,6 @@ void setFogParamScale(FogParam param, float scale)
     {
     case FogParam_H:
         hScale = scale / 100;
-        Logger.Info("Set hScale to %f", hScale);
         break;
     case FogParam_S:
         sScale = scale / 100;
@@ -177,7 +184,7 @@ void setFogParamScale(FogParam param, float scale)
         vScale = scale / 100;
         break;
     }
-    Logger.Info("FogSim: Setting param '%s' scale to %f", FogParamName[param], scale);
+    // Logger.Info("FogSim: Setting param '%s' scale to %f", FogParamName[param], scale);
 }
 
 void fog_setup()
@@ -193,15 +200,12 @@ void fog_setup()
     vScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
 
     Logger.Info(F("Starting with h: (%f, %f), s: (%f, %f), v: (%f, %f)"), hPos, hScanline, sPos, sScanline, vPos, vScanline);
-
-    initParams();
 }
 
 unsigned int nextFogDiagsMillis = 0;
 float fogDiagsFreqSec = 1;
 bool showFogDiags = false;
 uint32_t nextFogFrameMillis = 0;
-const bool reportFrameRate = false;
 float frameCount = 0;
 float frameMillis = 0;
 
@@ -255,7 +259,7 @@ float advanceScanline(float scanline, float speed)
 // float logDelta[NUM_LEDS];
 // float logV[NUM_LEDS];
 
-void fog_loop(CRGBSet &leds)
+bool fog_loop(CRGBSet &leds)
 {
     // if (showFogDiags)
     // {
@@ -312,12 +316,15 @@ void fog_loop(CRGBSet &leds)
 
     uint32_t simTime = millis();
 
-    if (simTime < nextFogFrameMillis)
+    if (desiredMillisPerFrame > 0)
     {
-        return;
-    }
+        if (simTime < nextFogFrameMillis)
+        {
+            return false;
+        }
 
-    nextFogFrameMillis = simTime + desiredMillisPerFrame;
+        nextFogFrameMillis = simTime + desiredMillisPerFrame;
+    }
 
     showFogDiags = false;
     frameCount++;
@@ -404,5 +411,6 @@ void fog_loop(CRGBSet &leds)
     }
 #endif // DIAGNOSE_MIN_MAX
 
-    FastLED.show();
+    // FastLED.show();
+    return true;
 }
