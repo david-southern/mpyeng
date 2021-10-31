@@ -1,0 +1,16 @@
+{
+    "help": "https://go.microsoft.com/fwlink/?linkid=866610",
+    "root": false,
+
+    "dependentFileProviders": {
+        "add": {
+            "fileToFile": {
+                "add": {
+                    "NeoPixelProtocol-SPI.cs": [
+                        "INeoPixelProtocol.cs"
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -22,27 +22,38 @@
 #include "ArduinoLog.h"
 #include "SimplexNoise.h"
 
-#include "fog.h"
-#include "reactor.h"
+#include "reactor_fog.h"
+#include "reactor_control.h"
 #include "strip_test.h"
 
 // Arduino library includes constrain(), but I prefer to call it clamp()
 #define clamp constrain
 
+#define BRIGHTNESS 250
 #ifndef LOW_MEMORY_LOGGING
-#define NUM_LEDS 300
+#define NUM_LEDS 976
 #else
 #define NUM_LEDS 100
 #endif
 
-#define VOLTS 12
-#define MAX_MA 4000
 #define LED_TYPE WS2812B
-#define COLOR_ORDER RGB
-#define DATA_PIN 12
-#define BRIGHTNESS 250
 
-#define CRUISE_UP_PIN 11
-#define CRUISE_DOWN_PIN 10
+// 12-volt strip
+// #define COLOR_ORDER RGB
 
-#define FOG_DOUBLE
+// 5-volt strip
+#define COLOR_ORDER GRB
+
+// For ESP32
+#define LED_DATA_PIN 15
+#define CRUISE_UP_PIN 14
+#define CRUISE_DOWN_PIN 32
+
+// For Feather M4 Express
+// #define LED_DATA_PIN 12
+// #define CRUISE_UP_PIN 11
+// #define CRUISE_DOWN_PIN 10
+
+
+
+void checkBlink(const char *loc);

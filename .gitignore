@@ -1,3 +1,10 @@
+obj/
+bin/
+.vshistory/
+.vs/
+000-attic/
+*.user
+
 # Prerequisites
 *.d
 

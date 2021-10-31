@@ -27,7 +27,7 @@ void setup()
   cruiseLevelDown.interval(BUTTON_DEBOUNCE_MILLIS);
   cruiseLevelDown.setPressedState(HIGH);
 
-  unsigned long serialWaitExpire = millis() + 1500;
+  unsigned int serialWaitExpire = millis() + 1500;
 
   // Serial.begin(115200);
   Logger.InitializeSerial();
@@ -37,17 +37,20 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB
   }
 
+  Logger.SetLogLevel(LOG_LEVEL_INFO);
+
   delay(3000);
 
   // Analog pin config for ESP32
-  MoarRandom.setRandomSeed(MoarRandom.generateRandomSeed(4, 26, 25, 34, 39));
+  // MoarRandom.setRandomSeed(MoarRandom.generateRandomSeed(4, 26, 25, 34, 39));
 
-  Logger.SetLogLevel(LOG_LEVEL_INFO);
+  // Analog pin config for FeatherM4
+  MoarRandom.setRandomSeed(MoarRandom.generateRandomSeed(4, A0, A1, A2, A3));
+
   Logger.Info(F("SpaceSimWarp starting up"));
 
-  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
-  FastLED.setMaxPowerInVoltsAndMilliamps(VOLTS, MAX_MA);
 
   switch (mode)
   {
@@ -61,48 +64,57 @@ void setup()
   }
 }
 
-unsigned long BLINK_DURATION = 1000;
-unsigned long nextBlink = 0;
+unsigned int BLINK_DURATION = 1000;
 int blinkMode = 1;
+unsigned int nextBlinkTime = 0;
+unsigned int prevBlinkTime = 0;
 
-unsigned long CRUISE_DURATION = 300;
-unsigned long nextCruiseShift = 0;
+unsigned int CRUISE_DURATION = 300;
+unsigned int nextCruiseShift = 0;
 float cruise_level = 0;
 float cruise_step = 0.002;
 float button_cruise_step = 0.1;
 
+int simSecond = 0;
+
 void loop()
 {
+  unsigned int simTime = millis();
+
+  if (simTime > nextBlinkTime)
+  {
+    nextBlinkTime = simTime + BLINK_DURATION;
+
+    digitalWrite(LED_BUILTIN, blinkMode);
+    blinkMode = !blinkMode;
+  }
+
   cruiseLevelUp.update();
   cruiseLevelDown.update();
 
   if (cruiseLevelUp.pressed())
   {
     cruise_level += button_cruise_step;
-    if(cruise_level > 1.0) {
+    if (cruise_level > 1.0)
+    {
       cruise_level = 1.0;
     }
 
     reactor_cruise(cruise_level);
+
+    BLINK_DURATION = 1000 - cruise_level * 900;
   }
 
   if (cruiseLevelDown.pressed())
   {
     cruise_level -= button_cruise_step;
-    if(cruise_level < 0.0) {
+    if (cruise_level < 0.0)
+    {
       cruise_level = 0.0;
     }
     reactor_cruise(cruise_level);
-  }
-
-  unsigned long simTime = millis();
-
-  if (simTime > nextBlink)
-  {
-    nextBlink = simTime + BLINK_DURATION;
-
-    digitalWrite(LED_BUILTIN, blinkMode);
-    blinkMode = !blinkMode;
+    
+    BLINK_DURATION = 1000 - cruise_level * 900;
   }
 
   // if (simTime > nextCruiseShift)
@@ -118,7 +130,7 @@ void loop()
 
   //   reactor_cruise(cruise_level);
 
-  //   BLINK_DURATION = 1000 - cruise_level * 100;
+  //
   // }
 
   switch (mode)
