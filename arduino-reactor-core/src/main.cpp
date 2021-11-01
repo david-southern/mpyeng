@@ -29,7 +29,6 @@ void setup()
 
   unsigned int serialWaitExpire = millis() + 1500;
 
-  // Serial.begin(115200);
   Logger.InitializeSerial();
 
   while (!Serial && millis() < serialWaitExpire)
@@ -39,12 +38,6 @@ void setup()
 
   Logger.SetLogLevel(LOG_LEVEL_INFO);
 
-  delay(3000);
-
-  // Analog pin config for ESP32
-  // MoarRandom.setRandomSeed(MoarRandom.generateRandomSeed(4, 26, 25, 34, 39));
-
-  // Analog pin config for FeatherM4
   MoarRandom.setRandomSeed(MoarRandom.generateRandomSeed(4, A0, A1, A2, A3));
 
   Logger.Info(F("SpaceSimWarp starting up"));
@@ -69,13 +62,8 @@ int blinkMode = 1;
 unsigned int nextBlinkTime = 0;
 unsigned int prevBlinkTime = 0;
 
-unsigned int CRUISE_DURATION = 300;
-unsigned int nextCruiseShift = 0;
 float cruise_level = 0;
-float cruise_step = 0.002;
 float button_cruise_step = 0.1;
-
-int simSecond = 0;
 
 void loop()
 {
@@ -113,25 +101,9 @@ void loop()
       cruise_level = 0.0;
     }
     reactor_cruise(cruise_level);
-    
+
     BLINK_DURATION = 1000 - cruise_level * 900;
   }
-
-  // if (simTime > nextCruiseShift)
-  // {
-  //   nextCruiseShift = simTime + CRUISE_DURATION;
-
-  //   cruise_level += cruise_step;
-
-  //   if (cruise_level > 1)
-  //   {
-  //     cruise_level = 0;
-  //   }
-
-  //   reactor_cruise(cruise_level);
-
-  //
-  // }
 
   switch (mode)
   {

@@ -1,9 +1,129 @@
 #include "common.h"
 
-const char *FogParamName[] = {
-    "FogParam_H",
-    "FogParam_S",
-    "FogParam_V"};
+bool SHOW_FOG = true;
+
+// Demo parameters
+// CruiseParam fogHueParam(HUE_MID_DARK_BLUE, HUE_DARK_BLUE, HUE_LIGHT_BLUE, HUE_DARK_BLUE, EaseLinear);
+// CruiseParam fogSaturationParam(200, 255, 64, 255, EaseLinear);
+// CruiseParam fogValueParam(80, 200, 180, 255, EaseLinear);
+// CruiseParam fogScaleParam(7, 10, EaseLinear);
+// CruiseParam fogSpeedParam(2, 12, EaseLinear);
+
+CruiseParam fogHueParam(HUE_DARK_BLUE, HUE_DARK_BLUE, EaseLinear);
+CruiseParam fogSaturationParam(255, 255, 16, 255, EaseLinear);
+CruiseParam fogValueParam(80, 200, 180, 255, EaseLinear);
+
+CruiseParam fogScaleParam(7);
+CruiseParam fogSpeedParam(2, 6, EaseLinear);
+
+float fogSpeed = 0;
+float fogScale = 0;
+
+float hPos;
+float sPos;
+float vPos;
+
+float hScanline;
+float sScanline;
+float vScanline;
+
+float minHue;
+float maxHue;
+
+float minSaturation;
+float maxSaturation;
+
+float minValue;
+float maxValue;
+
+const int STARTING_POSITION_RANGE = 9;
+
+// The Simplex noise has trouble if we pass 'large' parameters.  Wrap parameter values that exceed this limit.
+const float MAX_SIMPLEX_PARAM = 100;
+const float SPEED_SCALE_DIVISOR = 100;
+
+void fog_setup()
+{
+    if (!SHOW_FOG)
+    {
+        return;
+    }
+
+    // Initialize our coordinates to some random values
+    hPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    sPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    vPos = MoarRandom.random() * STARTING_POSITION_RANGE;
+    hScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+    sScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+    vScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
+}
+
+void fog_update_params()
+{
+    if (!SHOW_FOG)
+    {
+        return;
+    }
+
+    minHue = fogHueParam.MinValue();
+    maxHue = fogHueParam.MaxValue();
+
+    minSaturation = fogSaturationParam.MinValue();
+    maxSaturation = fogSaturationParam.MaxValue();
+
+    minValue = fogValueParam.MinValue();
+    maxValue = fogValueParam.MaxValue();
+
+    fogSpeed = fogSpeedParam.MinValue() / SPEED_SCALE_DIVISOR;
+    fogScale = fogScaleParam.MinValue() / SPEED_SCALE_DIVISOR;
+}
+
+float genNoise(float index, float pos, float scale, float scanline)
+{
+    float xParam = pos + index * scale;
+    float yParam = scanline;
+
+    float retNoise = SimplexNoise::noiseNormal(xParam, yParam);
+
+    return retNoise;
+}
+
+float advanceScanline(float scanline, float speed)
+{
+    scanline += speed;
+    if (scanline > MAX_SIMPLEX_PARAM)
+    {
+        scanline = 0;
+    }
+
+    return scanline;
+}
+
+void fog_loop(CRGBSet &leds, uint32_t simTime, float secondsElapsed)
+{
+    if (!SHOW_FOG)
+    {
+        return;
+    }
+
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+        float hNoise = genNoise(i, hPos, fogScale, hScanline);
+        float sNoise = genNoise(i, sPos, fogScale, sScanline);
+        float vNoise = genNoise(i, vPos, fogScale, vScanline);
+
+        float hFog = lerp(minHue, maxHue, hNoise);
+        float sFog = lerp(minSaturation, maxSaturation, sNoise);
+        float vFog = lerp(minValue, maxValue, vNoise);
+
+        CHSV pixelColor = CHSV((uint8_t)hFog, (uint8_t)sFog, (uint8_t)vFog);
+        leds[i] = pixelColor;
+    }
+
+    hScanline = advanceScanline(hScanline, fogSpeed);
+    sScanline = advanceScanline(sScanline, fogSpeed);
+    vScanline = advanceScanline(vScanline, fogSpeed);
+}
 
 // Floating point math on a microcontroller!  Are you nuts!!
 //
@@ -43,18 +163,6 @@ const char *FogParamName[] = {
 // * 50000  |    2738     | - Extreme flickering, no coherent colors, just "rainbow shades of white" - persistence of
 //   vision across all colors
 
-void initParams()
-{
-    setFogParamSpeed(FogParam_H, 7);
-    setFogParamScale(FogParam_H, 7);
-
-    setFogParamSpeed(FogParam_S, 5);
-    setFogParamScale(FogParam_S, 5);
-
-    setFogParamSpeed(FogParam_V, 5);
-    setFogParamScale(FogParam_V, 5);
-}
-
 // <attribute>Scale determines how far apart the sampling locations in the noise field are for each pixel.  Smaller
 // scale values will tend to cluster multiple pixels in a single noise 'area of concentration', leading to a larger
 // 'blob' of similarly colored pixels and more gradual color changes between groups of adjacent pixels.  Higher scale
@@ -76,341 +184,3 @@ void initParams()
 // * 10     | 3-5         | 25         |
 // * 20     | 1           | 44         | - Every pixel is a different color, but the colors are mostly in adjacent hues
 // * 50     | 1           | 64         | - no coherence - almost all adjacent pixels jumping across 4-5 hues
-
-float hSpeed = 0;
-float sSpeed = 0;
-float vSpeed = 0;
-
-float hScale = 0;
-float sScale = 0;
-float vScale = 0;
-
-float hPos;
-float sPos;
-float vPos;
-
-float hScanline;
-float sScanline;
-float vScanline;
-
-// Note: FastLED defines its hue range from 0 - 255, rather than 0-360.  Check this page for a visual representation of
-// the FastLED hue range:
-//
-// https://github.com/FastLED/FastLED/wiki/FastLED-HSV-Colors
-float hStart = 140; // Blue-Aqua
-float hEnd = 165;   // Blue-Purple
-
-// float hStart = 0; // Full Range Test
-// float hEnd = 254;
-
-float sStart = 200;
-float sEnd = 255;
-
-float vStart = 32;
-float vEnd = 255;
-
-// Set to a default of 50 frames/sec
-float desiredMillisPerFrame = 20;
-bool reportFrameRate = false;
-
-const int STARTING_POSITION_RANGE = 9;
-
-// The Simplex noise has trouble if we pass 'large' parameters.  Wrap parameter values that exceed this limit.
-const float MAX_SIMPLEX_PARAM = 100;
-
-void setFogFrameRate(float framesPerSec)
-{
-    if (framesPerSec < 0.1)
-    {
-        desiredMillisPerFrame = 0;
-        reportFrameRate = true;
-    }
-    else
-    {
-        desiredMillisPerFrame = 1000.0 / framesPerSec;
-    }
-    Logger.Info("FogSim: Setting frame rate to %f", framesPerSec);
-}
-
-void setFogParamRange(FogParam param, float start, float end)
-{
-    switch (param)
-    {
-    case FogParam_H:
-        hStart = start;
-        hEnd = end;
-        break;
-    case FogParam_S:
-        sStart = start;
-        sEnd = end;
-        break;
-    case FogParam_V:
-        vStart = start;
-        vEnd = end;
-        break;
-    }
-
-    // Logger.Info("FogSim: Setting param '%s' range to [%f, %f]", FogParamName[param], start, end);
-}
-
-void setFogParamSpeed(FogParam param, float speed)
-{
-    switch (param)
-    {
-    case FogParam_H:
-        hSpeed = speed / 100;
-        break;
-    case FogParam_S:
-        sSpeed = speed / 100;
-        break;
-    case FogParam_V:
-        vSpeed = speed / 100;
-        break;
-    }
-    // Logger.Info("FogSim: Setting param '%s' speed to %f", FogParamName[param], speed);
-}
-
-void setFogParamScale(FogParam param, float scale)
-{
-    switch (param)
-    {
-    case FogParam_H:
-        hScale = scale / 100;
-        break;
-    case FogParam_S:
-        sScale = scale / 100;
-        break;
-    case FogParam_V:
-        vScale = scale / 100;
-        break;
-    }
-    // Logger.Info("FogSim: Setting param '%s' scale to %f", FogParamName[param], scale);
-}
-
-void fog_setup()
-{
-    MoarRandom.randomizeRandomSeed();
-
-    // Initialize our coordinates to some random values
-    hPos = MoarRandom.random() * STARTING_POSITION_RANGE;
-    sPos = MoarRandom.random() * STARTING_POSITION_RANGE;
-    vPos = MoarRandom.random() * STARTING_POSITION_RANGE;
-    hScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
-    sScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
-    vScanline = MoarRandom.random() * STARTING_POSITION_RANGE;
-
-    Logger.Info(F("Starting with h: (%f, %f), s: (%f, %f), v: (%f, %f)"), hPos, hScanline, sPos, sScanline, vPos, vScanline);
-}
-
-unsigned int nextFogDiagsMillis = 0;
-float fogDiagsFreqSec = 1;
-bool showFogDiags = false;
-uint32_t nextFogFrameMillis = 0;
-float frameCount = 0;
-float frameMillis = 0;
-
-#ifdef DIAGNOSE_SHIFT_RATE
-unsigned int prevHue = 0;
-float totalShift = 0;
-float shiftSamples = 0;
-#endif
-
-// #define DIAGNOSE_MIN_MAX
-
-#ifdef DIAGNOSE_MIN_MAX
-float minVal = STARTING_POSITION_RANGE;
-float maxVal = -STARTING_POSITION_RANGE;
-float maxX = -MAX_SIMPLEX_PARAM;
-float minX = MAX_SIMPLEX_PARAM;
-float maxY = -MAX_SIMPLEX_PARAM;
-float minY = MAX_SIMPLEX_PARAM;
-#endif
-
-float genNoise(float index, float pos, float scale, float scanline)
-{
-    float xParam = pos + index * scale;
-    float yParam = scanline;
-
-#ifdef DIAGNOSE_MIN_MAX
-    maxX = max(xParam, maxX);
-    minX = min(xParam, minX);
-    maxY = max(yParam, maxY);
-    minY = min(yParam, minY);
-#endif
-
-    float retNoise = SimplexNoise::noiseNormal(xParam, yParam);
-
-    return retNoise;
-}
-
-float advanceScanline(float scanline, float speed)
-{
-    scanline += speed;
-    if (scanline > MAX_SIMPLEX_PARAM)
-    {
-        scanline = 0;
-    }
-
-    return scanline;
-}
-
-// float logXParam[NUM_LEDS];
-// float logNoise[NUM_LEDS];
-// float logDelta[NUM_LEDS];
-// float logV[NUM_LEDS];
-
-bool fog_loop(CRGBSet &leds)
-{
-    // if (showFogDiags)
-    // {
-    //     if (millis() > nextFogDiagsMillis)
-    //     {
-    //         double totalDeltaN = 0;
-    //         double totalDeltaV = 0;
-    //         double prevV = logV[0];
-    //         for (int i = 0; i < NUM_LEDS; i++)
-    //         {
-    //             Logger.Info("LED: %d, scale: %f, xP: %f, noise: %f, v: %f, deltaNoise: %f", i, hScale, logXParam[i], logNoise[i], logV[i], logDelta[i]);
-    //             totalDeltaN += logDelta[i];
-    //             double deltaV = abs(logV[i] - prevV);
-    //             totalDeltaV += deltaV;
-    //             prevV = logV[i];
-    //         }
-    //         Logger.Info("Scale: %f, average deltaNoise: %f, avg deltaV: %f", hScale, totalDeltaN / NUM_LEDS, totalDeltaV / NUM_LEDS);
-    //         nextFogDiagsMillis = LONG_MAX;
-    //     }
-    //     return;
-    // }
-
-    // // float prevNoise = SimplexNoise::noiseNormal(0, 42);
-    // float prevNoise = genNoise(0, hPos, hScale, hScanline);
-
-    // for (int i = 0; i < NUM_LEDS; i++)
-    // {
-    //     float xParam = hPos + i * hScale;
-
-    //     logXParam[i] = xParam;
-
-    //     // float noise = SimplexNoise::noiseNormal(xParam, 42);
-    //     float noise = genNoise(i, hPos, hScale, hScanline);
-    //     logNoise[i] = noise;
-
-    //     uint8_t vNoise = noise * 255;
-
-    //     leds[i] = CHSV(vNoise, 255, 255);
-
-    //     float deltaNoise = abs(noise - prevNoise);
-    //     logDelta[i] = deltaNoise;
-    //     logV[i] = (float)vNoise;
-
-    //     prevNoise = noise;
-
-    //     hScanline = advanceScanline(hScanline, hSpeed);
-    // }
-
-    // FastLED.show();
-
-    // nextFogDiagsMillis = millis() + fogDiagsFreqSec * 1000;
-    // showFogDiags = true;
-    // return;
-
-    uint32_t simTime = millis();
-
-    if (desiredMillisPerFrame > 0)
-    {
-        if (simTime < nextFogFrameMillis)
-        {
-            return false;
-        }
-
-        nextFogFrameMillis = simTime + desiredMillisPerFrame;
-    }
-
-    showFogDiags = false;
-    frameCount++;
-
-    if (millis() > nextFogDiagsMillis)
-    {
-        if (reportFrameRate && frameMillis > 0)
-        {
-            double frameSeconds = (millis() - frameMillis) / 1000.0;
-            Logger.Info(F("Fog: frame rate: %f frames/sec"), frameCount / frameSeconds);
-        }
-
-        frameCount = 0;
-        frameMillis = millis();
-
-        nextFogDiagsMillis = millis() + fogDiagsFreqSec * 1000;
-        showFogDiags = true;
-    }
-
-#ifdef DIAGNOSE_MIN_MAX
-    maxX = -MAX_SIMPLEX_PARAM;
-    minX = MAX_SIMPLEX_PARAM;
-    maxY = -MAX_SIMPLEX_PARAM;
-    minY = MAX_SIMPLEX_PARAM;
-    minVal = 10;
-    maxVal = -10;
-#endif
-
-    for (int i = 0; i < NUM_LEDS; i++)
-    {
-        // Strip Test
-        // uint8_t hFog = i % 255;
-        // leds[i] = CHSV(hFog, 255, 128);
-        // continue;
-
-        float hNoise = genNoise(i, hPos, hScale, hScanline);
-        float sNoise = genNoise(i, sPos, sScale, sScanline);
-        float vNoise = genNoise(i, vPos, vScale, vScanline);
-
-        float hFog = lerp(hStart, hEnd, hNoise);
-        float sFog = lerp(sStart, sEnd, sNoise);
-        float vFog = lerp(vStart, vEnd, vNoise);
-
-        CHSV pixelColor = CHSV((uint8_t)hFog, (uint8_t)sFog, (uint8_t)vFog);
-        leds[i] = pixelColor;
-
-#ifdef DIAGNOSE_MIN_MAX
-        minVal = min(hNoise, minVal);
-        maxVal = max(hNoise, maxVal);
-#endif
-
-#ifdef DIAGNOSE_SHIFT_RATE
-        if (i == 3)
-        {
-            if (prevHue == 0)
-            {
-                prevHue = hFog;
-            }
-            int thisShift = abs((int)prevHue - (int)hFog);
-            totalShift += thisShift;
-            shiftSamples++;
-            prevHue = hFog;
-
-            if (showFogDiags)
-            {
-                Logger.Info(F("Fog[3]: avg shift/sec: %f, avgShift/loop: %f, sampled: %d, hue: %u, brightness: %u"),
-                            totalShift / fogDiagsFreqSec, (totalShift / shiftSamples), (int)shiftSamples, hFog, vFog);
-                totalShift = 0;
-                shiftSamples = 0;
-            }
-        }
-#endif // DIAGNOSE_SHIFT_RATE
-    }
-
-    hScanline = advanceScanline(hScanline, hSpeed);
-    sScanline = advanceScanline(sScanline, sSpeed);
-    vScanline = advanceScanline(vScanline, vSpeed);
-
-#ifdef DIAGNOSE_MIN_MAX
-    if (showFogDiags)
-    {
-        Logger.Info(F("Fog: hNoise Min: %f, hNoise Max: %f, hPos: %f, hScanline: %f, minX: %f, maxX: %f, minY: %f, maxY: %f"),
-                    minVal, maxVal, hPos, hScanline, minX, maxX, minY, maxY);
-    }
-#endif // DIAGNOSE_MIN_MAX
-
-    // FastLED.show();
-    return true;
-}

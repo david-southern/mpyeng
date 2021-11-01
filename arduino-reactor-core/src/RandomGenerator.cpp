@@ -34,7 +34,7 @@ uint32_t RandomGenerator::generateRandomSeed(uint8_t numPins, ...)
     if (numPins < 1 || numPins > MAX_ENTROPY_PINS)
     {
         Logger.Info(F("MoarRandom.genRand: calling default init"));
-        return generateRandomSeed(4, 0, 1, 2, 3);
+        return generateRandomSeed(4, A0, A1, A2, A3);
     }
 
     // Even with hashing four pins together, I am still getting very similar seeds, since all the starting numbers are
