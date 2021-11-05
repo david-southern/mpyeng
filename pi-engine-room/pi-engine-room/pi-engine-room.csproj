@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\PiController\PiController.csproj" />
+        <ProjectReference Include="..\rpi_kens\rpi_kens.csproj" />
     </ItemGroup>
 
 </Project>

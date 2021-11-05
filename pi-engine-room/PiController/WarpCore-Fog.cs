@@ -13,8 +13,6 @@ namespace PiController
 {
     public class WarpCoreFog : IAnimationEffect
     {
-        public static WarpCoreFog Instance => new();
-
         public string Name => "WarpCore - Fog";
         public string Description => "Glowing fog that shifts from dark to bright in smoothly-changing patches";
         public List<AnimationParameter> Parameters => new();
@@ -37,7 +35,7 @@ namespace PiController
         public readonly AnimationParameter LumMax = new("Fog Brightness Max", "The average brightness of the fog when the Engine Core is at its Maximum power level", 0.7);
         public readonly AnimationParameter LumRangeMax = new("Fog Brightness Delta Max", "The delta brightness of the fog when the Engine Core is at its maximum power level", 0.3);
 
-        private WarpCoreFog()
+        public WarpCoreFog()
         {
             Parameters.Add(NoiseScale);
             Parameters.Add(NoiseSpeed);
@@ -83,7 +81,7 @@ namespace PiController
                 NoiseMax = Math.Max(NoiseMax, pixNoise);
                 NoiseMin = Math.Min(NoiseMin, pixNoise);
 
-                double noiseLum = ColorUtils.Lerp(lumMin, lumMax, pixNoise);
+                double noiseLum = ColorUtils.Clamp(ColorUtils.Lerp(lumMin, lumMax, pixNoise));
                 Pixels[pixIndex] = new PixelColor(hue, 1.0, noiseLum);
 
                 if (showDiags && pixIndex == 5)

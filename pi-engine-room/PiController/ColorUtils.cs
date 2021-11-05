@@ -24,18 +24,18 @@ namespace PiController
         public static readonly PixelColor Black = new(0.0, 0.0, 0.0);
         public static readonly PixelColor White = new(0.0, 0.0, 1.0);
 
-        public static readonly PixelColor Rose = new(HUE_ROSE, 1.0, 1.0);
-        public static readonly PixelColor Magenta = new(HUE_MAGENTA, 1.0, 1.0);
-        public static readonly PixelColor Violet = new(HUE_VIOLET, 1.0, 1.0);
-        public static readonly PixelColor Blue = new(HUE_BLUE, 1.0, 1.0);
-        public static readonly PixelColor Azure = new(HUE_AZURE, 1.0, 1.0);
-        public static readonly PixelColor Cyan = new(HUE_CYAN, 1.0, 1.0);
-        public static readonly PixelColor Turquiose = new(HUE_TURQUOISE, 1.0, 1.0);
-        public static readonly PixelColor Green = new(HUE_GREEN, 1.0, 1.0);
-        public static readonly PixelColor Chartreuse = new(HUE_CHARTREUSE, 1.0, 1.0);
-        public static readonly PixelColor Yellow = new(HUE_YELLOW, 1.0, 1.0);
-        public static readonly PixelColor Orange = new(HUE_ORANGE, 1.0, 1.0);
-        public static readonly PixelColor Red = new(HUE_RED, 1.0, 1.0);
+        public static readonly PixelColor Rose = new(HUE_ROSE, 1.0, 0.5);
+        public static readonly PixelColor Magenta = new(HUE_MAGENTA, 1.0, 0.5);
+        public static readonly PixelColor Violet = new(HUE_VIOLET, 1.0, 0.5);
+        public static readonly PixelColor Blue = new(HUE_BLUE, 1.0, 0.5);
+        public static readonly PixelColor Azure = new(HUE_AZURE, 1.0, 0.5);
+        public static readonly PixelColor Cyan = new(HUE_CYAN, 1.0, 0.5);
+        public static readonly PixelColor Turquiose = new(HUE_TURQUOISE, 1.0, 0.5);
+        public static readonly PixelColor Green = new(HUE_GREEN, 1.0, 0.5);
+        public static readonly PixelColor Chartreuse = new(HUE_CHARTREUSE, 1.0, 0.5);
+        public static readonly PixelColor Yellow = new(HUE_YELLOW, 1.0, 0.5);
+        public static readonly PixelColor Orange = new(HUE_ORANGE, 1.0, 0.5);
+        public static readonly PixelColor Red = new(HUE_RED, 1.0, 0.5);
 
         public PixelColor()
         {

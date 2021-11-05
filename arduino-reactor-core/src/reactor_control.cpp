@@ -31,7 +31,7 @@ void reactor_setup()
   Logger.Info(F("Reactor: ##################### INITIALIZING #####################"));
   Logger.Info(F("Reactor: Segs: %d, SegSize: %d"), REACTOR_SEGMENTS, SEGMENT_SIZE);
 
-  setReactorFrameRate(30);
+  setReactorFrameRate(0);
 
   // Initialize the fog sim for the reactor animation background
   fog_setup();
@@ -95,6 +95,9 @@ uint32_t nextFrameMillis = 0;
 float frameCount = 0;
 float frameMillis = 0;
 
+const uint32_t FRAME_RATE_REPORT_FREQUENCY_MILLIS = 10000;
+uint32_t lastFrameRateReport = 0;
+
 void reactor_loop(CRGBSet &leds)
 {
   uint32_t simTime = millis();
@@ -110,6 +113,19 @@ void reactor_loop(CRGBSet &leds)
   }
 
   frameCount++;
+
+  if (reportFrameRate)
+  {
+    double elapsedReportTime = simTime - lastFrameRateReport;
+
+    if (elapsedReportTime > FRAME_RATE_REPORT_FREQUENCY_MILLIS)
+    {
+      double frameRate = (frameCount / elapsedReportTime) * 1000;
+      Logger.Info("Reactor: Frame Rate %f frames/sec", frameRate);
+      frameCount = 0;
+      lastFrameRateReport = simTime;
+    }
+  }
 
   float elapsedSeconds = (float)(simTime - lastFrameUpdate) / 1000.0;
   lastFrameUpdate = simTime;

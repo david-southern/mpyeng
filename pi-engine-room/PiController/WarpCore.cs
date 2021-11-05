@@ -48,13 +48,16 @@ namespace PiController
 
             AnimationEffects = new List<IAnimationEffect>
             {
-                WarpCoreFog.Instance
+                new WarpCoreFog(),
+                new WarpCoreProgress()
             };
+
+            AnimationEffects = AnimationEffects.OrderBy(eff => eff.RenderOrder).ToList();
         }
 
-        public async Task Clear()
+        public void Clear()
         {
-            await CoreStrip.Clear();
+            CoreStrip.Clear();
         }
 
         private string m_TargetColor;
@@ -87,7 +90,7 @@ namespace PiController
         private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
         private DateTime LastDiags = DateTime.MinValue;
 
-        public async Task Animate()
+        public void Animate()
         {
             try
             {
@@ -119,7 +122,7 @@ namespace PiController
                 }
 
                 CoreStrip.Set(CorePixels);
-                await CoreStrip.Update();
+                CoreStrip.Update();
             }
             catch (Exception ex)
             {
@@ -135,7 +138,7 @@ namespace PiController
             {
                 LastDiags = DateTime.Now;
                 //Logger.Info($"WarpCore: Rendering {CorePixels.Count} pixels @ PowerLevel: {PowerLevel:N3} with Effects: {string.Join(", ", AnimationEffects.Select(ef => ef.Name))}");
-                showDiags = true;
+                //showDiags = true;
             }
 
             foreach (IAnimationEffect effect in AnimationEffects)
@@ -169,6 +172,7 @@ namespace PiController
             {
                 return;
             }
+            IsDisposed = true;
 
             if (disposing)
             {
@@ -178,7 +182,6 @@ namespace PiController
 
             // Free unmanaged resources (unmanaged objects) here
             // Set large fields to null so they can be detected as unreferenced sooner
-            IsDisposed = true;
         }
     }
 }

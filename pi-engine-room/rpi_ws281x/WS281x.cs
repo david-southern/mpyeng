@@ -25,7 +25,11 @@ namespace rpi_ws281x
         private int[] RenderData1;
         private int[] PendingRenderData1;
 
-        private bool _isDisposingAllowed;
+        private Task RenderTask;
+        private readonly CancellationTokenSource RenderCancelTokenSource;
+
+        private bool HardwareDeviceInitialized;
+        private bool AllowRendering;
 
         /// <summary>
         /// Initialize the wrapper
@@ -34,16 +38,22 @@ namespace rpi_ws281x
         public WS281x(Settings settings)
         {
             Settings = settings;
+            RenderCancelTokenSource = new CancellationTokenSource();
+            // Only dispose the native hardware interface if it was successfully initialized, otherwise it crashes
+            HardwareDeviceInitialized = false;
+            AllowRendering = false;
 
-            InitializeHardware();
-
-            //Disposing is only allowed if the init was successful.
-            //Otherwise the native cleanup function throws an error.
-            _isDisposingAllowed = true;
+            // Don't wait for initialization to finish, we only need to wait if we want to re-initialize again
+            _ = InitializeHardware();
         }
 
-        private void InitializeHardware()
+        private async Task InitializeHardware()
         {
+            if (RenderTask != null)
+            {
+                await CancelRendering();
+            }
+
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.InitializeHardware: Initializing WS281x hardware");
 
             _ws2811 = new ws2811_t
@@ -76,52 +86,73 @@ namespace rpi_ws281x
                     Marshal.Copy(Settings.GammaCorrection.ToArray(), 0, _ws2811.channel_1.gamma, Settings.GammaCorrection.Count);
             }
 
-            Task.Run(RenderWorker);
+            // Only dispose the native hardware interface if it was successfully initialized, otherwise it crashes
+            HardwareDeviceInitialized = true;
+            AllowRendering = true;
+
+            CancellationToken cancelToken = RenderCancelTokenSource.Token;
+            RenderTask = Task.Run(() => RenderWorker(cancelToken), cancelToken);
         }
 
-        private async Task RenderWorker()
+        private double DiagsIntervalSeconds = 1;
+        private DateTime LastDiags = DateTime.Now;
+        private int frameCount = 0;
+
+        private void RenderWorker(CancellationToken cancelToken)
         {
             try
             {
-                while (true)
+                while (!cancelToken.IsCancellationRequested)
                 {
-                    bool didRender = false;
-
-                    await RenderManagmentLock.WaitAsync();
-                    try
+                    if (AllowRendering)
                     {
-                        if (PendingRenderData0 != null || PendingRenderData1 != null)
+                        if (PendingRenderData0 != null)
                         {
                             RenderData0 = PendingRenderData0;
-                            RenderData1 = PendingRenderData1;
                             PendingRenderData0 = null;
-                            PendingRenderData1 = null;
-                            PushPixels();
-                            didRender = true;
                         }
-                    }
-                    finally
-                    {
-                        RenderManagmentLock.Release();
+                        if (PendingRenderData1 != null)
+                        {
+                            RenderData1 = PendingRenderData1;
+                            PendingRenderData1 = null;
+                        }
+
+                        PushPixels();
+                        frameCount++;
                     }
 
-                    if (!didRender)
+                    // TODO: Change this to wait on a signal
+                    Thread.Sleep(10);
+
+                    double elapsedSeconds = (DateTime.Now - LastDiags).TotalSeconds;
+                    if (elapsedSeconds > DiagsIntervalSeconds)
                     {
-                        // If we didn't have anything to render then sleep for a bit - later wait on a signal
-                        Thread.Sleep(10);
+                        LastDiags = DateTime.Now;
+                        Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.RenderWorker: frame rate: {frameCount / elapsedSeconds:N3}");
+                        frameCount = 0;
                     }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.RenderWorker: ERROR: Exception caught: {ex}");
-
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.RenderWorker: ERROR: Releasing WS281x hardware");
-                ReleaseHardware();
-                // If we got an error, then wait a few seconds to let everything clear out and re-initialize the hardware
-                Thread.Sleep(5000);
-                InitializeHardware();
             }
+
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.RenderWorker: RenderWorker was cancelled");
+        }
+
+        private async Task CancelRendering()
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} WS281x.RenderWorker: Releasing WS281x hardware");
+
+            // Tell the render thread to cancel
+            RenderCancelTokenSource.Cancel();
+
+            // Wait for the render thread to finish
+            await RenderTask;
+
+            // Clear the render task so that if we are re-initializing it will be recreated correctly.
+            RenderTask = null;
         }
 
         private void PushPixels()
@@ -129,12 +160,15 @@ namespace rpi_ws281x
             if (RenderData0 != null)
             {
                 Marshal.Copy(RenderData0, 0, _ws2811.channel_0.leds, RenderData0.Length);
+                RenderData0 = null;
             }
 
             if (RenderData1 != null)
             {
                 Marshal.Copy(RenderData1, 0, _ws2811.channel_1.leds, RenderData1.Length);
+                RenderData1 = null;
             }
+
             ws2811_return_t result = PInvoke.ws2811_render(ref _ws2811);
             if (result != ws2811_return_t.WS2811_SUCCESS)
             {
@@ -148,41 +182,24 @@ namespace rpi_ws281x
             }
         }
 
-        private async Task RequestRender(int[] pixelData0, int[] pixelData1)
-        {
-            await RenderManagmentLock.WaitAsync();
-            try
-            {
-                PendingRenderData0 = pixelData0;
-                PendingRenderData1 = pixelData1;
-            }
-            finally
-            {
-                RenderManagmentLock.Release();
-            }
-        }
-
         /// <summary>
         /// Renders the content of the channels
         /// </summary>
         /// <param name="force">Force LEDs to updated - default only updates if when a change is done</param>
-        public async Task Render(bool force = false)
+        public void Render(bool force = false)
         {
-            int[] pixData0 = null;
-            int[] pixData1 = null;
-
             if (_controllers.ContainsKey(0) && (force || _controllers[0].IsDirty))
             {
-                pixData0 = _controllers[0].GetColors(true);
-            }
-            if (_controllers.ContainsKey(1) && (force || _controllers[1].IsDirty))
-            {
-                pixData1 = _controllers[1].GetColors(true);
+                // TODO: Verify if assignment of this array reference is atomic in .Net - if not the RenderWorker might
+                // try to access PendingRenderData0 while it is being assigned.
+                PendingRenderData0 = _controllers[0].GetColors(true);
             }
 
-            if (pixData0 != null || pixData1 != null)
+            if (_controllers.ContainsKey(1) && (force || _controllers[1].IsDirty))
             {
-                await RequestRender(pixData0, pixData1);
+                // TODO: Verify if assignment of this array reference is atomic in .Net - if not the RenderWorker might
+                // try to access PendingRenderData0 while it is being assigned.
+                PendingRenderData1 = _controllers[1].GetColors(true);
             }
         }
 
@@ -285,16 +302,30 @@ namespace rpi_ws281x
             return channel;
         }
 
-        private void ReleaseHardware()
+        private async Task ReleaseHardware()
         {
             try
             {
+                Console.WriteLine($"WS281x: Releasing Hardware");
+                AllowRendering = false;
+
+                await CancelRendering();
+
+                // Clear the strip before releasing the hardware.  .Net arrays are initialized with the base type's
+                // default value (zero in this case) which is what we want here.
+                RenderData0 = new int[GetLedCount(0)];
+                RenderData1 = new int[GetLedCount(1)];
+                PushPixels();
+
                 PInvoke.ws2811_fini(ref _ws2811);
 
                 if (_ws2811Handle.IsAllocated)
                 {
                     _ws2811Handle.Free();
                 }
+
+                Console.WriteLine($"WS281x: Finished releasing Hardware");
+                HardwareDeviceInitialized = false;
             }
             catch (Exception ex)
             {
@@ -302,46 +333,30 @@ namespace rpi_ws281x
             }
         }
 
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
-                if (_isDisposingAllowed)
-                {
-                    ReleaseHardware();
-                    _isDisposingAllowed = false;
-                }
-
-                disposedValue = true;
-            }
-        }
-
-        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
-        ~WS281x()
-        {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(false);
-        }
-
-        // This code added to correctly implement the disposable pattern.
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
-            // GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
         }
-        #endregion
+
+        private bool IsDisposed = false;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+            IsDisposed = true;
+
+            if (disposing)
+            {
+                if (HardwareDeviceInitialized)
+                {
+                    // No need to to wait for the release to complete
+                    _ = ReleaseHardware();
+                }
+            }
+        }
     }
 }

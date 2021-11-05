@@ -18,7 +18,7 @@ namespace PiController
         public NeoPixelHardwareRPI(Pin pin, int ledCount)
         {
             RPI_PIN = pin;
-            RPI_Settings = Settings.CreateDefaultSettings(false);
+            RPI_Settings = Settings.CreateDefaultSettings();
             RPI_Settings.AddController(ledCount, RPI_PIN, stripType: StripType.WS2811_STRIP_GRB);
             RPI_Device = new(RPI_Settings);
             RPI_Controller = RPI_Device.GetController();
@@ -28,44 +28,15 @@ namespace PiController
             Logger.Info($"NeoPixelHardwareRPI: Creating an RPI NeoPixel protocol on GPIO pin {RPI_PIN} for {ledCount} pixels.");
 
             ClearStrip();
-            // Don't wait for Update to complete
-            _ = Update();
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        private bool IsDisposed = false;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (IsDisposed)
-            {
-                return;
-            }
-
-            if (disposing)
-            {
-                // Dispose managed state (managed objects) here
-                Logger.Info($"NeoPixelHardwareRPI: Disposing the RPI bus NeoPixel protocol on GPIO pin {RPI_PIN}.");
-                RPI_Device?.Dispose();
-            }
-
-            // Free unmanaged resources (unmanaged objects) here
-            // Set large fields to null so they can be detected as unreferenced sooner
-            IsDisposed = true;
+            Update();
         }
 
         /// <summary>
         /// Sends the current LED data to the SPI bus
         /// </summary>
-        public async Task Update()
+        public void Update()
         {
-            // This protocol class isn't async yet, but I expect to need async before too long, so let's make the
-            // interface correct for now.
-            await RPI_Device.Render();
+            RPI_Device.Render();
         }
 
         public void ClearStrip()
@@ -82,5 +53,32 @@ namespace PiController
         {
             RPI_Controller.SetLED(pixel, color);
         }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private bool IsDisposed = false;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+            IsDisposed = true;
+
+            if (disposing)
+            {
+                // Dispose managed state (managed objects) here
+                Logger.Info($"NeoPixelHardwareRPI: Disposing the RPI bus NeoPixel protocol on GPIO pin {RPI_PIN}.");
+                RPI_Device?.Dispose();
+            }
+
+            // Free unmanaged resources (unmanaged objects) here
+            // Set large fields to null so they can be detected as unreferenced sooner
+        }
+
     }
 }

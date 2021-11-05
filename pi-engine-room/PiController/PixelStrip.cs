@@ -22,15 +22,15 @@ namespace PiController
             PixelColors = new List<PixelColor>(PixelCount);
         }
 
-        public async Task Update()
+        public void Update()
         {
-            await Protocol.Update();
+            Protocol.Update();
         }
 
-        public async Task Clear()
+        public void Clear()
         {
             Protocol.ClearStrip();
-            await Protocol.Update();
+            Protocol.Update();
         }
 
         public void Fill(PixelColor color)
@@ -46,15 +46,15 @@ namespace PiController
                 return;
             }
 
-            for(int pixelIndex = 0; pixelIndex < colorData.Count; pixelIndex++)
+            for (int pixelIndex = 0; pixelIndex < colorData.Count; pixelIndex++)
             {
                 try
                 {
                     Protocol.SetPixel(pixelIndex, colorData[pixelIndex].LEDColor);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Logger.Error($"Exception setting pixel {pixelIndex} to color: {colorData[pixelIndex]}");
+                    Logger.Error($"Exception setting pixel {pixelIndex} to color: {colorData[pixelIndex]}: {ex}");
                 }
             }
         }
@@ -92,16 +92,17 @@ namespace PiController
             {
                 return;
             }
+            IsDisposed = true;
 
             if (disposing)
             {
+                Clear();
                 // Dispose managed state (managed objects) here
                 Protocol.Dispose();
             }
 
             // Free unmanaged resources (unmanaged objects) here
             // Set large fields to null so they can be detected as unreferenced sooner
-            IsDisposed = true;
         }
     }
 }

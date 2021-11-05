@@ -16,7 +16,7 @@ namespace PiController
         /// <summary>
         /// Sends the current LED data to the underlying protocol implementation.
         /// </summary>
-        public Task Update();
+        public void Update();
 
         /// <summary>
         /// Fill the entire strip with Black pixels.  Does not Update() the strip.

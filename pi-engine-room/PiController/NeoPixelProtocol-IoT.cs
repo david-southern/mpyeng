@@ -47,6 +47,7 @@ namespace PiController
             {
                 return;
             }
+            IsDisposed = true;
 
             if (disposing)
             {
@@ -57,19 +58,14 @@ namespace PiController
 
             // Free unmanaged resources (unmanaged objects) here
             // Set large fields to null so they can be detected as unreferenced sooner
-            IsDisposed = true;
         }
 
 
         /// <summary>
         /// Sends the current LED data to the SPI bus
         /// </summary>
-        public async Task Update()
+        public void Update()
         {
-            // This protocol class isn't async yet, but I expect to need async before too long, so let's make the
-            // interface correct for now.
-            await Task.CompletedTask;
-
             WS2812bStrip.Update();
         }
 

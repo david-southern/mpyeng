@@ -21,7 +21,7 @@ namespace PiController
 
         public ArduinoProxy(int i2cBusId, int arduinoAddress)
         {
-            if(arduinoAddress < I2CAddressBase)
+            if (arduinoAddress < I2CAddressBase)
             {
                 throw new ArgumentOutOfRangeException(nameof(arduinoAddress), $"the I2C address of the Arduino ({arduinoAddress:X}) must be on the range of [{I2CAddressBase:X}, {I2CAddressMax:X}]");
             }
@@ -29,13 +29,6 @@ namespace PiController
             I2CDevice = I2cDevice.Create(I2CSettings);
 
             Logger.Info($"ArduinoProxy: Creating proxy on I2C Bus: {I2CBusId} and address {ArduinoAddress}");
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            I2CDevice?.Dispose();
-            I2CDevice = null!;
         }
 
         public void SendPing(byte pingValue)
@@ -69,5 +62,29 @@ namespace PiController
             BinaryPrimitives.WriteUInt16LittleEndian(bytes, value);
             I2CDevice.Write(bytes);
         }
+
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private bool IsDisposed = false;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+            IsDisposed = true;
+
+            if (disposing)
+            {
+                I2CDevice?.Dispose();
+                I2CDevice = null!;
+            }
+        }
+
     }
 }

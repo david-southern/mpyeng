@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\rpi_ws281x\rpi_ws281x.csproj" />
+    <ProjectReference Include="..\rpi_kens\rpi_kens.csproj" />
   </ItemGroup>
 
 </Project>
