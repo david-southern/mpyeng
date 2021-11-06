@@ -1,13 +1,7 @@
-﻿using ColorMine.ColorSpaces;
-
-using rpi_ws281x;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
+
+using Utils;
 
 namespace PiController
 {
@@ -27,8 +21,8 @@ namespace PiController
 
         public readonly AnimationParameter NoiseSpeed = new("Noise Speed", "How quickly should the noise scan line move along the perpendicular axis of the noise.  Lower values will result in the fog color patches changing more slowly, while higher values will change the patches more quickly.", 0.5);
 
-        public readonly AnimationParameter HueMin = new("Fog Hue Min", "The base hue of the fog when the Engine Core is at its minimum power level", PixelColor.HUE_BLUE);
-        public readonly AnimationParameter HueMax = new("Fog Hue Max", "The base hue of the fog when the Engine Core is at its maximum power level", PixelColor.HUE_CYAN);
+        public readonly AnimationParameter HueMin = new("Fog Hue Min", "The base hue of the fog when the Engine Core is at its minimum power level", HSVColor.HUE_BLUE);
+        public readonly AnimationParameter HueMax = new("Fog Hue Max", "The base hue of the fog when the Engine Core is at its maximum power level", HSVColor.HUE_CYAN);
 
         public readonly AnimationParameter LumMin = new("Fog Brightness Min", "The average brightness of the fog when the Engine Core is at its minimum power level", 0.5);
         public readonly AnimationParameter LumRangeMin = new("Fog Brightness Delta Min", "The delta brightness of the fog when the Engine Core is at its minimum power level", 0.49);
@@ -63,16 +57,16 @@ namespace PiController
         private int MinMaxReset = 10;
         private int MinMaxResetCount = 0;
 
-        public void Render(List<PixelColor> Pixels, bool showDiags = false)
+        public void Render(List<HSVColor> Pixels, bool showDiags = false)
         {
             WarpCore Core = WarpCore.Instance;
 
-            double hue = ColorUtils.Lerp(HueMin.Value, HueMax.Value, Core.PowerLevel);
-            double lumMean = ColorUtils.Lerp(LumMin.Value, LumMax.Value, Core.PowerLevel);
-            double lumRange = ColorUtils.Lerp(LumRangeMin.Value, LumRangeMax.Value, Core.PowerLevel);
+            double hue = Utils.Lerp(HueMin.Value, HueMax.Value, Core.PowerLevel);
+            double lumMean = Utils.Lerp(LumMin.Value, LumMax.Value, Core.PowerLevel);
+            double lumRange = Utils.Lerp(LumRangeMin.Value, LumRangeMax.Value, Core.PowerLevel);
 
-            double lumMin = ColorUtils.Clamp(lumMean - lumRange * 2);
-            double lumMax = ColorUtils.Clamp(lumMean + lumRange * 2);
+            double lumMin = Utils.Clamp(lumMean - lumRange * 2);
+            double lumMax = Utils.Clamp(lumMean + lumRange * 2);
 
             for (int pixIndex = 0; pixIndex < Pixels.Count; pixIndex++)
             {
@@ -81,8 +75,8 @@ namespace PiController
                 NoiseMax = Math.Max(NoiseMax, pixNoise);
                 NoiseMin = Math.Min(NoiseMin, pixNoise);
 
-                double noiseLum = ColorUtils.Clamp(ColorUtils.Lerp(lumMin, lumMax, pixNoise));
-                Pixels[pixIndex] = new PixelColor(hue, 1.0, noiseLum);
+                double noiseLum = Utils.Clamp(Utils.Lerp(lumMin, lumMax, pixNoise));
+                Pixels[pixIndex] = new HSVColor(hue, 1.0, noiseLum);
 
                 if (showDiags && pixIndex == 5)
                 {

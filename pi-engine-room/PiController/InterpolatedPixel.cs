@@ -1,26 +1,21 @@
-﻿using ColorMine.ColorSpaces;
-
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace PiController
 {
     public class InterpolatedPixel
     {
-        private PixelColor LerpFrom;
-        private PixelColor LerpTo;
+        private HSVColor LerpFrom;
+        private HSVColor LerpTo;
         private DateTime LerpStart;
         private double LerpDurationSeconds = 0;
 
         public InterpolatedPixel()
         {
-            LerpFrom = LerpTo = PixelColor.Black;
+            LerpFrom = LerpTo = HSVColor.Black;
         }
 
-        public InterpolatedPixel(PixelColor color)
+        public InterpolatedPixel(HSVColor color)
         {
             LerpFrom = LerpTo = color;
         }
@@ -28,7 +23,7 @@ namespace PiController
         public void SetColor(Color targetColor, double setDuration)
         {
             LerpFrom = CurrentColor;
-            LerpTo = new PixelColor(targetColor);
+            LerpTo = new HSVColor(targetColor);
             LerpStart = DateTime.Now;
             LerpDurationSeconds = setDuration;
         }
@@ -36,7 +31,7 @@ namespace PiController
         public void SetColor(string targetColor, double setDuration)
         {
             LerpFrom = CurrentColor;
-            LerpTo = new PixelColor(targetColor);
+            LerpTo = new HSVColor(targetColor);
             LerpStart = DateTime.Now;
             LerpDurationSeconds = setDuration;
         }
@@ -52,8 +47,8 @@ namespace PiController
             }
         }
 
-        public PixelColor TargetColor => LerpTo;
-        public PixelColor CurrentColor
+        public HSVColor TargetColor => LerpTo;
+        public HSVColor CurrentColor
         {
             get
             {
@@ -71,7 +66,7 @@ namespace PiController
                     lerpProgress = 1.0;
                 }
 
-                PixelColor retval = ColorUtils.Lerp(LerpFrom, LerpTo, lerpProgress);
+                HSVColor retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
 
                 return retval;
             }

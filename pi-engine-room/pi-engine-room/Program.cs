@@ -142,17 +142,16 @@ namespace pi_engine_room
             {
                 var controller = device.GetController();
 
-                List<PixelColor> Pixels = Enumerable.Range(0, ledCount).Select(n => PixelColor.Red).ToList();
+                List<HSVColor> Pixels = Enumerable.Range(0, ledCount).Select(n => HSVColor.Red).ToList();
 
                 while (!token.IsCancellationRequested)
                 {
                     effect.Render(Pixels);
 
                     for (int pixelIndex = 0; pixelIndex < ledCount; pixelIndex++) {
-                        controller.SetLED(pixelIndex, Pixels[pixelIndex].LEDColor);
+                        controller.SetLED(pixelIndex, Pixels[pixelIndex].RGBColor);
                     }
-                    
-                    // controller.SetAll(Pixels[42].LEDColor);
+
                     device.Render();
 
                     CheckFrameRate("WarpCoreFog-Direct");

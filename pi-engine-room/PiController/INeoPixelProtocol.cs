@@ -1,11 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using System.Device.Spi;
-
-using Iot.Device.Graphics;
-using System.Text;
-using Iot.Device.Ws28xx;
-using System.Threading.Tasks;
 
 namespace PiController
 {

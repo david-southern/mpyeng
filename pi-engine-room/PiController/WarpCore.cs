@@ -1,13 +1,10 @@
-﻿using ColorMine.ColorSpaces;
-
-using rpi_ws281x;
+﻿using rpi_ws281x;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
+
+using Utils;
 
 namespace PiController
 {
@@ -28,7 +25,7 @@ namespace PiController
 
         public static WarpCore Instance { get; } = new();
 
-        private readonly List<PixelColor> CorePixels;
+        private readonly List<HSVColor> CorePixels;
         private readonly INeoPixelProtocol CoreStripProtocol;
         private readonly PixelStrip CoreStrip;
 
@@ -36,10 +33,41 @@ namespace PiController
 
         public List<IAnimationEffect> AnimationEffects { get; private set; }
 
+        private string? m_TargetColor;
+        public string? TargetColor
+        {
+            get { return m_TargetColor; }
+            set
+            {
+                m_TargetColor = value;
+                DisplayMode = m_TargetColor == null ? WarpCoreDisplayMode.Animate : WarpCoreDisplayMode.ColorTest;
+            }
+        }
+
+        private readonly InterpolatedValue m_PowerLevel = new();
+
+        public double PowerLevel
+        {
+            get
+            {
+                return m_PowerLevel.CurrentValue;
+            }
+
+            set
+            {
+                DisplayMode = WarpCoreDisplayMode.Animate;
+                m_PowerLevel.SetValue(Utils.Clamp(value), PowerChangeDurationSeconds);
+            }
+        }
+
+        private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
+        private DateTime LastDiags = DateTime.MinValue;
+
+
         private WarpCore()
         {
             CorePixels = Enumerable.Range(0, WarpCorePixelCount)
-                .Select(n => new PixelColor(PixelColor.Black)).ToList();
+                .Select(n => new HSVColor(HSVColor.Black)).ToList();
 
             CoreStripProtocol = new NeoPixelHardwareRPI(RPI_GPIO_PIN, WarpCorePixelCount);
             Logger.Info($"WarpCore: Finished creating CoreStripProtocol");
@@ -60,65 +88,36 @@ namespace PiController
             CoreStrip.Clear();
         }
 
-        private string m_TargetColor;
-        public string TargetColor
-        {
-            get { return m_TargetColor; }
-            set
-            {
-                m_TargetColor = value;
-                DisplayMode = WarpCoreDisplayMode.ColorTest;
-            }
-        }
-
-        private readonly InterpolatedValue m_PowerLevel = new();
-
-        public double PowerLevel
-        {
-            get
-            {
-                return m_PowerLevel.CurrentValue;
-            }
-
-            set
-            {
-                DisplayMode = WarpCoreDisplayMode.Animate;
-                m_PowerLevel.SetValue(ColorUtils.Clamp(value), PowerChangeDurationSeconds);
-            }
-        }
-
-        private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
-        private DateTime LastDiags = DateTime.MinValue;
-
         public void Animate()
         {
             try
             {
                 switch (DisplayMode)
                 {
-                    case WarpCoreDisplayMode.ColorTest:
-                        for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
-                        {
-                            CorePixels[pixIndex] = new PixelColor(TargetColor);
-                        }
-                        break;
+                case WarpCoreDisplayMode.ColorTest:
+                    HSVColor testColor = new(TargetColor ?? "#00FF00");
+                    for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                    {
+                        CorePixels[pixIndex] = testColor;
+                    }
+                    break;
 
-                    case WarpCoreDisplayMode.PixelCount:
-                        for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
-                        {
-                            string pixColor = "#000000";
+                case WarpCoreDisplayMode.PixelCount:
+                    for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                    {
+                        string pixColor = "#000000";
 
-                            if (pixIndex > WarpCorePixelCount - 10) { pixColor = "#0000ff"; }
-                            if (pixIndex % 10 == 0) { pixColor = pixColor = "#00ff00"; }
-                            if (pixIndex % 50 == 0) { pixColor = pixColor = "#ff0000"; }
+                        if (pixIndex > WarpCorePixelCount - 10) { pixColor = "#0000ff"; }
+                        if (pixIndex % 10 == 0) { pixColor = pixColor = "#00ff00"; }
+                        if (pixIndex % 50 == 0) { pixColor = pixColor = "#ff0000"; }
 
-                            CorePixels[pixIndex] = new PixelColor(pixColor);
-                        }
-                        break;
+                        CorePixels[pixIndex] = new HSVColor(pixColor);
+                    }
+                    break;
 
-                    case WarpCoreDisplayMode.Animate:
-                        CoreAnimationFrame();
-                        break;
+                case WarpCoreDisplayMode.Animate:
+                    CoreAnimationFrame();
+                    break;
                 }
 
                 CoreStrip.Set(CorePixels);

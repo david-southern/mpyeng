@@ -2,7 +2,8 @@
 
 using System;
 using System.Drawing;
-using System.Threading.Tasks;
+
+using Utils;
 
 namespace PiController
 {
@@ -21,7 +22,14 @@ namespace PiController
             RPI_Settings = Settings.CreateDefaultSettings();
             RPI_Settings.AddController(ledCount, RPI_PIN, stripType: StripType.WS2811_STRIP_GRB);
             RPI_Device = new(RPI_Settings);
-            RPI_Controller = RPI_Device.GetController();
+            Controller? controller = RPI_Device.GetController();
+
+            if(controller == null )
+            {
+                throw new InvalidOperationException($"Null controller returned from RPI_Device.GetController() for pin {RPI_PIN}");
+            }
+
+            RPI_Controller = controller;
 
             LEDCount = ledCount;
 

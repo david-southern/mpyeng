@@ -26,6 +26,6 @@ namespace PiController
         string Description { get; }
         List<AnimationParameter> Parameters { get; }
         int RenderOrder { get; }
-        void Render(List<PixelColor> Pixels, bool showDiags = false);
+        void Render(List<HSVColor> Pixels, bool showDiags = false);
     }
 }

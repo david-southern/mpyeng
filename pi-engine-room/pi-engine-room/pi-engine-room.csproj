@@ -4,16 +4,17 @@
         <TargetFramework>net5.0</TargetFramework>
         <RootNamespace>pi_engine_room</RootNamespace>
         <CopyRefAssembliesToPublishDirectory>false</CopyRefAssembliesToPublishDirectory>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="ColorMineStandard" Version="1.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="5.0.11" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\PiController\PiController.csproj" />
         <ProjectReference Include="..\rpi_kens\rpi_kens.csproj" />
+        <ProjectReference Include="..\Utils\Utils.csproj" />
     </ItemGroup>
 
 </Project>

@@ -12,7 +12,7 @@ namespace rpi_ws281x
         internal WS281xException(ws2811_return_t return_code, string message) : base(message)
         {
              ErrorNumber = return_code;
-             ErrorCode = Enum.GetName(typeof(ws2811_return_t), return_code);
+             ErrorCode = Enum.GetName(typeof(ws2811_return_t), return_code) ?? ws2811_return_t.WS2811_ERROR_UNKNOWN.ToString();
         }
 
         internal static WS281xException Create(ws2811_return_t return_code, string status)

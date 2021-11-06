@@ -154,7 +154,7 @@ namespace rpi_ws281x
             {
                 return _controllers[channelNumber];
             }
-            return null;
+            throw new InvalidOperationException($"No controller found for controllerType {controllerType}");
         }
 
         /// <summary>

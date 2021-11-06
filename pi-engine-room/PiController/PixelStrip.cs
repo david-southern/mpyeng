@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 
+using Utils;
+
 namespace PiController
 {
     public class PixelStrip : IDisposable
@@ -12,14 +14,14 @@ namespace PiController
         public double PixelBrightness { get; set; }
         public INeoPixelProtocol Protocol { get; }
 
-        public List<PixelColor> PixelColors { get; }
+        public List<HSVColor> PixelColors { get; }
 
         public PixelStrip(INeoPixelProtocol protocol, double pixelBrightness = 1.0)
         {
             Protocol = protocol;
             PixelCount = protocol.LEDCount;
             PixelBrightness = pixelBrightness;
-            PixelColors = new List<PixelColor>(PixelCount);
+            PixelColors = new List<HSVColor>(PixelCount);
         }
 
         public void Update()
@@ -33,14 +35,14 @@ namespace PiController
             Protocol.Update();
         }
 
-        public void Fill(PixelColor color)
+        public void Fill(HSVColor color)
         {
-            Protocol.FillStrip(color.LEDColor);
+            Protocol.FillStrip(color.RGBColor);
         }
 
-        public void Set(List<PixelColor> colorData)
+        public void Set(List<HSVColor> colorData)
         {
-            if (colorData?.Count < 1)
+            if (colorData.Count < 1)
             {
                 Logger.Error($"NeoPixelStrip: Set strip called with empty colorData");
                 return;
@@ -50,7 +52,7 @@ namespace PiController
             {
                 try
                 {
-                    Protocol.SetPixel(pixelIndex, colorData[pixelIndex].LEDColor);
+                    Protocol.SetPixel(pixelIndex, colorData[pixelIndex].RGBColor);
                 }
                 catch (Exception ex)
                 {
@@ -63,7 +65,7 @@ namespace PiController
         {
             for (int pixelIndex = 0; pixelIndex < colorData.Count; pixelIndex++)
             {
-                Protocol.SetPixel(pixelIndex, colorData[pixelIndex].CurrentColor.LEDColor);
+                Protocol.SetPixel(pixelIndex, colorData[pixelIndex].CurrentColor.RGBColor);
             }
         }
 

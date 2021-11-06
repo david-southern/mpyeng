@@ -1,19 +1,16 @@
 ﻿using Microsoft.Extensions.Hosting;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Utils;
 
 namespace PiController
 {
     public class AnimationService : BackgroundService
     {
         public const double AnimationFramesPerSecond = 90;
-
-        private Task RenderTask;
 
         private readonly WarpCore Core = WarpCore.Instance;
 
@@ -27,20 +24,6 @@ namespace PiController
 
             await RenderWorker(stoppingToken);
         }
-
-        //public Task StartAsync(CancellationToken stoppingToken)
-        //{
-        //    RenderTask = Task.Run(() => RenderWorker(stoppingToken), stoppingToken);
-
-        //    return Task.CompletedTask;
-        //}
-
-        //private ArduinoProxy aProxy = new ArduinoProxy(1, 0x42);
-        //private byte pingValue = 7;
-
-        //private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
-        //private DateTime LastDiags = DateTime.MinValue;
-
 
         private static double DiagsIntervalSeconds = 10;
         private static DateTime LastDiags = DateTime.Now;
@@ -99,26 +82,6 @@ namespace PiController
             catch (Exception ex)
             {
                 Logger.Error($"AnimationController.StopAsync caught exception: {ex}");
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        private bool IsDisposed = false;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (IsDisposed)
-            {
-                return;
-            }
-            IsDisposed = true;
-
-            if (disposing)
-            {
             }
         }
     }

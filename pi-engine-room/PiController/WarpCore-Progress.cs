@@ -1,13 +1,5 @@
-﻿using ColorMine.ColorSpaces;
-
-using rpi_ws281x;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace PiController
 {
@@ -27,7 +19,7 @@ namespace PiController
 
         private readonly DateTime ProgressStart = DateTime.Now;
 
-        public void Render(List<PixelColor> Pixels, bool showDiags = false)
+        public void Render(List<HSVColor> Pixels, bool showDiags = false)
         {
             double elapsedSeconds = (DateTime.Now - ProgressStart).TotalSeconds;
             int progressSeconds = ((int)(elapsedSeconds * ProgressPerSecond.Value));
@@ -35,9 +27,9 @@ namespace PiController
             int progressMinutes = (progressSeconds / 60) % 60;
             progressSeconds %= 60;
 
-            Pixels[progressSeconds] = PixelColor.Green;
-            Pixels[progressMinutes] = PixelColor.Yellow;
-            Pixels[progressHours] = PixelColor.Red;
+            Pixels[progressSeconds] = HSVColor.Green;
+            Pixels[progressMinutes] = HSVColor.Yellow;
+            Pixels[progressHours] = HSVColor.Red;
         }
     }
 }

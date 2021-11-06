@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Linq;
-using System.Threading.Tasks;
 
 using PiController;
-using ColorMine.ColorSpaces;
 
 namespace pi_engine_room.Models
 {
@@ -29,7 +25,7 @@ namespace pi_engine_room.Models
         }
 
         public double PowerLevel { get; set; } = 0;
-        public string CurrentColor { get; set; } = ColorTranslator.ToHtml(Color.Black);
+        public string? CurrentColor { get; set; } = ColorTranslator.ToHtml(Color.Black);
         public List<IAnimationEffect> AnimationEffects { get; }
     }
 }

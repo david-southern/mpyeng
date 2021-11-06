@@ -1,10 +1,4 @@
-﻿using ColorMine.ColorSpaces;
-
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System;
 
 namespace PiController
 {
@@ -63,7 +57,7 @@ namespace PiController
                     lerpProgress = 1.0;
                 }
 
-                double retval = ColorUtils.Lerp(LerpFrom, LerpTo, lerpProgress);
+                double retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
 
                 return retval;
             }
