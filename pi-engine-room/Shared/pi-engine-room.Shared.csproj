@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.JSON" Version="13.0.1" />
+        <PackageReference Include="Iot.Device.Bindings" Version="1.6.0-prerelease.21526.1" />
+        <PackageReference Include="System.Device.Gpio" Version="1.6.0-prerelease.21526.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <SupportedPlatform Include="browser" />
+    </ItemGroup>
+</Project>

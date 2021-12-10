@@ -1,0 +1,37 @@
+﻿@page "/"
+
+@using pi_engine_room.Shared
+@inject HttpClient Http
+
+<MudText Typo="Typo.h6" GutterBottom="true">Core Power Load</MudText>
+
+@if (coreConfig == null)
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
+}
+else
+{
+    <MudSlider @bind-Value="@powerLevel" Min="0" Max="1" Step="0.01">Current Core Power Level: </MudSlider>
+    <MudButton OnClick="UpdatePowerLevel">Update Power Level</MudButton>
+}
+
+@code {
+    private CoreConfigurationViewModel coreConfig;
+    double powerLevel = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        coreConfig = await Http.GetFromJsonAsync<CoreConfigurationViewModel>("/config")
+            ?? throw new InvalidOperationException("Umable to get core config from server");
+        powerLevel = coreConfig.PowerLevel;
+    }
+
+    private async Task UpdatePowerLevel()
+    {
+        coreConfig.PowerLevel = powerLevel;
+        using var result = await Http.PostAsJsonAsync("/config", coreConfig);
+        coreConfig = await result.Content.ReadFromJsonAsync<CoreConfigurationViewModel>()
+            ?? throw new InvalidOperationException("Umable to get core config from server");
+        powerLevel = coreConfig.PowerLevel;
+    }
+}

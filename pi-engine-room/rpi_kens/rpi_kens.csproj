@@ -1,25 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Label="Build">
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageId>kenssamson.rpi-ws281x-csharp</PackageId>
-    <PackageVersion>1.1.0</PackageVersion>
-    <Authors>Ken Samson</Authors>
-    <Company />
+    <PackageId>jds-fork-of-kenssamson.rpi-ws281x-csharp</PackageId>
+    <Authors>Ken Samson, JDS, et al</Authors>
     <Title>.Net Library wrapper for the rpi-ws281x library</Title>
-    <Product>.Net Library wrapper for the rpi-ws281x library</Product>
-    <Description>This is a fork of the original .Net Library. It has been updated to work properly with .Net Core 2.2 and contains additional features.</Description>
-    <Copyright>Copyright © 2019 Ken Samson. All rights reserved.</Copyright>
-    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
+    <Description>This is a fork of a fork of a fork of (etc, etc, etc) the original .Net Library. It has been updated to work properly with .Net Core 6 and contains additional features.</Description>
     <RepositoryUrl>https://github.com/kenssamson/rpi-ws281x-csharp.git</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://kenssamson.github.io/rpi-ws281x-csharp/</PackageProjectUrl>
-    <PackageTags>C#;.Net;RaspberryPi;ws281x;ws2811;ws2812;RPI</PackageTags>
-    <PackageIconUrl>https://i.ibb.co/SJM9C6s/rpi-csharp.png</PackageIconUrl>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Utils\Utils.csproj" />
+    <ProjectReference Include="..\Helpers\Helpers.csproj" />
   </ItemGroup>
 
 </Project>
