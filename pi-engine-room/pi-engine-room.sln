@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pi-engine-room.Server", "Server\pi-engine-room.Server.csproj", "{D5EC4720-B09C-4B67-87C7-2566778062F4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Server", "Server\Server.csproj", "{D5EC4720-B09C-4B67-87C7-2566778062F4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pi-engine-room.Client", "Client\pi-engine-room.Client.csproj", "{D528CA99-174B-45EE-9163-9D40F8409EBE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Client", "Client\Client.csproj", "{D528CA99-174B-45EE-9163-9D40F8409EBE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pi-engine-room.Shared", "Shared\pi-engine-room.Shared.csproj", "{3D64A804-7291-4204-8CD8-5F5D0F39FA43}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared", "Shared\Shared.csproj", "{3D64A804-7291-4204-8CD8-5F5D0F39FA43}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WarpCoreController", "WarpCoreController\WarpCoreController.csproj", "{F6E8AAA2-8460-4474-8E87-DC13B04A8B2B}"
 EndProject

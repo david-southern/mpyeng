@@ -39,6 +39,14 @@ namespace PiController
 
         public static WarpCore Instance { get { return lazy.Value; } }
 
+        public double SimTimeScale { get; set; } = 1.0;
+
+        // The LED's are way brighter than my monitor, so a blue that is very visible on the LED
+        // array is nearly indistinguishable from the black background of the array.  Scale the
+        // value of the bitmap colors to make them more visible
+        public double ValueScale { get; set; } = 1.2;
+
+
         private WarpCore()
         {
             CorePixels = Enumerable.Range(0, WarpCorePixelCount)
@@ -99,11 +107,6 @@ namespace PiController
 
         public string GetCoreBitmapData()
         {
-            // The LED's are way brighter than my monitor, so a blue that is very visible on the LED array is nearly
-            // indistinguishable from the black background of the array.  Scale the value of the bitmap colors to make
-            // them more visible
-            const double ValueScale = 1.2;
-
             using var image = new Image<Rgba32>(WarpCoreSegmentCount, WarpCoreSegmentLength);
 
             lock (CorePixels)
@@ -181,7 +184,6 @@ namespace PiController
         }
 
         DateTime SimStart = DateTime.Now;
-        double SimTimeScale = 1.0;
 
         public void CoreAnimationFrame()
         {

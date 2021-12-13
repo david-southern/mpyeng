@@ -1,6 +1,6 @@
 {
     "profiles": {
-        "pi-engine-room.Server": {
+        "Server": {
             "commandName": "Project",
             "launchBrowser": true,
             "environmentVariables": {

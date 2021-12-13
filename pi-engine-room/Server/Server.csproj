@@ -4,7 +4,7 @@
         <TargetFramework>net6.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>pi-engine-room.Server</RootNamespace>
+        <RootNamespace>Server</RootNamespace>
         <AssemblyName>$(AssemblyName.Replace(' ', '_'))</AssemblyName>
         <InvariantGlobalization>true</InvariantGlobalization>
     </PropertyGroup>
@@ -23,8 +23,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Client\pi-engine-room.Client.csproj" />
-        <ProjectReference Include="..\Shared\pi-engine-room.Shared.csproj" />
+        <ProjectReference Include="..\Client\Client.csproj" />
+        <ProjectReference Include="..\Shared\Shared.csproj" />
         <ProjectReference Include="..\WarpCoreController\WarpCoreController.csproj" />
     </ItemGroup>
 
