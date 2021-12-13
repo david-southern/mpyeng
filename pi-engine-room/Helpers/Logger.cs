@@ -6,7 +6,28 @@ namespace Helpers
     {
         private static void Log(LogLevel level, string message)
         {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}");
+            switch (level)
+            {
+                case LogLevel.Trace:
+                    Serilog.Log.Logger.Verbose(message);
+                    return;
+                case LogLevel.Debug:
+                    Serilog.Log.Logger.Debug(message);
+                    return;
+                default:
+                case LogLevel.Information:
+                    Serilog.Log.Logger.Information(message);
+                    return;
+                case LogLevel.Warning:
+                    Serilog.Log.Logger.Warning(message);
+                    return;
+                case LogLevel.Error:
+                    Serilog.Log.Logger.Error(message);
+                    return;
+                case LogLevel.Critical:
+                    Serilog.Log.Logger.Fatal(message);
+                    return;
+            }
         }
 
         public static void Info(string message)

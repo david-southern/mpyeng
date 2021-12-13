@@ -5,6 +5,11 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Helpers;
+using System.Drawing;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using Color = System.Drawing.Color;
+using System.Runtime.InteropServices;
 
 namespace PiController
 {
@@ -24,7 +29,10 @@ namespace PiController
     {
         public static readonly Pin RPI_GPIO_PIN = Pin.Gpio18;
 
-        public const int WarpCorePixelCount = 976;
+        public const int WarpCoreSegmentCount = 8;
+        public const int WarpCoreSegmentLength = 122;
+        public const int WarpCorePixelCount = WarpCoreSegmentCount * WarpCoreSegmentLength;
+
         public const double PowerChangeDurationSeconds = 2;
 
         private static readonly Lazy<WarpCore> lazy = new(() => new WarpCore());
@@ -43,7 +51,8 @@ namespace PiController
 
             AnimationEffects = new List<IAnimationEffect>
             {
-                new WarpCoreFog2D(),
+                new WarpCoreFog2D()
+                ,new WarpCorePulse()
                 // new WarpCoreProgress()
             };
 
@@ -88,6 +97,39 @@ namespace PiController
         private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
         private DateTime LastDiags = DateTime.MinValue;
 
+        public string GetCoreBitmapData()
+        {
+            // The LED's are way brighter than my monitor, so a blue that is very visible on the LED array is nearly
+            // indistinguishable from the black background of the array.  Scale the value of the bitmap colors to make
+            // them more visible
+            const double ValueScale = 1.2;
+
+            using var image = new Image<Rgba32>(WarpCoreSegmentCount, WarpCoreSegmentLength);
+
+            lock (CorePixels)
+            {
+                for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                {
+                    int x = pixIndex / WarpCoreSegmentLength;
+                    int y = pixIndex % WarpCoreSegmentLength;
+
+                    if (x % 2 == 1)
+                    {
+                        y = WarpCoreSegmentLength - y - 1;
+                    }
+
+                    HSVColor hsvColor = new HSVColor(CorePixels[pixIndex].H, CorePixels[pixIndex].S, CorePixels[pixIndex].V * ValueScale);
+                    Color pixColor = hsvColor.RGBColor;
+
+                    image[WarpCoreSegmentCount - x - 1, WarpCoreSegmentLength - y - 1]
+                        = new Rgba32(pixColor.R, pixColor.G, pixColor.B);
+                }
+            }
+
+            using var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return "data:image/png;base64," + Convert.ToBase64String(ms.GetBuffer());
+        }
 
         public void Clear()
         {
@@ -98,32 +140,35 @@ namespace PiController
         {
             try
             {
-                switch (DisplayMode)
+                lock (CorePixels)
                 {
-                case WarpCoreDisplayMode.ColorTest:
-                    HSVColor testColor = new(TargetColor ?? "#00FF00");
-                    for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                    switch (DisplayMode)
                     {
-                        CorePixels[pixIndex] = testColor;
+                        case WarpCoreDisplayMode.ColorTest:
+                            HSVColor testColor = new(TargetColor ?? "#00FF00");
+                            for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                            {
+                                CorePixels[pixIndex] = testColor;
+                            }
+                            break;
+
+                        case WarpCoreDisplayMode.PixelCount:
+                            for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
+                            {
+                                string pixColor = "#000000";
+
+                                if (pixIndex > WarpCorePixelCount - 10) { pixColor = "#0000ff"; }
+                                if (pixIndex % 10 == 0) { pixColor = pixColor = "#00ff00"; }
+                                if (pixIndex % 50 == 0) { pixColor = pixColor = "#ff0000"; }
+
+                                CorePixels[pixIndex] = new HSVColor(pixColor);
+                            }
+                            break;
+
+                        case WarpCoreDisplayMode.Animate:
+                            CoreAnimationFrame();
+                            break;
                     }
-                    break;
-
-                case WarpCoreDisplayMode.PixelCount:
-                    for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
-                    {
-                        string pixColor = "#000000";
-
-                        if (pixIndex > WarpCorePixelCount - 10) { pixColor = "#0000ff"; }
-                        if (pixIndex % 10 == 0) { pixColor = pixColor = "#00ff00"; }
-                        if (pixIndex % 50 == 0) { pixColor = pixColor = "#ff0000"; }
-
-                        CorePixels[pixIndex] = new HSVColor(pixColor);
-                    }
-                    break;
-
-                case WarpCoreDisplayMode.Animate:
-                    CoreAnimationFrame();
-                    break;
                 }
 
                 CoreStrip.Set(CorePixels);
@@ -131,13 +176,19 @@ namespace PiController
             }
             catch (Exception ex)
             {
-                Logger.Error($"WarpCore.Animate: Caught excetion: {ex}");
+                Logger.Error($"WarpCore.Animate: Caught exception: {ex}");
             }
         }
+
+        DateTime SimStart = DateTime.Now;
+        double SimTimeScale = 1.0;
 
         public void CoreAnimationFrame()
         {
             bool showDiags = false;
+
+            double simElapsedTime = (DateTime.Now - SimStart).TotalSeconds * SimTimeScale;
+
 
             if (DateTime.Now - LastDiags > DiagsInterval)
             {
@@ -148,7 +199,7 @@ namespace PiController
 
             foreach (IAnimationEffect effect in AnimationEffects)
             {
-                effect.Render(PowerLevel, CorePixels, showDiags);
+                effect.Render(PowerLevel, simElapsedTime, CorePixels, showDiags);
             }
         }
 

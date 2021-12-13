@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Xml.Serialization;
 
@@ -1402,24 +1403,12 @@ namespace Helpers
         #region Standard Operations (ToString, CompareTo etc)
 
         /// <summary>
-        /// Textual description of the vector.
-        /// </summary>
-        /// <Implementation>
-        /// Uses ToString(string, IFormatProvider) to avoid code duplication
-        /// </Implementation>
-        /// <returns>Text (String) representing the vector</returns>
-        public override string ToString()
-        {
-            return this.ToString(null, null);
-        }
-
-        /// <summary>
         /// Verbose textual description of the vector.
         /// </summary>
         /// <returns>Text (string) representing the vector</returns>
         public string ToVerbString()
         {
-            string output = null;
+            string output = "";
 
             if (this.IsUnitVector())
             {
@@ -1442,7 +1431,7 @@ namespace Helpers
         /// <param name="format">Formatting string: 'x','y','z' or '' followed by standard numeric format string characters valid for a double precision floating point</param>
         /// <param name="formatProvider">The culture specific formatting provider</param>
         /// <returns>Text (String) representing the vector</returns>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format = null, IFormatProvider? formatProvider = null)
         {
             // If no format is passed
             if (format == null || format == "")
@@ -1451,7 +1440,7 @@ namespace Helpers
             }
 
             char firstChar = format[0];
-            string remainder = null;
+            string? remainder = null;
 
             if (format.Length > 1)
             {
@@ -1501,14 +1490,10 @@ namespace Helpers
         /// Required in order to implement comparator operations (i.e. ==, !=)
         /// </implementation>
         /// <remarks>NaN and NaN components will be equal in this method but not in ==, see http://blogs.msdn.com/b/shawnfa/archive/2004/07/19/187792.aspx </remarks>
-        public override bool Equals(object other)
+        public override bool Equals([NotNullWhen(true)] object? other)
         {
-            // Check object other is a Vector3 object
-            if (other is Vector3)
+            if (other != null && other is Vector3 otherVector)
             {
-                // Convert object to Vector3
-                Vector3 otherVector = (Vector3)other;
-
                 // Check for equality
                 return otherVector.Equals(this);
             }

@@ -1,9 +1,6 @@
 ﻿using rpi_ws281x;
 
-using System;
 using System.Drawing;
-
-using Helpers;
 
 namespace PiController
 {
@@ -24,7 +21,7 @@ namespace PiController
             RPI_Device = new(RPI_Settings);
             Controller? controller = RPI_Device.GetController();
 
-            if(controller == null )
+            if (controller == null)
             {
                 throw new InvalidOperationException($"Null controller returned from RPI_Device.GetController() for pin {RPI_PIN}");
             }

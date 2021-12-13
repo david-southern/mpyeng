@@ -194,13 +194,13 @@ namespace Helpers
         private double NoiseMin { get; set; }
         private double NoiseMax { get; set; }
         private double NoiseRange { get; set; }
-        private const double NormalizeThreshold = 0.001;
+        private const double NormalizeThreshold = 0.00001;
 
         // Return a noise value normalized onto the range [0, 1]
         public double NormalizedNoise(double x, double y, double z)
         {
             double rawNoise = GetNoise(x, y, z);
-            if(rawNoise < (NoiseMin - NormalizeThreshold) || rawNoise > (NoiseMax + NormalizeThreshold))
+            if (rawNoise < (NoiseMin - NormalizeThreshold) || rawNoise > (NoiseMax + NormalizeThreshold))
             {
                 NoiseMax = Math.Max(NoiseMax, rawNoise);
                 NoiseMin = Math.Min(NoiseMin, rawNoise);
@@ -208,7 +208,7 @@ namespace Helpers
                 // Logger.Info($"FastNoiseLite: Raw noise {rawNoise:N5} caused reset of noise range to [{NoiseMin:N5}, {NoiseMax:N5}] (R: {NoiseRange:N3})");
 
             }
-            return (rawNoise - NoiseMin) / NoiseRange;
+            return Utils.Clamp(NoiseRange > 0 ? (rawNoise - NoiseMin) / NoiseRange : rawNoise);
         }
 
 
@@ -374,14 +374,14 @@ namespace Helpers
 
             switch (mFractalType)
             {
-            default:
-                return GenNoiseSingle(mSeed, x, y);
-            case FractalType.FBm:
-                return GenFractalFBm(x, y);
-            case FractalType.Ridged:
-                return GenFractalRidged(x, y);
-            case FractalType.PingPong:
-                return GenFractalPingPong(x, y);
+                default:
+                    return GenNoiseSingle(mSeed, x, y);
+                case FractalType.FBm:
+                    return GenFractalFBm(x, y);
+                case FractalType.Ridged:
+                    return GenFractalRidged(x, y);
+                case FractalType.PingPong:
+                    return GenFractalPingPong(x, y);
             }
         }
 
@@ -398,14 +398,14 @@ namespace Helpers
 
             switch (mFractalType)
             {
-            default:
-                return GenNoiseSingle(mSeed, x, y, z);
-            case FractalType.FBm:
-                return GenFractalFBm(x, y, z);
-            case FractalType.Ridged:
-                return GenFractalRidged(x, y, z);
-            case FractalType.PingPong:
-                return GenFractalPingPong(x, y, z);
+                default:
+                    return GenNoiseSingle(mSeed, x, y, z);
+                case FractalType.FBm:
+                    return GenFractalFBm(x, y, z);
+                case FractalType.Ridged:
+                    return GenFractalRidged(x, y, z);
+                case FractalType.PingPong:
+                    return GenFractalPingPong(x, y, z);
             }
         }
 
@@ -423,15 +423,15 @@ namespace Helpers
         {
             switch (mFractalType)
             {
-            default:
-                DomainWarpSingle(ref x, ref y);
-                break;
-            case FractalType.DomainWarpProgressive:
-                DomainWarpFractalProgressive(ref x, ref y);
-                break;
-            case FractalType.DomainWarpIndependent:
-                DomainWarpFractalIndependent(ref x, ref y);
-                break;
+                default:
+                    DomainWarpSingle(ref x, ref y);
+                    break;
+                case FractalType.DomainWarpProgressive:
+                    DomainWarpFractalProgressive(ref x, ref y);
+                    break;
+                case FractalType.DomainWarpIndependent:
+                    DomainWarpFractalIndependent(ref x, ref y);
+                    break;
             }
         }
 
@@ -448,15 +448,15 @@ namespace Helpers
         {
             switch (mFractalType)
             {
-            default:
-                DomainWarpSingle(ref x, ref y, ref z);
-                break;
-            case FractalType.DomainWarpProgressive:
-                DomainWarpFractalProgressive(ref x, ref y, ref z);
-                break;
-            case FractalType.DomainWarpIndependent:
-                DomainWarpFractalIndependent(ref x, ref y, ref z);
-                break;
+                default:
+                    DomainWarpSingle(ref x, ref y, ref z);
+                    break;
+                case FractalType.DomainWarpProgressive:
+                    DomainWarpFractalProgressive(ref x, ref y, ref z);
+                    break;
+                case FractalType.DomainWarpIndependent:
+                    DomainWarpFractalIndependent(ref x, ref y, ref z);
+                    break;
             }
         }
 
@@ -779,20 +779,20 @@ namespace Helpers
         {
             switch (mNoiseType)
             {
-            case NoiseType.OpenSimplex2:
-                return SingleSimplex(seed, x, y);
-            case NoiseType.OpenSimplex2S:
-                return SingleOpenSimplex2S(seed, x, y);
-            case NoiseType.Cellular:
-                return SingleCellular(seed, x, y);
-            case NoiseType.Perlin:
-                return SinglePerlin(seed, x, y);
-            case NoiseType.ValueCubic:
-                return SingleValueCubic(seed, x, y);
-            case NoiseType.Value:
-                return SingleValue(seed, x, y);
-            default:
-                return 0;
+                case NoiseType.OpenSimplex2:
+                    return SingleSimplex(seed, x, y);
+                case NoiseType.OpenSimplex2S:
+                    return SingleOpenSimplex2S(seed, x, y);
+                case NoiseType.Cellular:
+                    return SingleCellular(seed, x, y);
+                case NoiseType.Perlin:
+                    return SinglePerlin(seed, x, y);
+                case NoiseType.ValueCubic:
+                    return SingleValueCubic(seed, x, y);
+                case NoiseType.Value:
+                    return SingleValue(seed, x, y);
+                default:
+                    return 0;
             }
         }
 
@@ -800,20 +800,20 @@ namespace Helpers
         {
             switch (mNoiseType)
             {
-            case NoiseType.OpenSimplex2:
-                return SingleOpenSimplex2(seed, x, y, z);
-            case NoiseType.OpenSimplex2S:
-                return SingleOpenSimplex2S(seed, x, y, z);
-            case NoiseType.Cellular:
-                return SingleCellular(seed, x, y, z);
-            case NoiseType.Perlin:
-                return SinglePerlin(seed, x, y, z);
-            case NoiseType.ValueCubic:
-                return SingleValueCubic(seed, x, y, z);
-            case NoiseType.Value:
-                return SingleValue(seed, x, y, z);
-            default:
-                return 0;
+                case NoiseType.OpenSimplex2:
+                    return SingleOpenSimplex2(seed, x, y, z);
+                case NoiseType.OpenSimplex2S:
+                    return SingleOpenSimplex2S(seed, x, y, z);
+                case NoiseType.Cellular:
+                    return SingleCellular(seed, x, y, z);
+                case NoiseType.Perlin:
+                    return SinglePerlin(seed, x, y, z);
+                case NoiseType.ValueCubic:
+                    return SingleValueCubic(seed, x, y, z);
+                case NoiseType.Value:
+                    return SingleValue(seed, x, y, z);
+                default:
+                    return 0;
             }
         }
 
@@ -828,18 +828,18 @@ namespace Helpers
 
             switch (mNoiseType)
             {
-            case NoiseType.OpenSimplex2:
-            case NoiseType.OpenSimplex2S:
-                {
-                    const double SQRT3 = (double)1.7320508075688772935274463415059;
-                    const double F2 = 0.5f * (SQRT3 - 1);
-                    double t = (x + y) * F2;
-                    x += t;
-                    y += t;
-                }
-                break;
-            default:
-                break;
+                case NoiseType.OpenSimplex2:
+                case NoiseType.OpenSimplex2S:
+                    {
+                        const double SQRT3 = (double)1.7320508075688772935274463415059;
+                        const double F2 = 0.5f * (SQRT3 - 1);
+                        double t = (x + y) * F2;
+                        x += t;
+                        y += t;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -852,37 +852,37 @@ namespace Helpers
 
             switch (mTransformType3D)
             {
-            case TransformType3D.ImproveXYPlanes:
-                {
-                    double xy = x + y;
-                    double s2 = xy * -(double)0.211324865405187;
-                    z *= (double)0.577350269189626;
-                    x += s2 - z;
-                    y = y + s2 - z;
-                    z += xy * (double)0.577350269189626;
-                }
-                break;
-            case TransformType3D.ImproveXZPlanes:
-                {
-                    double xz = x + z;
-                    double s2 = xz * -(double)0.211324865405187;
-                    y *= (double)0.577350269189626;
-                    x += s2 - y;
-                    z += s2 - y;
-                    y += xz * (double)0.577350269189626;
-                }
-                break;
-            case TransformType3D.DefaultOpenSimplex2:
-                {
-                    const double R3 = (double)(2.0 / 3.0);
-                    double r = (x + y + z) * R3; // Rotation, not skew
-                    x = r - x;
-                    y = r - y;
-                    z = r - z;
-                }
-                break;
-            default:
-                break;
+                case TransformType3D.ImproveXYPlanes:
+                    {
+                        double xy = x + y;
+                        double s2 = xy * -(double)0.211324865405187;
+                        z *= (double)0.577350269189626;
+                        x += s2 - z;
+                        y = y + s2 - z;
+                        z += xy * (double)0.577350269189626;
+                    }
+                    break;
+                case TransformType3D.ImproveXZPlanes:
+                    {
+                        double xz = x + z;
+                        double s2 = xz * -(double)0.211324865405187;
+                        y *= (double)0.577350269189626;
+                        x += s2 - y;
+                        z += s2 - y;
+                        y += xz * (double)0.577350269189626;
+                    }
+                    break;
+                case TransformType3D.DefaultOpenSimplex2:
+                    {
+                        const double R3 = (double)(2.0 / 3.0);
+                        double r = (x + y + z) * R3; // Rotation, not skew
+                        x = r - x;
+                        y = r - y;
+                        z = r - z;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -890,24 +890,24 @@ namespace Helpers
         {
             switch (mRotationType3D)
             {
-            case RotationType3D.ImproveXYPlanes:
-                mTransformType3D = TransformType3D.ImproveXYPlanes;
-                break;
-            case RotationType3D.ImproveXZPlanes:
-                mTransformType3D = TransformType3D.ImproveXZPlanes;
-                break;
-            default:
-                switch (mNoiseType)
-                {
-                case NoiseType.OpenSimplex2:
-                case NoiseType.OpenSimplex2S:
-                    mTransformType3D = TransformType3D.DefaultOpenSimplex2;
+                case RotationType3D.ImproveXYPlanes:
+                    mTransformType3D = TransformType3D.ImproveXYPlanes;
+                    break;
+                case RotationType3D.ImproveXZPlanes:
+                    mTransformType3D = TransformType3D.ImproveXZPlanes;
                     break;
                 default:
-                    mTransformType3D = TransformType3D.None;
+                    switch (mNoiseType)
+                    {
+                        case NoiseType.OpenSimplex2:
+                        case NoiseType.OpenSimplex2S:
+                            mTransformType3D = TransformType3D.DefaultOpenSimplex2;
+                            break;
+                        default:
+                            mTransformType3D = TransformType3D.None;
+                            break;
+                    }
                     break;
-                }
-                break;
             }
         }
 
@@ -919,17 +919,17 @@ namespace Helpers
         {
             switch (mDomainWarpType)
             {
-            case DomainWarpType.OpenSimplex2:
-            case DomainWarpType.OpenSimplex2Reduced:
-                {
-                    const double SQRT3 = (double)1.7320508075688772935274463415059;
-                    const double F2 = 0.5f * (SQRT3 - 1);
-                    double t = (x + y) * F2;
-                    x += t; y += t;
-                }
-                break;
-            default:
-                break;
+                case DomainWarpType.OpenSimplex2:
+                case DomainWarpType.OpenSimplex2Reduced:
+                    {
+                        const double SQRT3 = (double)1.7320508075688772935274463415059;
+                        const double F2 = 0.5f * (SQRT3 - 1);
+                        double t = (x + y) * F2;
+                        x += t; y += t;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -938,36 +938,36 @@ namespace Helpers
         {
             switch (mWarpTransformType3D)
             {
-            case TransformType3D.ImproveXYPlanes:
-                {
-                    double xy = x + y;
-                    double s2 = xy * -(double)0.211324865405187;
-                    z *= (double)0.577350269189626;
-                    x += s2 - z;
-                    y = y + s2 - z;
-                    z += xy * (double)0.577350269189626;
-                }
-                break;
-            case TransformType3D.ImproveXZPlanes:
-                {
-                    double xz = x + z;
-                    double s2 = xz * -(double)0.211324865405187;
-                    y *= (double)0.577350269189626;
-                    x += s2 - y; z += s2 - y;
-                    y += xz * (double)0.577350269189626;
-                }
-                break;
-            case TransformType3D.DefaultOpenSimplex2:
-                {
-                    const double R3 = (double)(2.0 / 3.0);
-                    double r = (x + y + z) * R3; // Rotation, not skew
-                    x = r - x;
-                    y = r - y;
-                    z = r - z;
-                }
-                break;
-            default:
-                break;
+                case TransformType3D.ImproveXYPlanes:
+                    {
+                        double xy = x + y;
+                        double s2 = xy * -(double)0.211324865405187;
+                        z *= (double)0.577350269189626;
+                        x += s2 - z;
+                        y = y + s2 - z;
+                        z += xy * (double)0.577350269189626;
+                    }
+                    break;
+                case TransformType3D.ImproveXZPlanes:
+                    {
+                        double xz = x + z;
+                        double s2 = xz * -(double)0.211324865405187;
+                        y *= (double)0.577350269189626;
+                        x += s2 - y; z += s2 - y;
+                        y += xz * (double)0.577350269189626;
+                    }
+                    break;
+                case TransformType3D.DefaultOpenSimplex2:
+                    {
+                        const double R3 = (double)(2.0 / 3.0);
+                        double r = (x + y + z) * R3; // Rotation, not skew
+                        x = r - x;
+                        y = r - y;
+                        z = r - z;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -975,24 +975,24 @@ namespace Helpers
         {
             switch (mRotationType3D)
             {
-            case RotationType3D.ImproveXYPlanes:
-                mWarpTransformType3D = TransformType3D.ImproveXYPlanes;
-                break;
-            case RotationType3D.ImproveXZPlanes:
-                mWarpTransformType3D = TransformType3D.ImproveXZPlanes;
-                break;
-            default:
-                switch (mDomainWarpType)
-                {
-                case DomainWarpType.OpenSimplex2:
-                case DomainWarpType.OpenSimplex2Reduced:
-                    mWarpTransformType3D = TransformType3D.DefaultOpenSimplex2;
+                case RotationType3D.ImproveXYPlanes:
+                    mWarpTransformType3D = TransformType3D.ImproveXYPlanes;
+                    break;
+                case RotationType3D.ImproveXZPlanes:
+                    mWarpTransformType3D = TransformType3D.ImproveXZPlanes;
                     break;
                 default:
-                    mWarpTransformType3D = TransformType3D.None;
+                    switch (mDomainWarpType)
+                    {
+                        case DomainWarpType.OpenSimplex2:
+                        case DomainWarpType.OpenSimplex2Reduced:
+                            mWarpTransformType3D = TransformType3D.DefaultOpenSimplex2;
+                            break;
+                        default:
+                            mWarpTransformType3D = TransformType3D.None;
+                            break;
+                    }
                     break;
-                }
-                break;
             }
         }
 
@@ -1639,86 +1639,86 @@ namespace Helpers
 
             switch (mCellularDistanceFunction)
             {
-            default:
-            case CellularDistanceFunction.Euclidean:
-            case CellularDistanceFunction.EuclideanSq:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
-
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                default:
+                case CellularDistanceFunction.Euclidean:
+                case CellularDistanceFunction.EuclideanSq:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int hash = Hash(seed, xPrimed, yPrimed);
-                        int idx = hash & (255 << 1);
+                        int yPrimed = yPrimedBase;
 
-                        double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
-                        double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
-
-                        double newDistance = vecX * vecX + vecY * vecY;
-
-                        distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                        if (newDistance < distance0)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            distance0 = newDistance;
-                            closestHash = hash;
-                        }
-                        yPrimed += PrimeY;
-                    }
-                    xPrimed += PrimeX;
-                }
-                break;
-            case CellularDistanceFunction.Manhattan:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
+                            int hash = Hash(seed, xPrimed, yPrimed);
+                            int idx = hash & (255 << 1);
 
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                            double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
+                            double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
+
+                            double newDistance = vecX * vecX + vecY * vecY;
+
+                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                            if (newDistance < distance0)
+                            {
+                                distance0 = newDistance;
+                                closestHash = hash;
+                            }
+                            yPrimed += PrimeY;
+                        }
+                        xPrimed += PrimeX;
+                    }
+                    break;
+                case CellularDistanceFunction.Manhattan:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int hash = Hash(seed, xPrimed, yPrimed);
-                        int idx = hash & (255 << 1);
+                        int yPrimed = yPrimedBase;
 
-                        double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
-                        double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
-
-                        double newDistance = FastAbs(vecX) + FastAbs(vecY);
-
-                        distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                        if (newDistance < distance0)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            distance0 = newDistance;
-                            closestHash = hash;
-                        }
-                        yPrimed += PrimeY;
-                    }
-                    xPrimed += PrimeX;
-                }
-                break;
-            case CellularDistanceFunction.Hybrid:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
+                            int hash = Hash(seed, xPrimed, yPrimed);
+                            int idx = hash & (255 << 1);
 
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                            double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
+                            double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
+
+                            double newDistance = FastAbs(vecX) + FastAbs(vecY);
+
+                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                            if (newDistance < distance0)
+                            {
+                                distance0 = newDistance;
+                                closestHash = hash;
+                            }
+                            yPrimed += PrimeY;
+                        }
+                        xPrimed += PrimeX;
+                    }
+                    break;
+                case CellularDistanceFunction.Hybrid:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int hash = Hash(seed, xPrimed, yPrimed);
-                        int idx = hash & (255 << 1);
+                        int yPrimed = yPrimedBase;
 
-                        double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
-                        double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
-
-                        double newDistance = (FastAbs(vecX) + FastAbs(vecY)) + (vecX * vecX + vecY * vecY);
-
-                        distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                        if (newDistance < distance0)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            distance0 = newDistance;
-                            closestHash = hash;
+                            int hash = Hash(seed, xPrimed, yPrimed);
+                            int idx = hash & (255 << 1);
+
+                            double vecX = (double)(xi - x) + RandVecs2D[idx] * cellularJitter;
+                            double vecY = (double)(yi - y) + RandVecs2D[idx | 1] * cellularJitter;
+
+                            double newDistance = (FastAbs(vecX) + FastAbs(vecY)) + (vecX * vecX + vecY * vecY);
+
+                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                            if (newDistance < distance0)
+                            {
+                                distance0 = newDistance;
+                                closestHash = hash;
+                            }
+                            yPrimed += PrimeY;
                         }
-                        yPrimed += PrimeY;
+                        xPrimed += PrimeX;
                     }
-                    xPrimed += PrimeX;
-                }
-                break;
+                    break;
             }
 
             if (mCellularDistanceFunction == CellularDistanceFunction.Euclidean && mCellularReturnType >= CellularReturnType.Distance)
@@ -1733,22 +1733,22 @@ namespace Helpers
 
             switch (mCellularReturnType)
             {
-            case CellularReturnType.CellValue:
-                return closestHash * (1 / 2147483648.0f);
-            case CellularReturnType.Distance:
-                return distance0 - 1;
-            case CellularReturnType.Distance2:
-                return distance1 - 1;
-            case CellularReturnType.Distance2Add:
-                return (distance1 + distance0) * 0.5f - 1;
-            case CellularReturnType.Distance2Sub:
-                return distance1 - distance0 - 1;
-            case CellularReturnType.Distance2Mul:
-                return distance1 * distance0 * 0.5f - 1;
-            case CellularReturnType.Distance2Div:
-                return distance0 / distance1 - 1;
-            default:
-                return 0;
+                case CellularReturnType.CellValue:
+                    return closestHash * (1 / 2147483648.0f);
+                case CellularReturnType.Distance:
+                    return distance0 - 1;
+                case CellularReturnType.Distance2:
+                    return distance1 - 1;
+                case CellularReturnType.Distance2Add:
+                    return (distance1 + distance0) * 0.5f - 1;
+                case CellularReturnType.Distance2Sub:
+                    return distance1 - distance0 - 1;
+                case CellularReturnType.Distance2Mul:
+                    return distance1 * distance0 * 0.5f - 1;
+                case CellularReturnType.Distance2Div:
+                    return distance0 / distance1 - 1;
+                default:
+                    return 0;
             }
         }
 
@@ -1770,108 +1770,108 @@ namespace Helpers
 
             switch (mCellularDistanceFunction)
             {
-            case CellularDistanceFunction.Euclidean:
-            case CellularDistanceFunction.EuclideanSq:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
-
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                case CellularDistanceFunction.Euclidean:
+                case CellularDistanceFunction.EuclideanSq:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int zPrimed = zPrimedBase;
+                        int yPrimed = yPrimedBase;
 
-                        for (int zi = zr - 1; zi <= zr + 1; zi++)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
-                            int idx = hash & (255 << 2);
+                            int zPrimed = zPrimedBase;
 
-                            double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
-                            double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
-                            double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
-
-                            double newDistance = vecX * vecX + vecY * vecY + vecZ * vecZ;
-
-                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                            if (newDistance < distance0)
+                            for (int zi = zr - 1; zi <= zr + 1; zi++)
                             {
-                                distance0 = newDistance;
-                                closestHash = hash;
-                            }
-                            zPrimed += PrimeZ;
-                        }
-                        yPrimed += PrimeY;
-                    }
-                    xPrimed += PrimeX;
-                }
-                break;
-            case CellularDistanceFunction.Manhattan:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
+                                int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
+                                int idx = hash & (255 << 2);
 
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                                double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
+                                double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
+                                double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
+
+                                double newDistance = vecX * vecX + vecY * vecY + vecZ * vecZ;
+
+                                distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                                if (newDistance < distance0)
+                                {
+                                    distance0 = newDistance;
+                                    closestHash = hash;
+                                }
+                                zPrimed += PrimeZ;
+                            }
+                            yPrimed += PrimeY;
+                        }
+                        xPrimed += PrimeX;
+                    }
+                    break;
+                case CellularDistanceFunction.Manhattan:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int zPrimed = zPrimedBase;
+                        int yPrimed = yPrimedBase;
 
-                        for (int zi = zr - 1; zi <= zr + 1; zi++)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
-                            int idx = hash & (255 << 2);
+                            int zPrimed = zPrimedBase;
 
-                            double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
-                            double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
-                            double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
-
-                            double newDistance = FastAbs(vecX) + FastAbs(vecY) + FastAbs(vecZ);
-
-                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                            if (newDistance < distance0)
+                            for (int zi = zr - 1; zi <= zr + 1; zi++)
                             {
-                                distance0 = newDistance;
-                                closestHash = hash;
-                            }
-                            zPrimed += PrimeZ;
-                        }
-                        yPrimed += PrimeY;
-                    }
-                    xPrimed += PrimeX;
-                }
-                break;
-            case CellularDistanceFunction.Hybrid:
-                for (int xi = xr - 1; xi <= xr + 1; xi++)
-                {
-                    int yPrimed = yPrimedBase;
+                                int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
+                                int idx = hash & (255 << 2);
 
-                    for (int yi = yr - 1; yi <= yr + 1; yi++)
+                                double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
+                                double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
+                                double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
+
+                                double newDistance = FastAbs(vecX) + FastAbs(vecY) + FastAbs(vecZ);
+
+                                distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                                if (newDistance < distance0)
+                                {
+                                    distance0 = newDistance;
+                                    closestHash = hash;
+                                }
+                                zPrimed += PrimeZ;
+                            }
+                            yPrimed += PrimeY;
+                        }
+                        xPrimed += PrimeX;
+                    }
+                    break;
+                case CellularDistanceFunction.Hybrid:
+                    for (int xi = xr - 1; xi <= xr + 1; xi++)
                     {
-                        int zPrimed = zPrimedBase;
+                        int yPrimed = yPrimedBase;
 
-                        for (int zi = zr - 1; zi <= zr + 1; zi++)
+                        for (int yi = yr - 1; yi <= yr + 1; yi++)
                         {
-                            int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
-                            int idx = hash & (255 << 2);
+                            int zPrimed = zPrimedBase;
 
-                            double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
-                            double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
-                            double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
-
-                            double newDistance = (FastAbs(vecX) + FastAbs(vecY) + FastAbs(vecZ)) + (vecX * vecX + vecY * vecY + vecZ * vecZ);
-
-                            distance1 = FastMax(FastMin(distance1, newDistance), distance0);
-                            if (newDistance < distance0)
+                            for (int zi = zr - 1; zi <= zr + 1; zi++)
                             {
-                                distance0 = newDistance;
-                                closestHash = hash;
+                                int hash = Hash(seed, xPrimed, yPrimed, zPrimed);
+                                int idx = hash & (255 << 2);
+
+                                double vecX = (double)(xi - x) + RandVecs3D[idx] * cellularJitter;
+                                double vecY = (double)(yi - y) + RandVecs3D[idx | 1] * cellularJitter;
+                                double vecZ = (double)(zi - z) + RandVecs3D[idx | 2] * cellularJitter;
+
+                                double newDistance = (FastAbs(vecX) + FastAbs(vecY) + FastAbs(vecZ)) + (vecX * vecX + vecY * vecY + vecZ * vecZ);
+
+                                distance1 = FastMax(FastMin(distance1, newDistance), distance0);
+                                if (newDistance < distance0)
+                                {
+                                    distance0 = newDistance;
+                                    closestHash = hash;
+                                }
+                                zPrimed += PrimeZ;
                             }
-                            zPrimed += PrimeZ;
+                            yPrimed += PrimeY;
                         }
-                        yPrimed += PrimeY;
+                        xPrimed += PrimeX;
                     }
-                    xPrimed += PrimeX;
-                }
-                break;
-            default:
-                break;
+                    break;
+                default:
+                    break;
             }
 
             if (mCellularDistanceFunction == CellularDistanceFunction.Euclidean && mCellularReturnType >= CellularReturnType.Distance)
@@ -1886,22 +1886,22 @@ namespace Helpers
 
             switch (mCellularReturnType)
             {
-            case CellularReturnType.CellValue:
-                return closestHash * (1 / 2147483648.0f);
-            case CellularReturnType.Distance:
-                return distance0 - 1;
-            case CellularReturnType.Distance2:
-                return distance1 - 1;
-            case CellularReturnType.Distance2Add:
-                return (distance1 + distance0) * 0.5f - 1;
-            case CellularReturnType.Distance2Sub:
-                return distance1 - distance0 - 1;
-            case CellularReturnType.Distance2Mul:
-                return distance1 * distance0 * 0.5f - 1;
-            case CellularReturnType.Distance2Div:
-                return distance0 / distance1 - 1;
-            default:
-                return 0;
+                case CellularReturnType.CellValue:
+                    return closestHash * (1 / 2147483648.0f);
+                case CellularReturnType.Distance:
+                    return distance0 - 1;
+                case CellularReturnType.Distance2:
+                    return distance1 - 1;
+                case CellularReturnType.Distance2Add:
+                    return (distance1 + distance0) * 0.5f - 1;
+                case CellularReturnType.Distance2Sub:
+                    return distance1 - distance0 - 1;
+                case CellularReturnType.Distance2Mul:
+                    return distance1 * distance0 * 0.5f - 1;
+                case CellularReturnType.Distance2Div:
+                    return distance0 / distance1 - 1;
+                default:
+                    return 0;
             }
         }
 
@@ -2109,15 +2109,15 @@ namespace Helpers
         {
             switch (mDomainWarpType)
             {
-            case DomainWarpType.OpenSimplex2:
-                SingleDomainWarpSimplexGradient(seed, amp * 38.283687591552734375f, freq, x, y, ref xr, ref yr, false);
-                break;
-            case DomainWarpType.OpenSimplex2Reduced:
-                SingleDomainWarpSimplexGradient(seed, amp * 16.0f, freq, x, y, ref xr, ref yr, true);
-                break;
-            case DomainWarpType.BasicGrid:
-                SingleDomainWarpBasicGrid(seed, amp, freq, x, y, ref xr, ref yr);
-                break;
+                case DomainWarpType.OpenSimplex2:
+                    SingleDomainWarpSimplexGradient(seed, amp * 38.283687591552734375f, freq, x, y, ref xr, ref yr, false);
+                    break;
+                case DomainWarpType.OpenSimplex2Reduced:
+                    SingleDomainWarpSimplexGradient(seed, amp * 16.0f, freq, x, y, ref xr, ref yr, true);
+                    break;
+                case DomainWarpType.BasicGrid:
+                    SingleDomainWarpBasicGrid(seed, amp, freq, x, y, ref xr, ref yr);
+                    break;
             }
         }
 
@@ -2125,15 +2125,15 @@ namespace Helpers
         {
             switch (mDomainWarpType)
             {
-            case DomainWarpType.OpenSimplex2:
-                SingleDomainWarpOpenSimplex2Gradient(seed, amp * 32.69428253173828125f, freq, x, y, z, ref xr, ref yr, ref zr, false);
-                break;
-            case DomainWarpType.OpenSimplex2Reduced:
-                SingleDomainWarpOpenSimplex2Gradient(seed, amp * 7.71604938271605f, freq, x, y, z, ref xr, ref yr, ref zr, true);
-                break;
-            case DomainWarpType.BasicGrid:
-                SingleDomainWarpBasicGrid(seed, amp, freq, x, y, z, ref xr, ref yr, ref zr);
-                break;
+                case DomainWarpType.OpenSimplex2:
+                    SingleDomainWarpOpenSimplex2Gradient(seed, amp * 32.69428253173828125f, freq, x, y, z, ref xr, ref yr, ref zr, false);
+                    break;
+                case DomainWarpType.OpenSimplex2Reduced:
+                    SingleDomainWarpOpenSimplex2Gradient(seed, amp * 7.71604938271605f, freq, x, y, z, ref xr, ref yr, ref zr, true);
+                    break;
+                case DomainWarpType.BasicGrid:
+                    SingleDomainWarpBasicGrid(seed, amp, freq, x, y, z, ref xr, ref yr, ref zr);
+                    break;
             }
         }
 

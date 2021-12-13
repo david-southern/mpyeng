@@ -1,23 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup Label="Build">
-    <TargetFramework>net6.0</TargetFramework>
-  </PropertyGroup>
+    <PropertyGroup Label="Build">
+        <TargetFramework>net6.0</TargetFramework>
+        <InvariantGlobalization>true</InvariantGlobalization>
+    </PropertyGroup>
 
-  <PropertyGroup Label="Package">
-    <PackageId>jds-fork-of-kenssamson.rpi-ws281x-csharp</PackageId>
-    <Authors>Ken Samson, JDS, et al</Authors>
-    <Title>.Net Library wrapper for the rpi-ws281x library</Title>
-    <Description>This is a fork of a fork of a fork of (etc, etc, etc) the original .Net Library. It has been updated to work properly with .Net Core 6 and contains additional features.</Description>
-    <RepositoryUrl>https://github.com/kenssamson/rpi-ws281x-csharp.git</RepositoryUrl>
-  </PropertyGroup>
+    <PropertyGroup Label="Package">
+        <PackageId>jds-fork-of-kenssamson.rpi-ws281x-csharp</PackageId>
+        <Authors>Ken Samson, JDS, et al</Authors>
+        <Title>.Net Library wrapper for the rpi-ws281x library</Title>
+        <Description>This is a fork of a fork of a fork of (etc, etc, etc) the original .Net Library. It has been updated to work properly with .Net Core 6 and contains additional features.</Description>
+        <RepositoryUrl>https://github.com/kenssamson/rpi-ws281x-csharp.git</RepositoryUrl>
+    </PropertyGroup>
 
-  <PropertyGroup>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Helpers\Helpers.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Helpers\Helpers.csproj" />
+    </ItemGroup>
 
 </Project>

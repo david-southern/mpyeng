@@ -1,7 +1,13 @@
 ﻿@page "/"
 
 @using pi_engine_room.Shared
+@implements IAsyncDisposable
 @inject HttpClient Http
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<MudPaper>
+
+</MudPaper>
 
 <MudText Typo="Typo.h6" GutterBottom="true">Core Power Load</MudText>
 
@@ -11,27 +17,84 @@
 }
 else
 {
-    <MudSlider @bind-Value="@powerLevel" Min="0" Max="1" Step="0.01">Current Core Power Level: </MudSlider>
-    <MudButton OnClick="UpdatePowerLevel">Update Power Level</MudButton>
+    <MudSlider @bind-Value="@powerLevel" Min="0" Max="1" Step="0.05" @onchange="UpdatePowerLevel">Current Core Power Level: </MudSlider>
+
+    <MudButton OnClick="StartAnimation">Start Core Animation</MudButton>
+    <MudButton OnClick="StopAnimation">Stop Core Animation</MudButton>
+@*    <img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
+*@
+<div>
+    <span id="frameCount"></span><br>
+    <img id="coreImage" style="width: 80px; height: 854px"/>
+</div>
 }
 
 @code {
-    private CoreConfigurationViewModel coreConfig;
+    private double FrameRate = 30;
+    private Timer animationTimer = null!;
+
+    private CoreConfigurationViewModel? coreConfig;
     double powerLevel = 0;
+    int frameCount;
 
     protected override async Task OnInitializedAsync()
     {
         coreConfig = await Http.GetFromJsonAsync<CoreConfigurationViewModel>("/config")
-            ?? throw new InvalidOperationException("Umable to get core config from server");
+            ?? throw new InvalidOperationException("Unable to get core config from server");
         powerLevel = coreConfig.PowerLevel;
+
+        //animationTimer = new Timer(AnimationEvent, null, 0, (int)(1000 / FrameRate));
+    }
+
+    private IJSObjectReference? module;
+    private string? result;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
+        }
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
     }
 
     private async Task UpdatePowerLevel()
     {
+        if (coreConfig == null) { return; }
+
         coreConfig.PowerLevel = powerLevel;
         using var result = await Http.PostAsJsonAsync("/config", coreConfig);
         coreConfig = await result.Content.ReadFromJsonAsync<CoreConfigurationViewModel>()
-            ?? throw new InvalidOperationException("Umable to get core config from server");
+            ?? throw new InvalidOperationException("Unable to get core config from server");
         powerLevel = coreConfig.PowerLevel;
+    }
+
+    private async Task StartAnimation()
+    {
+        if (module != null)
+        {
+            await module.InvokeAsync<string>("startAnimation", FrameRate);
+        }
+    }
+
+    private async Task StopAnimation()
+    {
+        if (module != null)
+        {
+            await module.InvokeAsync<string>("stopAnimation", FrameRate);
+        }
+    }
+
+    private void AnimationEvent(object? state)
+    {
+        frameCount++;
+        StateHasChanged();
     }
 }

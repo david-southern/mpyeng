@@ -1,3 +1,6 @@
+
+using PiController;
+
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -13,6 +16,9 @@ try
     builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
     builder.Services.AddSingleton<CoreConfiguration>(builder.Configuration.GetSection("CoreConfiguration").Get<CoreConfiguration>());
+
+    builder.Services.AddSingleton<AnimationService>();
+    builder.Services.AddHostedService(provider => provider.GetService<AnimationService>());
 
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
@@ -55,6 +61,16 @@ try
 
     app.MapGet("/api-docs", () => Results.Redirect("/swagger"));
 
+    WarpCore core = WarpCore.Instance;
+
+    app.MapGet("/animation-frame", () =>
+    {
+
+        return core.GetCoreBitmapData();
+    });
+
+    WarpCore Core = WarpCore.Instance;
+
     CoreConfigurationViewModel transientConfig;
 
     using (var serviceScope = app.Services.CreateScope())
@@ -71,8 +87,9 @@ try
 
     app.MapPost("/config", (CoreConfigurationViewModel newConfig) =>
     {
-        app.Logger.LogInformation($"/config: Updating CoreConfig: {newConfig.SafeJson()}");
+        app.Logger.LogInformation($"/config: Updating PowerLevel: {newConfig.PowerLevel}");
         transientConfig.PowerLevel = newConfig.PowerLevel;
+        Core.PowerLevel = newConfig.PowerLevel;
         return transientConfig;
     });
 

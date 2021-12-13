@@ -1,21 +1,18 @@
 ﻿using Native;
 
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices;
-
 namespace rpi_ws281x
 {
     /// <summary>
-    /// Wrapper class to controll WS281x LEDs
+    /// Wrapper class to control WS281x LEDs
     /// </summary>
     public class WS281x : IDisposable
     {
-        private ws2811_t _ws2811;
-        private GCHandle _ws2811Handle;
-        private Dictionary<int, Controller> _controllers;
+        // If we're not on the RasPi, don't try to address the HArdware, this will let us test on Windows
+        private bool HardwareRender { get; init; } = Utils.OperatingSystem.IsLinux();
+
+        private WS2811Wrapper? NativeWS2811 { get; init; }
+
+        private Dictionary<int, Controller> Controllers { get; init; }
 
         private bool _isDisposingAllowed;
 
@@ -25,45 +22,38 @@ namespace rpi_ws281x
         /// <param name="settings">Settings used for initialization</param>
         public WS281x(Settings settings)
         {
-            _ws2811 = new ws2811_t
+            if (HardwareRender)
             {
-                dmanum = settings.DMAChannel,
-                freq = settings.Frequency,
-                channel_0 = InitChannel(0, settings.Controllers),
-                channel_1 = InitChannel(1, settings.Controllers)
-            };
-
-            //Pin the object in memory. Otherwies GC will probably move the object to another memory location.
-            //This would cause errors because the native library has a pointer on the memory location of the object.
-            _ws2811Handle = GCHandle.Alloc(_ws2811, GCHandleType.Pinned);
-
-            var initResult = PInvoke.ws2811_init(ref _ws2811);
-            if (initResult != ws2811_return_t.WS2811_SUCCESS)
-            {
-                throw WS281xException.Create(initResult, "initializing");
+                // Don't even allocate the WS2811Wrapper if we can't write it, the PInvoke.init method sets up internal
+                // structures that are needed for this code to run correctly, so keep the reference null so as to fail
+                // fast if we call it when we shouldn't.
+                NativeWS2811 = new WS2811Wrapper(settings);
             }
 
             // save a copy of the controllers - used to update LEDs
-            _controllers = new Dictionary<int, Controller>(settings.Controllers);
+            Controllers = new Dictionary<int, Controller>(settings.Controllers);
 
-            // if specified, apply gamma correction
-            if (settings.GammaCorrection != null)
-            {
-                if (settings.Controllers.ContainsKey(0))
-                    Marshal.Copy(settings.GammaCorrection.ToArray(), 0, _ws2811.channel_0.gamma, settings.GammaCorrection.Count);
-                if (settings.Controllers.ContainsKey(1))
-                    Marshal.Copy(settings.GammaCorrection.ToArray(), 0, _ws2811.channel_1.gamma, settings.GammaCorrection.Count);
-            }
-
-            //Disposing is only allowed if the init was successfull.
+            //Disposing is only allowed if the init was successful.
             //Otherwise the native cleanup function throws an error.
             _isDisposingAllowed = true;
         }
 
-        bool isRendering = false;
+        private static readonly TimeSpan ReportSkippedFramesFrequency = new(0, 1, 0);
+        private static DateTime NextSkippedFramesReport = DateTime.MinValue;
+        private static DateTime LastSkippedFramesReport = DateTime.MinValue;
 
-        public static int framesRendered = 0;
-        public static int framesSkipped = 0;
+        public static int FramesRendered { get; private set; }
+        public static int FramesSkipped { get; private set; }
+
+        public static void ResetFrameCount()
+        {
+            FramesSkipped = 0;
+            FramesRendered = 0;
+            LastSkippedFramesReport = DateTime.Now;
+            NextSkippedFramesReport = LastSkippedFramesReport + ReportSkippedFramesFrequency;
+        }
+
+        private bool isRendering = false;
 
         /// <summary>
         /// Renders the content of the channels
@@ -71,52 +61,30 @@ namespace rpi_ws281x
         /// <param name="force">Force LEDs to updated - default only updates if when a change is done</param>
         public void Render(bool force = false)
         {
+            if (DateTime.Now > NextSkippedFramesReport)
+            {
+                if (FramesSkipped > 0 && LastSkippedFramesReport > DateTime.MinValue)
+                {
+                    Logger.Info($"WS281x.Render(): There were {FramesSkipped} skipped frames " +
+                        $"(out of {FramesSkipped + FramesRendered} total Render() calls) " +
+                        $"during the last {(DateTime.Now - LastSkippedFramesReport).TotalSeconds:N3} seconds.  " +
+                        $"Perhaps you should optimize your rendering loop?");
+                }
+
+                ResetFrameCount();
+            }
+
             if (isRendering)
             {
-                framesSkipped++;
+                FramesSkipped++;
                 return;
             }
 
-            framesRendered++;
+            FramesRendered++;
 
-            int maxLength = 0;
-
-            if (_controllers.ContainsKey(0) && (force || _controllers[0].IsDirty))
-            {
-                var ledColor = _controllers[0].GetColors(true);
-                maxLength = Math.Max(ledColor.Length, maxLength);
-                Marshal.Copy(ledColor, 0, _ws2811.channel_0.leds, ledColor.Length);
-            }
-            if (_controllers.ContainsKey(1) && (force || _controllers[1].IsDirty))
-            {
-                var ledColor = _controllers[1].GetColors(true);
-                maxLength = Math.Max(ledColor.Length, maxLength);
-                Marshal.Copy(ledColor, 0, _ws2811.channel_1.leds, ledColor.Length);
-            }
-
-            if (maxLength > 0)
-            {
-                isRendering = true;
-                var result = PInvoke.ws2811_render(ref _ws2811);
-                if (result != ws2811_return_t.WS2811_SUCCESS)
-                {
-                    WS281xException ex = WS281xException.Create(result, "rendering");
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"WS281x Render Exception: {ex.ErrorCode} - {ex.Message}");
-                    Console.ForegroundColor = ConsoleColor.White;
-                    throw ex;
-                }
-                //result = PInvoke.ws2811_wait(ref _ws2811);
-                //if (result != ws2811_return_t.WS2811_SUCCESS)
-                //{
-                //    WS281xException ex = WS281xException.Create(result, "waiting");
-                //    Console.ForegroundColor = ConsoleColor.Red;
-                //    Console.WriteLine($"WS281x Exception: {ex.ErrorCode} - {ex.Message}");
-                //    Console.ForegroundColor = ConsoleColor.White;
-                //    throw ex;
-                //}
-                isRendering = false;
-            }
+            isRendering = true;
+            NativeWS2811?.Render(force);
+            isRendering = false;
         }
 
         /// <summary>
@@ -125,7 +93,7 @@ namespace rpi_ws281x
         /// <param name="color">color to display</param>
         public void SetAll(Color color)
         {
-            foreach (var controller in _controllers.Values)
+            foreach (var controller in Controllers.Values)
             {
                 controller.SetAll(color);
                 controller.IsDirty = false;
@@ -138,7 +106,7 @@ namespace rpi_ws281x
         /// </summary>
         public void Reset()
         {
-            foreach (var controller in _controllers.Values)
+            foreach (var controller in Controllers.Values)
             {
                 controller.Reset();
                 controller.IsDirty = false;
@@ -149,38 +117,12 @@ namespace rpi_ws281x
         public Controller GetController(ControllerType controllerType = ControllerType.PWM0)
         {
             int channelNumber = (controllerType == ControllerType.PWM1) ? 1 : 0;
-            if (_controllers.ContainsKey(channelNumber) &&
-                _controllers[channelNumber].ControllerType == controllerType)
+            if (Controllers.ContainsKey(channelNumber) &&
+                Controllers[channelNumber].ControllerType == controllerType)
             {
-                return _controllers[channelNumber];
+                return Controllers[channelNumber];
             }
             throw new InvalidOperationException($"No controller found for controllerType {controllerType}");
-        }
-
-        /// <summary>
-        /// Initialize the channel propierties
-        /// </summary>
-        /// <param name="channelIndex">Index of the channel tu initialize</param>
-        /// <param name="controllers">Controller Settings</param>
-        private ws2811_channel_t InitChannel(int channelIndex, Dictionary<int, Controller> controllers)
-        {
-            ws2811_channel_t channel = new ws2811_channel_t();
-
-            if (controllers.ContainsKey(channelIndex))
-            {
-                channel.count = controllers[channelIndex].LEDCount;
-                channel.gpionum = controllers[channelIndex].GPIOPin;
-                channel.brightness = controllers[channelIndex].Brightness;
-                channel.invert = Convert.ToInt32(controllers[channelIndex].Invert);
-
-                if (controllers[channelIndex].StripType != StripType.Unknown)
-                {
-                    //Strip type is set by the native assembly if not explicitly set.
-                    //This type defines the ordering of the colors e. g. RGB or GRB, ...
-                    channel.strip_type = (int)controllers[channelIndex].StripType;
-                }
-            }
-            return channel;
         }
 
         #region IDisposable Support
@@ -200,9 +142,7 @@ namespace rpi_ws281x
 
                 if (_isDisposingAllowed)
                 {
-                    PInvoke.ws2811_fini(ref _ws2811);
-                    _ws2811Handle.Free();
-
+                    NativeWS2811?.Dispose();
                     _isDisposingAllowed = false;
                 }
 

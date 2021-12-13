@@ -18,14 +18,14 @@ namespace PiController
         {
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             Logger.Info("AnimationService starting.");
 
-            await RenderWorker(stoppingToken);
+            return Task.Run(() => RenderWorker(stoppingToken), stoppingToken);
         }
 
-        private static double DiagsIntervalSeconds = 10;
+        private static double DiagsIntervalSeconds = 99999999;
         private static DateTime LastDiags = DateTime.Now;
         private static int frameCount = 0;
 
@@ -35,16 +35,14 @@ namespace PiController
             double elapsedSeconds = (DateTime.Now - LastDiags).TotalSeconds;
             if (elapsedSeconds > DiagsIntervalSeconds)
             {
-                string message = $"CheckFrameRate({desc}): elapsed: {elapsedSeconds:N3}, " +
+                Logger.Info($"CheckFrameRate({desc}): elapsed: {elapsedSeconds:N3}, " +
                     $"frames: {frameCount}, req-rate: {frameCount / elapsedSeconds:N3} " +
-                    $"- rendered: {rpi_ws281x.WS281x.framesRendered:N0}, skipped: {rpi_ws281x.WS281x.framesSkipped:N0}, " +
-                    $"act-rate: {rpi_ws281x.WS281x.framesRendered / elapsedSeconds:N3}";
+                    $"- rendered: {rpi_ws281x.WS281x.FramesRendered:N0}, " +
+                    $"skipped: {rpi_ws281x.WS281x.FramesSkipped:N0}, " +
+                    $"act-rate: {rpi_ws281x.WS281x.FramesRendered / elapsedSeconds:N3}");
                 LastDiags = DateTime.Now;
                 frameCount = 0;
-                rpi_ws281x.WS281x.framesRendered = 0;
-                rpi_ws281x.WS281x.framesSkipped = 0;
-
-                // Logger.Info(message);
+                rpi_ws281x.WS281x.ResetFrameCount();
             }
         }
 

@@ -23,7 +23,7 @@ namespace PiController
 
         private double GetNoiseValue(double noiseX, double noiseY)
         {
-            double noiseValue = Noise.NormalizedNoise(noiseX, noiseY, NoiseZ);
+            double noiseValue = Noise.NormalizedNoise(noiseX, noiseY, 0);
             NoiseMax = Math.Max(NoiseMax, noiseValue);
             NoiseMin = Math.Min(NoiseMin, noiseValue);
             return noiseValue;
@@ -87,10 +87,8 @@ namespace PiController
 
         private double NoiseMax = -1f;
         private double NoiseMin = 1f;
-        private int MinMaxReset = 10;
-        private int MinMaxResetCount = 0;
 
-        public void Render(double powerLevel, List<HSVColor> Pixels, bool showDiags = false)
+        public void Render(double powerLevel, double simElapsedTime, List<HSVColor> Pixels, bool showDiags = false)
         {
             PowerLevel = powerLevel;
             double elapsedSeconds = RenderStart.Elapsed.TotalSeconds;
@@ -104,13 +102,6 @@ namespace PiController
                 PixNoiseY = NoiseY * ScaleY.Value;
 
                 Pixels[pixIndex] = CoreColor.Value;
-            }
-
-            NoiseY += NoiseDY * NoiseSpeed.Value;
-
-            if (NoiseY < 0 || NoiseY > Pixels.Count)
-            {
-                NoiseDY = -NoiseDY;
             }
         }
     }
