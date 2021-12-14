@@ -15,7 +15,7 @@ namespace Helpers
     /// </summary>
 
     [ImmutableObject(true), Serializable]
-    public struct Vector3 : IEquatable<Vector3>, IFormattable
+    public struct Vector3 : IEquatable<Vector3>
     {
 
         #region Class Variables
@@ -1402,63 +1402,9 @@ namespace Helpers
 
         #region Standard Operations (ToString, CompareTo etc)
 
-        /// <summary>
-        /// Verbose textual description of the vector.
-        /// </summary>
-        /// <returns>Text (string) representing the vector</returns>
-        public string ToVerbString()
+        public override string ToString()
         {
-            string output = "";
-
-            if (this.IsUnitVector())
-            {
-                output += UNIT_VECTOR;
-            }
-            else
-            {
-                output += POSITIONAL_VECTOR;
-            }
-
-            output += string.Format("( x={0}, y={1}, z={2} )", this.X, this.Y, this.Z);
-            output += MAGNITUDE + this.Magnitude;
-
-            return output;
-        }
-
-        /// <summary>
-        /// Textual description of the vector.
-        /// </summary>
-        /// <param name="format">Formatting string: 'x','y','z' or '' followed by standard numeric format string characters valid for a double precision floating point</param>
-        /// <param name="formatProvider">The culture specific formatting provider</param>
-        /// <returns>Text (String) representing the vector</returns>
-        public string ToString(string? format = null, IFormatProvider? formatProvider = null)
-        {
-            // If no format is passed
-            if (format == null || format == "")
-            {
-                return string.Format("({0}, {1}, {2})", this.X, this.Y, this.Z);
-            }
-
-            char firstChar = format[0];
-            string? remainder = null;
-
-            if (format.Length > 1)
-            {
-                remainder = format.Substring(1);
-            }
-
-            switch (firstChar)
-            {
-            case 'x': return this.X.ToString(remainder, formatProvider);
-            case 'y': return this.Y.ToString(remainder, formatProvider);
-            case 'z': return this.Z.ToString(remainder, formatProvider);
-            default:
-                return String.Format(
-                    "({0}, {1}, {2})",
-                    this.X.ToString(format, formatProvider),
-                    this.Y.ToString(format, formatProvider),
-                    this.Z.ToString(format, formatProvider));
-            }
+            return $"({X:N3}, {Y:N3}, {Z:N3})";
         }
 
         /// <summary>

@@ -61,16 +61,6 @@ public class WarpCoreFog2D : IAnimationEffect
         SpeedZ = new(PowerLevelControlValue, 25, 60);
 
 
-        //Hue = new(PowerLevelControlValue, HSVColor.HUE_BLUE, HSVColor.HUE_CYAN);
-        //SatStart = new(SatNoiseControlValue, 0.7, 1.0);
-        //SatEnd = new(SatNoiseControlValue, 0, 0.4);
-        //Sat = new(PowerLevelControlValue, SatStart, SatEnd);
-        //ValStart = new(ValNoiseControlValue, 0.2, 0.7);
-        //ValEnd = new(ValNoiseControlValue, 0.6, 1.0);
-        //Val = new(PowerLevelControlValue, ValStart, ValEnd);
-        //CoreColor = new(Hue, Sat, Val);
-
-
         Hue = new(PowerLevelControlValue, HSVColor.HUE_BLUE, HSVColor.HUE_BLUE);
         SatStart = new(SatNoiseControlValue, 0.7, 1.0);
         SatEnd = new(SatNoiseControlValue, 0.7, 1.0);

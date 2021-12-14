@@ -10,6 +10,35 @@
         }
     }
 
+    public class ChaserConfig
+    {
+
+        public double MinSpeedXLow;
+        public double MinSpeedXHigh;
+        public double SpeedXStartLow;
+        public double SpeedXStartLowHigh;
+        public double SpeedXEndLow;
+        public double SpeedXEndHigh;
+
+        public double MinSpeedYLow;
+        public double MinSpeedYHigh;
+        public double SpeedYStartLow;
+        public double SpeedYStartLowHigh;
+        public double SpeedYEndLow;
+        public double SpeedYEndHigh;
+
+        public double LifetimeStartLow;
+        public double LifetimeStartHigh;
+        public double LifetimeEndLow;
+        public double LifetimeEndHigh;
+        public double ChaserFreqLow;
+        public double ChaserFreqHigh;
+        public double Hue;
+        public double Sat;
+        public double Val;
+
+    }
+
     public class CoreConfiguration
     {
         public List<CorePalette> CorePalettes { get; set; } = null!;

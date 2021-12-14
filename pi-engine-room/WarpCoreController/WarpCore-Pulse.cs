@@ -43,7 +43,6 @@ public class WarpCorePulse : IAnimationEffect
         PulsePositions.Add(-pulseWidth);
         lastPulseTime = lastSimTime;
         UpdateNextPulse();
-        Logger.Info($"{lastSimTime:N3}: Pulse!!!!!!!!");
     }
 
     void UpdateNextPulse()
@@ -54,7 +53,7 @@ public class WarpCorePulse : IAnimationEffect
     public WarpCorePulse()
     {
         PulseSpeed = new(PowerLevelControlValue, 0.4, 0.4);
-        SecondsPerPulse = new(PowerLevelControlValue, 3, 0.15, EasingFunction.CubicEaseOut);
+        SecondsPerPulse = new(PowerLevelControlValue, 3, 0.4, EasingFunction.CubicEaseOut);
         PulseWidth = new(PowerLevelControlValue, 12, 3);
         Hue = new(PowerLevelControlValue, HSVColor.HUE_YELLOW, HSVColor.HUE_RED, EasingFunction.CircularEaseIn);
         Sat = new(PowerLevelControlValue, 0.77, 1.0);

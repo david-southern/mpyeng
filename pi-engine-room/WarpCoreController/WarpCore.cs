@@ -81,6 +81,7 @@ public class WarpCore : IDisposable
             {
                 new WarpCoreFog2D()
                 ,new WarpCorePulse()
+                ,new WarpCoreChaser()
                 // new WarpCoreProgress()
             };
 
@@ -132,6 +133,45 @@ public class WarpCore : IDisposable
     private readonly TimeSpan DiagsInterval = TimeSpan.FromSeconds(1);
     private DateTime LastDiags = DateTime.MinValue;
 
+    /// <summary>
+    /// Given an (X, Y) coordinate, return the pixel index of the corresponding LED.  The
+    /// coordinate origin is the bottom-left corner of the LED array.
+    /// </summary>
+    public static int GetPixelIndex(int x, int y)
+    {
+        if (x < 0 || x >= WarpCoreSegmentCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(x), x, $"x must be > 0, < {WarpCoreSegmentCount}");
+        }
+        if (y < 0 || y >= WarpCoreSegmentLength)
+        {
+            throw new ArgumentOutOfRangeException(nameof(y), y, $"y must be > 0, < {WarpCoreSegmentLength}");
+        }
+
+        // Transform into the LED array's coordinate space.
+        int arrayX = WarpCoreSegmentCount - x - 1;
+        int arrayY = arrayX % 2 == 1 ? WarpCoreSegmentLength - y - 1 : y;
+
+        return arrayX * WarpCoreSegmentLength + arrayY;
+    }
+
+    /// <summary>
+    /// Given a pixel index of the LED array, return the (X, Y) coordinate.  The coordinate origin
+    /// is the bottom-left corner of the LED array.
+    /// </summary>
+    public static (int, int) GetCoordinate(int pixelIndex)
+    {
+        int x = pixelIndex / WarpCoreSegmentLength;
+        int y = pixelIndex % WarpCoreSegmentLength;
+
+        if (x % 2 == 1)
+        {
+            y = WarpCoreSegmentLength - y - 1;
+        }
+
+        return (WarpCoreSegmentCount - x - 1, y);
+    }
+
     public string GetCoreBitmapData()
     {
         using var image = new Image<Rgba32>(WarpCoreSegmentCount, WarpCoreSegmentLength);
@@ -140,13 +180,7 @@ public class WarpCore : IDisposable
         {
             for (int pixIndex = 0; pixIndex < WarpCorePixelCount; pixIndex++)
             {
-                int x = pixIndex / WarpCoreSegmentLength;
-                int y = pixIndex % WarpCoreSegmentLength;
-
-                if (x % 2 == 1)
-                {
-                    y = WarpCoreSegmentLength - y - 1;
-                }
+                (int x, int y) = GetCoordinate(pixIndex);
 
                 HSVColor hsvColor = new(
                     CorePixels[pixIndex].H,
@@ -155,7 +189,7 @@ public class WarpCore : IDisposable
                 );
                 Color pixColor = hsvColor.RGBColor;
 
-                image[WarpCoreSegmentCount - x - 1, WarpCoreSegmentLength - y - 1]
+                image[x, WarpCoreSegmentLength - y - 1]
                     = new Rgba32(pixColor.R, pixColor.G, pixColor.B);
             }
         }

@@ -4,6 +4,12 @@
     {
         private static readonly Random MyRand = new();
 
+        /// <summary>
+        /// A random double value linearly distributed between:
+        /// * No Parameters: [0, 1.0)
+        /// * One Parameters: [0, param)
+        /// * Two Parameters: [firstParam, secondParam)
+        /// </summary>
         public static double Linear(double? firstValue = null, double? secondValue = null)
         {
             double minValue, maxValue;
@@ -15,11 +21,17 @@
             return minValue + MyRand.NextDouble() * (maxValue - minValue);
         }
 
+        /// <summary>
+        /// A random double value linearly distributed between:
+        /// * No Parameters: [0, int.MaxValue)
+        /// * One Parameters: [0, param)
+        /// * Two Parameters: [firstParam, secondParam)
+        /// </summary>
         public static int LinearInt(int? firstValue = null, int? secondValue = null)
         {
             int minValue, maxValue;
 
-            if (firstValue == null) { minValue = 0; maxValue = 1; }
+            if (firstValue == null) { minValue = 0; maxValue = int.MaxValue; }
             else if (secondValue == null) { minValue = 0; maxValue = firstValue.Value; }
             else { minValue = firstValue.Value; maxValue = secondValue.Value; }
             if (maxValue < minValue) { int tmp = maxValue; maxValue = minValue; minValue = tmp; }
