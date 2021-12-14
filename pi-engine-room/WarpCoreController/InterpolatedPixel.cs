@@ -1,77 +1,73 @@
-﻿using Helpers;
+﻿using System.Drawing;
 
-using System;
-using System.Drawing;
+namespace WarpCoreController;
 
-namespace PiController
+public class InterpolatedPixel
 {
-    public class InterpolatedPixel
+    private HSVColor LerpFrom;
+    private HSVColor LerpTo;
+    private DateTime LerpStart;
+    private double LerpDurationSeconds = 0;
+
+    public InterpolatedPixel()
     {
-        private HSVColor LerpFrom;
-        private HSVColor LerpTo;
-        private DateTime LerpStart;
-        private double LerpDurationSeconds = 0;
+        LerpFrom = LerpTo = HSVColor.Black;
+    }
 
-        public InterpolatedPixel()
+    public InterpolatedPixel(HSVColor color)
+    {
+        LerpFrom = LerpTo = color;
+    }
+
+    public void SetColor(Color targetColor, double setDuration)
+    {
+        LerpFrom = CurrentColor;
+        LerpTo = new HSVColor(targetColor);
+        LerpStart = DateTime.Now;
+        LerpDurationSeconds = setDuration;
+    }
+
+    public void SetColor(string targetColor, double setDuration)
+    {
+        LerpFrom = CurrentColor;
+        LerpTo = new HSVColor(targetColor);
+        LerpStart = DateTime.Now;
+        LerpDurationSeconds = setDuration;
+    }
+
+    private double LerpProgress
+    {
+        get
         {
-            LerpFrom = LerpTo = HSVColor.Black;
+            if (LerpDurationSeconds < double.Epsilon) { return 0; }
+
+            double lerpValue = Math.Min(1.0, (DateTime.Now - LerpStart).TotalSeconds / LerpDurationSeconds);
+            return lerpValue;
         }
+    }
 
-        public InterpolatedPixel(HSVColor color)
+    public HSVColor TargetColor => LerpTo;
+    public HSVColor CurrentColor
+    {
+        get
         {
-            LerpFrom = LerpTo = color;
-        }
+            double lerpProgress = LerpProgress;
 
-        public void SetColor(Color targetColor, double setDuration)
-        {
-            LerpFrom = CurrentColor;
-            LerpTo = new HSVColor(targetColor);
-            LerpStart = DateTime.Now;
-            LerpDurationSeconds = setDuration;
-        }
-
-        public void SetColor(string targetColor, double setDuration)
-        {
-            LerpFrom = CurrentColor;
-            LerpTo = new HSVColor(targetColor);
-            LerpStart = DateTime.Now;
-            LerpDurationSeconds = setDuration;
-        }
-
-        private double LerpProgress
-        {
-            get
+            if (lerpProgress < double.Epsilon)
             {
-                if (LerpDurationSeconds < double.Epsilon) { return 0; }
-
-                double lerpValue = Math.Min(1.0, (DateTime.Now - LerpStart).TotalSeconds / LerpDurationSeconds);
-                return lerpValue;
+                return LerpTo;
             }
-        }
 
-        public HSVColor TargetColor => LerpTo;
-        public HSVColor CurrentColor
-        {
-            get
+            if (lerpProgress >= 1.0)
             {
-                double lerpProgress = LerpProgress;
-
-                if (lerpProgress < double.Epsilon)
-                {
-                    return LerpTo;
-                }
-
-                if (lerpProgress >= 1.0)
-                {
-                    LerpFrom = LerpTo;
-                    LerpDurationSeconds = 0;
-                    lerpProgress = 1.0;
-                }
-
-                HSVColor retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
-
-                return retval;
+                LerpFrom = LerpTo;
+                LerpDurationSeconds = 0;
+                lerpProgress = 1.0;
             }
+
+            HSVColor retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
+
+            return retval;
         }
     }
 }

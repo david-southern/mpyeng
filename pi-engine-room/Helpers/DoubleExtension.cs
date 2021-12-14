@@ -2,16 +2,31 @@
 {
     public static class DoubleExtension
     {
+        public const double ABS_TOLERANCE = double.Epsilon * 2;
+        public const double REL_TOLERANCE = double.Epsilon * 5;
+
+        /// <summary>
+        /// A 'good-enough' comparison for smallish-doubles, taking into account the floating point
+        /// mess described here:
+        /// http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
+        /// </summary>
+        public static bool DoubleEQ(this double a, double b)
+        {
+            return a.AlmostEqualsWithAbsOrRelativeTolerance(b, ABS_TOLERANCE, REL_TOLERANCE);
+        }
+
         /// <summary>
         /// Comparator within an absolute tolerance
         /// </summary>
         /// <param name="a">The double to compare to</param>
         /// <param name="b">The double to compare with</param>
-        /// <param name="maxAbsoluteError">The tolerance for the comparison compared against the difference of the two doubles</param>
+        /// <param name="maxAbsoluteError">The tolerance for the comparison compared against the
+        /// difference of the two doubles</param>
         /// <returns>Truth if the doubles are equal within a tolerance</returns>
         /// <remarks>
-        /// Use this tolerant equality method if comparing against zero. The tolerance should be a small multiple of <see cref="double.Epsilon"/>.
-        /// Also, check that you are not comparing floats and doubles.
+        /// Use this tolerant equality method if comparing against zero. The tolerance should be a
+        /// small multiple of <see cref="double.Epsilon"/>. Also, check that you are not comparing
+        /// floats and doubles.
         /// </remarks>
         public static bool AlmostEqualsWithAbsTolerance(this double a, double b, double maxAbsoluteError)
         {
@@ -37,9 +52,11 @@
         /// <acknowalgement>http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm</acknowalgement>
         /// <remarks>
         /// Quote from: http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
-        /// If you are comparing against a non-zero number then relative epsilons or ULPs based comparisons are probably what you want. 
-        /// You�ll probably want some small multiple of double.Epsilon for your relative epsilon, or some small number of ULPs. 
-        /// An absolute epsilon could be used if you knew exactly what number you were comparing against.</remarks>
+        /// If you are comparing against a non-zero number then relative epsilons or ULPs based
+        /// comparisons are probably what you want. You�ll probably want some small multiple of
+        /// double.Epsilon for your relative epsilon, or some small number of ULPs. An absolute
+        /// epsilon could be used if you knew exactly what number you were comparing
+        /// against.</remarks>
         public static bool AlmostEqualsWithAbsOrRelativeTolerance(
             this double a,
             double b,

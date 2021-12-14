@@ -1,70 +1,65 @@
-﻿using Helpers;
+﻿namespace WarpCoreController;
 
-using System;
-
-namespace PiController
+public class InterpolatedValue
 {
-    public class InterpolatedValue
+    private double LerpFrom;
+    private double LerpTo;
+    private DateTime LerpStart;
+    private double LerpDurationSeconds = 0;
+
+    public InterpolatedValue()
     {
-        private double LerpFrom;
-        private double LerpTo;
-        private DateTime LerpStart;
-        private double LerpDurationSeconds = 0;
+        LerpFrom = LerpTo = 0;
+    }
 
-        public InterpolatedValue()
+    public InterpolatedValue(double value)
+    {
+        LerpFrom = LerpTo = value;
+    }
+
+    public void SetValue(double targetValue, double setDuration)
+    {
+        LerpFrom = CurrentValue;
+        LerpTo = targetValue;
+        LerpStart = DateTime.Now;
+        LerpDurationSeconds = setDuration;
+    }
+
+    private double LerpProgress
+    {
+        get
         {
-            LerpFrom = LerpTo = 0;
+            if (LerpDurationSeconds < double.Epsilon) { return 0; }
+
+            double lerpValue = Math.Min(1.0, (DateTime.Now - LerpStart).TotalSeconds / LerpDurationSeconds);
+            return lerpValue;
         }
+    }
 
-        public InterpolatedValue(double value)
-        {
-            LerpFrom = LerpTo = value;
-        }
+    public bool IsLerping => LerpDurationSeconds > 0;
 
-        public void SetValue(double targetValue, double setDuration)
+    public double TargetValue => LerpTo;
+    public double CurrentValue
+    {
+        get
         {
-            LerpFrom = CurrentValue;
-            LerpTo = targetValue;
-            LerpStart = DateTime.Now;
-            LerpDurationSeconds = setDuration;
-        }
+            double lerpProgress = LerpProgress;
 
-        private double LerpProgress
-        {
-            get
+            if (lerpProgress < double.Epsilon)
             {
-                if (LerpDurationSeconds < double.Epsilon) { return 0; }
-
-                double lerpValue = Math.Min(1.0, (DateTime.Now - LerpStart).TotalSeconds / LerpDurationSeconds);
-                return lerpValue;
+                return LerpTo;
             }
-        }
 
-        public bool IsLerping => LerpDurationSeconds > 0;
-
-        public double TargetValue => LerpTo;
-        public double CurrentValue
-        {
-            get
+            if (lerpProgress >= 1.0)
             {
-                double lerpProgress = LerpProgress;
-
-                if (lerpProgress < double.Epsilon)
-                {
-                    return LerpTo;
-                }
-
-                if (lerpProgress >= 1.0)
-                {
-                    LerpFrom = LerpTo;
-                    LerpDurationSeconds = 0;
-                    lerpProgress = 1.0;
-                }
-
-                double retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
-
-                return retval;
+                LerpFrom = LerpTo;
+                LerpDurationSeconds = 0;
+                lerpProgress = 1.0;
             }
+
+            double retval = Utils.Lerp(LerpFrom, LerpTo, lerpProgress);
+
+            return retval;
         }
     }
 }

@@ -1,18 +1,9 @@
-﻿using Helpers;
+﻿namespace WarpCoreController;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PiController
+public interface IAnimationEffect
 {
-    public interface IAnimationEffect
-    {
-        string Name { get; }
-        string Description { get; }
-        int RenderOrder { get; }
-        void Render(double powerLevel, double simElapsedTime, List<HSVColor> Pixels, bool showDiags = false);
-    }
+    string Name { get; }
+    string Description { get; }
+    int RenderOrder { get; }
+    void Render(double powerLevel, double simElapsedTime, List<HSVColor> Pixels, bool showDiags = false);
 }

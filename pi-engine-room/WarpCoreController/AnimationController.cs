@@ -1,86 +1,79 @@
 ﻿using Microsoft.Extensions.Hosting;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+namespace WarpCoreController;
 
-using Helpers;
-
-namespace PiController
+public class AnimationService : BackgroundService
 {
-    public class AnimationService : BackgroundService
+    public const double AnimationFramesPerSecond = 90;
+
+    private readonly WarpCore Core = WarpCore.Instance;
+
+    public AnimationService()
     {
-        public const double AnimationFramesPerSecond = 90;
+    }
 
-        private readonly WarpCore Core = WarpCore.Instance;
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        Logger.Info("AnimationService starting.");
 
-        public AnimationService()
+        return Task.Run(() => RenderWorker(stoppingToken), stoppingToken);
+    }
+
+    private static double DiagsIntervalSeconds = 99999999;
+    private static DateTime LastDiags = DateTime.Now;
+    private static int frameCount = 0;
+
+    private static void CheckFrameRate(string desc = "")
+    {
+        frameCount++;
+        double elapsedSeconds = (DateTime.Now - LastDiags).TotalSeconds;
+        if (elapsedSeconds > DiagsIntervalSeconds)
         {
+            Logger.Info($"CheckFrameRate({desc}): elapsed: {elapsedSeconds:N3}, " +
+                $"frames: {frameCount}, req-rate: {frameCount / elapsedSeconds:N3} " +
+                $"- rendered: {rpi_ws281x.WS281x.FramesRendered:N0}, " +
+                $"skipped: {rpi_ws281x.WS281x.FramesSkipped:N0}, " +
+                $"act-rate: {rpi_ws281x.WS281x.FramesRendered / elapsedSeconds:N3}");
+            LastDiags = DateTime.Now;
+            frameCount = 0;
+            rpi_ws281x.WS281x.ResetFrameCount();
+        }
+    }
+
+    private Task RenderWorker(CancellationToken stoppingToken)
+    {
+        try
+        {
+            Logger.Info("RenderWorker is starting");
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                Core.Animate();
+                CheckFrameRate("AnimationController");
+            }
+
+            Logger.Info("RenderWorker is exiting");
+            Core.Dispose();
+            Thread.Sleep(1000);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"AnimationController.DoWork caught exception: {ex}");
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            Logger.Info("AnimationService starting.");
+        return Task.CompletedTask;
+    }
 
-            return Task.Run(() => RenderWorker(stoppingToken), stoppingToken);
+    public override async Task StopAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            Logger.Info("AnimationService Service is stopping.");
+            await base.StopAsync(stoppingToken);
         }
-
-        private static double DiagsIntervalSeconds = 99999999;
-        private static DateTime LastDiags = DateTime.Now;
-        private static int frameCount = 0;
-
-        private static void CheckFrameRate(string desc = "")
+        catch (Exception ex)
         {
-            frameCount++;
-            double elapsedSeconds = (DateTime.Now - LastDiags).TotalSeconds;
-            if (elapsedSeconds > DiagsIntervalSeconds)
-            {
-                Logger.Info($"CheckFrameRate({desc}): elapsed: {elapsedSeconds:N3}, " +
-                    $"frames: {frameCount}, req-rate: {frameCount / elapsedSeconds:N3} " +
-                    $"- rendered: {rpi_ws281x.WS281x.FramesRendered:N0}, " +
-                    $"skipped: {rpi_ws281x.WS281x.FramesSkipped:N0}, " +
-                    $"act-rate: {rpi_ws281x.WS281x.FramesRendered / elapsedSeconds:N3}");
-                LastDiags = DateTime.Now;
-                frameCount = 0;
-                rpi_ws281x.WS281x.ResetFrameCount();
-            }
-        }
-
-        private Task RenderWorker(CancellationToken stoppingToken)
-        {
-            try
-            {
-                Logger.Info("RenderWorker is starting");
-
-                while (!stoppingToken.IsCancellationRequested)
-                {
-                    Core.Animate();
-                    CheckFrameRate("AnimationController");
-                }
-
-                Logger.Info("RenderWorker is exiting");
-                Core.Dispose();
-                Thread.Sleep(1000);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"AnimationController.DoWork caught exception: {ex}");
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public override async Task StopAsync(CancellationToken stoppingToken)
-        {
-            try
-            {
-                Logger.Info("AnimationService Service is stopping.");
-                await base.StopAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"AnimationController.StopAsync caught exception: {ex}");
-            }
+            Logger.Error($"AnimationController.StopAsync caught exception: {ex}");
         }
     }
 }

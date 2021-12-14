@@ -8,13 +8,14 @@
         public CorePalette()
         {
         }
-    }z
+    }
 
     public class CoreConfiguration
     {
         public List<CorePalette> CorePalettes { get; set; } = null!;
         public double PowerLevel { get; set; } = 0;
-        public double SimTimeScale { get; set; } = 0;
+        public double FrameRate { get; set; } = 0;
+        public double TimeScale { get; set; } = 0;
         public double BrightnessScale { get; set; } = 0;
     }
 
@@ -26,10 +27,11 @@
 
         public CoreConfigurationViewModel(CoreConfiguration other)
         {
-            this.CorePalettes = other.CorePalettes;
-            this.PowerLevel = other.PowerLevel;
-            this.SimTimeScale = other.SimTimeScale;
-            this.BrightnessScale = other.BrightnessScale;
+            CorePalettes = other.CorePalettes;
+            PowerLevel = other.PowerLevel;
+            FrameRate = other.FrameRate;
+            TimeScale = other.TimeScale;
+            BrightnessScale = other.BrightnessScale;
         }
     }
 

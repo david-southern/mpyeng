@@ -1,6 +1,5 @@
 ﻿@page "/"
 
-@using Shared
 @implements IAsyncDisposable
 @inject HttpClient Http
 @inject Microsoft.JSInterop.IJSRuntime JS
@@ -17,37 +16,65 @@
 }
 else
 {
-    <MudSlider @bind-Value="@powerLevel" Min="0" Max="1" Step="0.05" @onchange="UpdatePowerLevel">Current Core Power Level: </MudSlider>
+    <MudPaper Class="d-flex">
+        <MudPaper Class="flex-grow-0">
+            @*    <img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
+            *@
+            <img id="coreImage" style="width: 80px; height: 854px" />
+        </MudPaper>
 
-    <MudButton OnClick="StartAnimation">Start Core Animation</MudButton>
-    <MudButton OnClick="StopAnimation">Stop Core Animation</MudButton>
-@*    <img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
-*@
-<div>
-    <span id="frameCount"></span><br>
-    <img id="coreImage" style="width: 80px; height: 854px"/>
-</div>
+        <MudPaper Class="flex-grow-1 mx-3">
+            <MudText Typo="Typo.h6">Power Level</MudText>
+            <MudButtonGroup OverrideStyles="false" Class="mx-1">
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.0))" Variant="@(PowerLevelVariant(0.0))">0</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.1))" Variant="@(PowerLevelVariant(0.1))">1</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.2))" Variant="@(PowerLevelVariant(0.2))">2</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.3))" Variant="@(PowerLevelVariant(0.3))">3</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.4))" Variant="@(PowerLevelVariant(0.4))">4</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.5))" Variant="@(PowerLevelVariant(0.5))">5</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.6))" Variant="@(PowerLevelVariant(0.6))">6</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.7))" Variant="@(PowerLevelVariant(0.7))">7</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.8))" Variant="@(PowerLevelVariant(0.8))">8</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(0.9))" Variant="@(PowerLevelVariant(0.9))">9</MudButton>
+                <MudButton Color="Color.Primary" OnClick="@(() => SetPowerLevel(1.0))" Variant="@(PowerLevelVariant(1.0))">10</MudButton>
+            </MudButtonGroup>
+
+            <MudButtonGroup OverrideStyles="false">
+                <MudButton Color="Color.Warning" OnClick="@(() => SetPowerLevel(2.0))" Variant="@(PowerLevelVariant(2.0))">Warning</MudButton>
+                <MudButton Color="Color.Error" OnClick="@(() => SetPowerLevel(3.0))" Variant="@(PowerLevelVariant(3.0))">Danger!</MudButton>
+                <MudButton Color="Color.Default" OnClick="@(() => SetPowerLevel(4.0))" Variant="@(PowerLevelVariant(4.0))">DEED!</MudButton>
+            </MudButtonGroup>
+
+            <MudText Typo="Typo.h6">Core Config</MudText>
+
+            <MudNumericField @bind-Value="FrameRate" OnBlur="@(() => SimChange())" Label="Animation Frame Rate" Variant="Variant.Text" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="TimeScale" OnBlur="@(() => SimChange())" Label="Time Scale" Variant="Variant.Text" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="BrightnessScale" OnBlur="@(() => SimChange())" Label="Brightness Scale" Variant="Variant.Text" HideSpinButtons="true" />
+
+            <MudButton OnClick="StartAnimation">Start Core Animation</MudButton>
+            <MudButton OnClick="StopAnimation">Stop Core Animation</MudButton>
+        </MudPaper>
+    </MudPaper>
 }
 
 @code {
     private double FrameRate = 30;
-    private Timer animationTimer = null!;
-
-    private CoreConfigurationViewModel? coreConfig;
-    double powerLevel = 0;
-    int frameCount;
+    private CoreConfigurationViewModel coreConfig = null!;
+    private double TimeScale = 1;
+    private double BrightnessScale = 1;
+    private bool IsAnimating = false;
 
     protected override async Task OnInitializedAsync()
     {
         coreConfig = await Http.GetFromJsonAsync<CoreConfigurationViewModel>("/config")
             ?? throw new InvalidOperationException("Unable to get core config from server");
-        powerLevel = coreConfig.PowerLevel;
 
-        //animationTimer = new Timer(AnimationEvent, null, 0, (int)(1000 / FrameRate));
+        FrameRate = coreConfig.FrameRate;
+        TimeScale = coreConfig.TimeScale;
+        BrightnessScale = coreConfig.BrightnessScale;
     }
 
     private IJSObjectReference? module;
-    private string? result;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -65,15 +92,34 @@ else
         }
     }
 
-    private async Task UpdatePowerLevel()
+    private async Task SetPowerLevel(double powerLevel)
     {
-        if (coreConfig == null) { return; }
-
         coreConfig.PowerLevel = powerLevel;
         using var result = await Http.PostAsJsonAsync("/config", coreConfig);
         coreConfig = await result.Content.ReadFromJsonAsync<CoreConfigurationViewModel>()
             ?? throw new InvalidOperationException("Unable to get core config from server");
-        powerLevel = coreConfig.PowerLevel;
+        StateHasChanged();
+    }
+
+    private async Task SimChange()
+    {
+        coreConfig.FrameRate = FrameRate;
+        coreConfig.TimeScale = TimeScale;
+        coreConfig.BrightnessScale = BrightnessScale;
+        using var result = await Http.PostAsJsonAsync("/config", coreConfig);
+        coreConfig = await result.Content.ReadFromJsonAsync<CoreConfigurationViewModel>()
+            ?? throw new InvalidOperationException("Unable to get core config from server");
+
+        if (IsAnimating)
+        {
+            await StopAnimation();
+            await StartAnimation();
+        }
+    }
+
+    private Variant PowerLevelVariant(double buttonPowerLevel)
+    {
+        return coreConfig.PowerLevel.DoubleEQ(buttonPowerLevel) ? Variant.Filled : Variant.Outlined;
     }
 
     private async Task StartAnimation()
@@ -81,6 +127,7 @@ else
         if (module != null)
         {
             await module.InvokeAsync<string>("startAnimation", FrameRate);
+            IsAnimating = true;
         }
     }
 
@@ -88,13 +135,8 @@ else
     {
         if (module != null)
         {
-            await module.InvokeAsync<string>("stopAnimation", FrameRate);
+            await module.InvokeAsync<string>("stopAnimation");
+            IsAnimating = false;
         }
-    }
-
-    private void AnimationEvent(object? state)
-    {
-        frameCount++;
-        StateHasChanged();
     }
 }
