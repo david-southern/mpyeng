@@ -52,8 +52,12 @@ public class WarpCoreFog2D : IAnimationEffect
     private readonly DependentRange Val;
     private readonly HSVColorByDependent CoreColor;
 
-    public WarpCoreFog2D()
+    private readonly CoreConfiguration Config;
+
+    public WarpCoreFog2D(CoreConfiguration config)
     {
+        Config = config;
+
         ScaleX = new(PowerLevelControlValue, 4, 5);
         ScaleY = new(PowerLevelControlValue, 4, 5);
         SpeedX = new(PowerLevelControlValue, 0, 0);

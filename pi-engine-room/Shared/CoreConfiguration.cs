@@ -10,58 +10,62 @@
         }
     }
 
-    public class ChaserConfig
+    public abstract class AnimationEffectConfig
     {
+        public bool Enabled { get; set; } = true;
+        public int? RenderOrder { get; set; }
+    }
 
-        public double MinSpeedXLow;
-        public double MinSpeedXHigh;
-        public double SpeedXStartLow;
-        public double SpeedXStartLowHigh;
-        public double SpeedXEndLow;
-        public double SpeedXEndHigh;
+    public class ChaserConfig : AnimationEffectConfig
+    {
+        public double MinSpeedXLow { get; set; }
+        public double MinSpeedXHigh { get; set; }
+        public double SpeedXStartLow { get; set; }
+        public double SpeedXStartLowHigh { get; set; }
+        public double SpeedXEndLow { get; set; }
+        public double SpeedXEndHigh { get; set; }
 
-        public double MinSpeedYLow;
-        public double MinSpeedYHigh;
-        public double SpeedYStartLow;
-        public double SpeedYStartLowHigh;
-        public double SpeedYEndLow;
-        public double SpeedYEndHigh;
+        public double MinSpeedYLow { get; set; }
+        public double MinSpeedYHigh { get; set; }
+        public double SpeedYStartLow { get; set; }
+        public double SpeedYStartLowHigh { get; set; }
+        public double SpeedYEndLow { get; set; }
+        public double SpeedYEndHigh { get; set; }
 
-        public double LifetimeStartLow;
-        public double LifetimeStartHigh;
-        public double LifetimeEndLow;
-        public double LifetimeEndHigh;
-        public double ChaserFreqLow;
-        public double ChaserFreqHigh;
-        public double Hue;
-        public double Sat;
-        public double Val;
+        public double LifetimeStartLow { get; set; }
+        public double LifetimeStartHigh { get; set; }
+        public double LifetimeEndLow { get; set; }
+        public double LifetimeEndHigh { get; set; }
 
+        public double ChaserFreqLow { get; set; }
+        public double ChaserFreqHigh { get; set; }
+
+        public double Hue { get; set; }
+        public double Sat { get; set; }
+        public double Val { get; set; }
+    }
+
+    public class ProgressConfig : AnimationEffectConfig
+    {
+        public double? ProgressPerSecond { get; set; }
+        public string? SecondsColor { get; set; }
+        public string? MinutesColor { get; set; }
+        public string? HoursColor { get; set; }
     }
 
     public class CoreConfiguration
     {
         public List<CorePalette> CorePalettes { get; set; } = null!;
-        public double PowerLevel { get; set; } = 0;
-        public double FrameRate { get; set; } = 0;
-        public double TimeScale { get; set; } = 0;
-        public double BrightnessScale { get; set; } = 0;
+        public double? PowerLevel { get; set; } = 0;
+        public double? FrameRate { get; set; } = 0;
+        public double? TimeScale { get; set; } = 0;
+        public double? BrightnessScale { get; set; } = 0;
+        public ChaserConfig? ChaserConfig { get; set; }
+        public ProgressConfig? ProgressConfig { get; set; }
     }
 
     public class CoreConfigurationViewModel : CoreConfiguration
     {
-        public CoreConfigurationViewModel()
-        {
-        }
-
-        public CoreConfigurationViewModel(CoreConfiguration other)
-        {
-            CorePalettes = other.CorePalettes;
-            PowerLevel = other.PowerLevel;
-            FrameRate = other.FrameRate;
-            TimeScale = other.TimeScale;
-            BrightnessScale = other.BrightnessScale;
-        }
     }
 
 }

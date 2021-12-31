@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Using Include="Newtonsoft.Json" />
         <Using Include="Microsoft.Extensions.Logging" />
         <Using Include="Helpers" />
     </ItemGroup>
@@ -18,7 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Helpers\Helpers.csproj" />
+        <ProjectReference Include="..\Helpers\Helpers.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -112,8 +112,12 @@ public class WarpCoreChaser : IAnimationEffect
         nextChaserTime = lastChaserTime + ChaserFreq.Value;
     }
 
-    public WarpCoreChaser()
+    private readonly CoreConfiguration Config;
+
+    public WarpCoreChaser(CoreConfiguration config)
     {
+        Config = config;
+        
         //MinSpeedX = new(() => Rand.Linear(), 5, 10);
         //SpeedXStart = new(() => Rand.Linear(), -20, 20);
         //SpeedXEnd = new(() => Rand.Linear(), -60, 60);

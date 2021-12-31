@@ -6,10 +6,11 @@ public class AnimationService : BackgroundService
 {
     public const double AnimationFramesPerSecond = 90;
 
-    private readonly WarpCore Core = WarpCore.Instance;
+    private readonly WarpCore Core;
 
-    public AnimationService()
+    public AnimationService(WarpCore core)
     {
+        Core = core;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)

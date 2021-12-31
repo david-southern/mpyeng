@@ -4,12 +4,33 @@ public class WarpCoreProgress : IAnimationEffect
 {
     public string Name => "WarpCore - Progress";
     public string Description => "Red pixel progress indicator";
-    public int RenderOrder => 200;
+
+    public bool Enabled { get; set; } = false;
+    public int RenderOrder { get; init; } = 999;
 
     public double ProgressPerSecond { get; set; } = 1;
+    public HSVColor SecondsColor { get; set; } = HSVColor.Green;
+    public HSVColor MinutesColor { get; set; } = HSVColor.Yellow;
+    public HSVColor HoursColor { get; set; } = HSVColor.Red;
 
-    public WarpCoreProgress()
+    private readonly CoreConfiguration Config;
+
+    public WarpCoreProgress(CoreConfiguration config)
     {
+        Config = config;
+
+        RenderOrder = config.ProgressConfig?.RenderOrder ?? RenderOrder;
+        ProgressPerSecond = config.ProgressConfig?.ProgressPerSecond ?? ProgressPerSecond;
+        SecondsColor = config.ProgressConfig?.SecondsColor == null ? SecondsColor : new HSVColor(config.ProgressConfig.SecondsColor);
+        MinutesColor = config.ProgressConfig?.MinutesColor == null ? MinutesColor : new HSVColor(config.ProgressConfig.MinutesColor);
+        HoursColor = config.ProgressConfig?.HoursColor == null ? HoursColor : new HSVColor(config.ProgressConfig.HoursColor);
+
+        if(Enabled)
+        {
+            Logger.Info($"Adding Animation Effect {nameof(WarpCoreProgress)} with config: " +
+                $"RenderOrder: {RenderOrder}, ProgressPerSec: {ProgressPerSecond:N2}, " +
+                $"SecColor: {SecondsColor}, MinColor: {MinutesColor}, HourColor: {HoursColor}");
+        }
     }
 
     private readonly DateTime ProgressStart = DateTime.Now;
@@ -22,8 +43,8 @@ public class WarpCoreProgress : IAnimationEffect
         int progressMinutes = (progressSeconds / 60) % 60;
         progressSeconds %= 60;
 
-        Pixels[progressSeconds] = HSVColor.Green;
-        Pixels[progressMinutes] = HSVColor.Yellow;
-        Pixels[progressHours] = HSVColor.Red;
+        Pixels[progressSeconds] = SecondsColor;
+        Pixels[progressMinutes] = MinutesColor;
+        Pixels[progressHours] = HoursColor;
     }
 }

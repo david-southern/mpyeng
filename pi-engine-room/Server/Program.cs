@@ -4,18 +4,20 @@ using Server;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}]  {SourceContext}: {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(path: "pi-engine-room.log", outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}]  {SourceContext}: {Message:lj}{NewLine}{Exception}", shared: true, buffered: false)
     .CreateBootstrapLogger();
 
 Log.Information("Model API pre-initialization beginning");
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
     builder.Services.AddSingleton<CoreConfiguration>(builder.Configuration.GetSection("CoreConfiguration").Get<CoreConfiguration>());
 
+    WarpCore.RegisterServices(builder.Services);
     builder.Services.AddSingleton<AnimationService>();
     builder.Services.AddHostedService(provider => provider.GetService<AnimationService>());
 

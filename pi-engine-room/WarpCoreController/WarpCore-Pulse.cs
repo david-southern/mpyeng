@@ -50,8 +50,12 @@ public class WarpCorePulse : IAnimationEffect
         NextPulseCreation = lastPulseTime + SecondsPerPulse.Value;
     }
 
-    public WarpCorePulse()
+    private readonly CoreConfiguration Config;
+
+    public WarpCorePulse(CoreConfiguration config)
     {
+        Config = config;
+
         PulseSpeed = new(PowerLevelControlValue, 0.4, 0.4);
         SecondsPerPulse = new(PowerLevelControlValue, 3, 0.4, EasingFunction.CubicEaseOut);
         PulseWidth = new(PowerLevelControlValue, 12, 3);

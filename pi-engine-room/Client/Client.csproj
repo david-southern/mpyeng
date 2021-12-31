@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Using Include="Newtonsoft.Json" />
         <Using Include="Shared" />
         <Using Include="Helpers" />
     </ItemGroup>

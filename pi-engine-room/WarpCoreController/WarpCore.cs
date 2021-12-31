@@ -1,4 +1,6 @@
-﻿using rpi_ws281x;
+﻿using Microsoft.Extensions.DependencyInjection;
+
+using rpi_ws281x;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -15,23 +17,41 @@ public enum WarpCoreDisplayMode
     Animate
 }
 
-/// <summary>
-/// This singleton WarpCore class uses the Lazy Singleton pattern discussed here:
-/// * https://garywoodfine.com/singleton-design-pattern-c-net-core/
-/// </summary>
 public class WarpCore : IDisposable
 {
     public static readonly Pin RPI_GPIO_PIN = Pin.Gpio18;
 
     public const int WarpCoreSegmentCount = 8;
     public const int WarpCoreSegmentLength = 122;
+
+    public static void RegisterServices(IServiceCollection services)
+    {
+        services.AddSingleton<WarpCoreFog2D>();
+        services.AddSingleton<WarpCorePulse>();
+        services.AddSingleton<WarpCoreChaser>();
+        services.AddSingleton<WarpCoreProgress>();
+        services.AddSingleton<WarpCore>();
+    }
+
     public const int WarpCorePixelCount = WarpCoreSegmentCount * WarpCoreSegmentLength;
 
     public const double PowerChangeDurationSeconds = 2;
 
-    private static readonly Lazy<WarpCore> lazy = new(() => new WarpCore());
+    //private static WarpCore? m_Instance = null;
 
-    public static WarpCore Instance { get { return lazy.Value; } }
+    //[Obsolete("The WarpCore singleton should be accessed through the DI container.", true)]
+    //public static WarpCore Instance
+    //{
+    //    get
+    //    {
+    //        if (m_Instance == null)
+    //        {
+    //            throw new InvalidOperationException($"Singleton WarpCore was accessed outside of DI before the DI Container was able to provision it!");
+    //        }
+
+    //        return m_Instance;
+    //    }
+    //}
 
     // Make the Core's animation effects run faster or slower - useful for debugging effects
     public double m_TimeScale = 1.0;
@@ -65,10 +85,29 @@ public class WarpCore : IDisposable
         }
     }
 
+    private readonly CoreConfiguration Config;
 
+    private readonly WarpCoreFog2D EffectCoreFog2D;
+    private readonly WarpCorePulse EffectCorePulse;
+    private readonly WarpCoreChaser EffectCoreChaser;
+    private readonly WarpCoreProgress EffectCoreProgress;
 
-    private WarpCore()
+    public WarpCore(CoreConfiguration config, WarpCoreFog2D effectCoreFog2D, WarpCorePulse effectCorePulse, WarpCoreChaser effectCoreChaser, WarpCoreProgress effectCoreProgress)
     {
+        //if (m_Instance != null)
+        //{
+        //    throw new InvalidOperationException($"Singleton WarpCore was instantiated more than once!");
+        //}
+
+        //m_Instance = this;
+
+        Config = config;
+
+        EffectCoreFog2D = effectCoreFog2D;
+        EffectCorePulse = effectCorePulse;
+        EffectCoreChaser = effectCoreChaser;
+        EffectCoreProgress = effectCoreProgress;
+
         CorePixels = Enumerable.Range(0, WarpCorePixelCount)
             .Select(n => new HSVColor(HSVColor.Black)).ToList();
 
@@ -78,12 +117,11 @@ public class WarpCore : IDisposable
         Logger.Info($"WarpCore: Finished creating CoreStrip");
 
         AnimationEffects = new List<IAnimationEffect>
-            {
-                new WarpCoreFog2D()
-                ,new WarpCorePulse()
-                ,new WarpCoreChaser()
-                // new WarpCoreProgress()
-            };
+        {
+            EffectCoreFog2D,
+            EffectCorePulse,
+            EffectCoreChaser
+        };
 
         AnimationEffects = AnimationEffects.OrderBy(eff => eff.RenderOrder).ToList();
     }

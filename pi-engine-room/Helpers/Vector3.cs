@@ -168,14 +168,14 @@ namespace Helpers
             {
                 switch (index)
                 {
-                case 0:
-                    return this.X;
-                case 1:
-                    return this.Y;
-                case 2:
-                    return this.Z;
-                default:
-                    throw new ArgumentException(THREE_COMPONENTS, nameof(index));
+                    case 0:
+                        return this.X;
+                    case 1:
+                        return this.Y;
+                    case 2:
+                        return this.Z;
+                    default:
+                        throw new ArgumentException(THREE_COMPONENTS, nameof(index));
                 }
             }
         }

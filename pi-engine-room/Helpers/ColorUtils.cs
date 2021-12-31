@@ -1,4 +1,9 @@
-﻿namespace Helpers
+﻿using System.ComponentModel;
+using System.Configuration;
+using System.Drawing;
+using System.Globalization;
+
+namespace Helpers
 {
     public class HSVColor
     {

@@ -6,41 +6,34 @@ public class APIEndpoints
     {
         app.MapGet("/api-docs", () => Results.Redirect("/swagger"));
 
-        WarpCore core = WarpCore.Instance;
-
-        app.MapGet("/animation-frame", () =>
+        app.MapGet("/animation-frame", (WarpCore core) =>
         {
 
             return core.GetCoreBitmapData();
         });
 
-        WarpCore Core = WarpCore.Instance;
-
-        CoreConfiguration initialConfig;
-        CoreConfigurationViewModel currentConfig;
-
-        using (var serviceScope = app.Services.CreateScope())
+        app.MapGet("/config", (WarpCore core) =>
         {
-            var services = serviceScope.ServiceProvider;
-            initialConfig = services.GetRequiredService<CoreConfiguration>();
-            currentConfig = new CoreConfigurationViewModel(initialConfig);
-            Core.PowerLevel = currentConfig.PowerLevel;
-            Core.TimeScale = currentConfig.TimeScale;
-            Core.BrightnessScale = currentConfig.BrightnessScale;
-        }
-
-        app.MapGet("/config", () =>
-        {
-            return currentConfig;
+            return new CoreConfigurationViewModel
+            {
+                PowerLevel = core.PowerLevel,
+                TimeScale = core.TimeScale,
+                BrightnessScale = core.BrightnessScale
+            };
         });
 
-        app.MapPost("/config", (CoreConfigurationViewModel newConfig) =>
+        app.MapPost("/config", (WarpCore core, CoreConfigurationViewModel newConfig) =>
         {
-            currentConfig = newConfig;
-            Core.PowerLevel = currentConfig.PowerLevel;
-            Core.TimeScale = currentConfig.TimeScale;
-            Core.BrightnessScale = currentConfig.BrightnessScale;
-            return currentConfig;
+            core.PowerLevel = newConfig?.PowerLevel ?? core.PowerLevel;
+            core.TimeScale = newConfig?.TimeScale ?? core.TimeScale;
+            core.BrightnessScale = newConfig?.BrightnessScale ?? core.BrightnessScale;
+
+            return new CoreConfigurationViewModel
+            {
+                PowerLevel = core.PowerLevel,
+                TimeScale = core.TimeScale,
+                BrightnessScale = core.BrightnessScale
+            };
         });
     }
 
