@@ -137,7 +137,7 @@ public class WarpCoreChaser : IAnimationEffect
         LifetimeEnd = new(() => Rand.Linear(), 2, 5);
         ChaserLifetime = new(PowerLevelControlValue, LifetimeStart, LifetimeEnd);
 
-        ChaserFreq = new(PowerLevelControlValue, 0.3, 0.1);
+        ChaserFreq = new(PowerLevelControlValue, 3.0, 1.0);
 
         Hue = new(PowerLevelControlValue, HSVColor.HUE_GREEN, HSVColor.HUE_GREEN);
         Sat = new(PowerLevelControlValue, 1.0, 1.0);
