@@ -8,7 +8,7 @@ namespace CircuitPythonInterface;
 
 public class SerialPortInfo
 {
-    public static List<SerialPortInfo> GetPortInformation()
+    public static List<SerialPortInfo> GetPortInformation(bool showRawData = false)
     {
         List<SerialPortInfo> retval = new();
 
@@ -26,6 +26,13 @@ public class SerialPortInfo
                 if (portInfo?.MI != null)
                 {
                     retval.Add(portInfo);
+                }
+
+                if (showRawData)
+                {
+                    Logger.Info($"Raw Serial Data:");
+                    Logger.Info($"        Name: {name}");
+                    Logger.Info($"        DeviceID: {portInfo?.DeviceID ?? "<null>"}");
                 }
             }
         }
@@ -74,8 +81,8 @@ public class SerialPortInfo
 #endif
     }
 
-    string Name;
-    string DeviceID;
+    public string Name;
+    public string DeviceID;
 
     public string? PortName;
     public string? VID;

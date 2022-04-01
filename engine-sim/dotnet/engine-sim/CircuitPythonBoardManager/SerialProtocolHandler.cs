@@ -11,10 +11,28 @@ public class SerialProtocolHandler : IDisposable
 
     private const string SER_PROTO_INIT_HEADER = "SP_INIT";
     private const string SER_PROTO_INIT_RESPONSE = "SP_READY";
-    private const string SER_PROTO_CARDS_QUERY = "SP_C_Q";
-    private const string SER_PROTO_CARDS_RESPONSE = "SP_C_R";
+    private const string SER_PROTO_OK = "SP_OK";
+    private const string SER_PROTO_ERR = "SP_ERR;"
+    private const string SER_PROTO_CARDS_QUERY = "SP_CRD_Q";
+    private const string SER_PROTO_CARDS_RESPONSE = "SP_CRD_R";
+    private const string SER_PROTO_SET_READER_COLOR = "SP_RDR_RGB";
+    private const string SER_PROTO_SET_DISPLAY_VALUE = "SP_DSP_VAL";
 
-    private readonly object CommunicationLock = new object();
+    public class ReaderColorDto
+    {
+        public int ReaderIndex { get; set; }
+        public int R { get; set; }
+        public int G { get; set; }
+        public int B { get; set; }
+    }
+
+    public class PowerDisplayDto
+    {
+        public int DisplayIndex { get; set; }
+        public int Value { get; set; }
+    }
+
+    private readonly object CommunicationLock = new();
 
     public readonly string PortName;
     public readonly string BoardName;
@@ -105,7 +123,7 @@ public class SerialProtocolHandler : IDisposable
 
                 if (cardIds == null)
                 {
-                    Logger.Error($"SerProto {PortName}({BoardName}): Invalid card query response fromat: {response}");
+                    Logger.Error($"{this}: Invalid card query response fromat: {response}");
                     return retval;
                 }
 
@@ -117,6 +135,64 @@ public class SerialProtocolHandler : IDisposable
             }
 
             return retval;
+        }
+    }
+
+    public string SetReaderColor(List<ReaderColorDto> data)
+    {
+        lock (CommunicationLock)
+        {
+            try
+            {
+                ResetPort();
+
+                string request = SER_PROTO_SET_READER_COLOR + SER_PROTO_RESPONSE_DELIMITER
+                    + JsonConvert.SerializeObject(data);
+                port.WriteLine(request);
+                string response = port.ReadLine();
+
+                if (response != SER_PROTO_OK && !response.StartsWith(SER_PROTO_ERR))
+                {
+                    Logger.Error($"{this}: Invalid set reader color response: {response}");
+                    return SER_PROTO_ERR;
+                }
+
+                return response;
+            }
+            catch (TimeoutException)
+            {
+                Logger.Error($"{this}: Timeout during reader color set");
+                return SER_PROTO_ERR + ":Timeout";
+            }
+        }
+    }
+
+    public string SetPowerDisplay(List<PowerDisplayDto> data)
+    {
+        lock (CommunicationLock)
+        {
+            try
+            {
+                ResetPort();
+
+                string request = SER_PROTO_SET_DISPLAY_VALUE + SER_PROTO_RESPONSE_DELIMITER
+                    + JsonConvert.SerializeObject(data);
+                port.WriteLine(request);
+                string response = port.ReadLine();
+
+                if (response != SER_PROTO_OK && !response.StartsWith(SER_PROTO_ERR))
+                {
+                    Logger.Error($"{this}: Invalid set power display response: {response}");
+                    return SER_PROTO_ERR;
+                }
+
+                return response;
+            }
+            catch (TimeoutException)
+            {
+                Logger.Error($"{this}: Timeout during power display set");
+                return SER_PROTO_ERR + ":Timeout";
+            }
         }
     }
 
