@@ -5,18 +5,18 @@ public class CircuitPythonBoard
     public string Name { get; set; }
     public string VID { get; set; }
     public string PID { get; set; }
-    public string MI { get; set; }
-    public ClientType ClientType { get; set; }
+    public string SerialNumber { get; set; }
+    public List<ClientType> ClientTypes { get; set; }
 
     private SerialProtocolHandler? ProtocolHandler = null;
 
-    public CircuitPythonBoard(string name, string vid, string pid, string mi, ClientType clientType)
+    public CircuitPythonBoard(string name, string vid, string pid, string serNo, List<ClientType> clientTypes)
     {
         Name = name;
         VID = vid;
         PID = pid;
-        MI = mi;
-        ClientType = clientType;
+        SerialNumber = serNo;
+        ClientTypes = clientTypes;
     }
 
     public bool SetCOMPort(string comPort)
@@ -37,10 +37,13 @@ public class CircuitPythonBoard
     public string? COMPort => ProtocolHandler?.PortName;
 
     public List<EngCard> QueryCards() => ProtocolHandler?.QueryCards() ?? new List<EngCard>();
+    public string SetReaderColor(List<ReaderColorDto> data)
+        => ProtocolHandler?.SetReaderColor(data) ?? SerialProtocolHandler.SER_PROTO_ERR;
+    public string SetPowerDisplay(List<PowerDisplayDto> data)
+        => ProtocolHandler?.SetPowerDisplay(data) ?? SerialProtocolHandler.SER_PROTO_ERR;
 
     public override string ToString()
     {
-        string typeString = ClientType == ClientType.None ? "" : $"({ClientType})";
-        return $"{Name}//{VID}//{PID}{typeString}";
+        return $"{Name}//{VID}//{SerialNumber} - ClientTypes: {string.Join(", ", ClientTypes.Select(ct => ct.ToString()))}";
     }
 }

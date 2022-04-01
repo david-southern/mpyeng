@@ -3,34 +3,34 @@ using System.Text;
 
 namespace CircuitPythonInterface;
 
+public class ReaderColorDto
+{
+    public int ReaderIndex { get; set; }
+    public int R { get; set; }
+    public int G { get; set; }
+    public int B { get; set; }
+}
+
+public class PowerDisplayDto
+{
+    public int DisplayIndex { get; set; }
+    public int Value { get; set; }
+}
+
 public class SerialProtocolHandler : IDisposable
 {
     public static int DEFAULT_BAUD_RATE { get; set; } = 9600;
 
-    private const string SER_PROTO_RESPONSE_DELIMITER = ":";
+    public const string SER_PROTO_RESPONSE_DELIMITER = ":";
 
-    private const string SER_PROTO_INIT_HEADER = "SP_INIT";
-    private const string SER_PROTO_INIT_RESPONSE = "SP_READY";
-    private const string SER_PROTO_OK = "SP_OK";
-    private const string SER_PROTO_ERR = "SP_ERR;"
-    private const string SER_PROTO_CARDS_QUERY = "SP_CRD_Q";
-    private const string SER_PROTO_CARDS_RESPONSE = "SP_CRD_R";
-    private const string SER_PROTO_SET_READER_COLOR = "SP_RDR_RGB";
-    private const string SER_PROTO_SET_DISPLAY_VALUE = "SP_DSP_VAL";
-
-    public class ReaderColorDto
-    {
-        public int ReaderIndex { get; set; }
-        public int R { get; set; }
-        public int G { get; set; }
-        public int B { get; set; }
-    }
-
-    public class PowerDisplayDto
-    {
-        public int DisplayIndex { get; set; }
-        public int Value { get; set; }
-    }
+    public const string SER_PROTO_INIT_HEADER = "SP_INIT";
+    public const string SER_PROTO_INIT_RESPONSE = "SP_READY";
+    public const string SER_PROTO_OK = "SP_OK";
+    public const string SER_PROTO_ERR = "SP_ERR;";
+    public const string SER_PROTO_CARDS_QUERY = "SP_CRD_Q";
+    public const string SER_PROTO_CARDS_RESPONSE = "SP_CRD_R";
+    public const string SER_PROTO_SET_READER_COLOR = "SP_RDR_RGB";
+    public const string SER_PROTO_SET_DISPLAY_VALUE = "SP_DSP_VAL";
 
     private readonly object CommunicationLock = new();
 

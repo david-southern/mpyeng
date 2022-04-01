@@ -55,6 +55,23 @@ public class CommsManager : BackgroundService
 
             List<EngCard> cardStatus = readerBoard.QueryCards();
             Logger.Info($"Cards: {string.Join(", ", cardStatus)}");
+
+            readerBoard.SetReaderColor(
+                new List<ReaderColorDto>() {
+                    new ReaderColorDto { ReaderIndex = 3, R = 255, G = 71, B = 96 },
+                    new ReaderColorDto { ReaderIndex = 5, R = 0, G = 255, B = 23 },
+                    new ReaderColorDto { ReaderIndex = 7, R = 42, G = 0, B = 196 }
+                }
+            );
+
+
+            readerBoard.SetPowerDisplay(
+                new List<PowerDisplayDto>() {
+                    new PowerDisplayDto { DisplayIndex = 3, Value = 867 },
+                    new PowerDisplayDto { DisplayIndex = 5, Value = 530 },
+                    new PowerDisplayDto { DisplayIndex = 7, Value = 9 }
+                }
+            );
         }
         catch (Exception ex)
         {

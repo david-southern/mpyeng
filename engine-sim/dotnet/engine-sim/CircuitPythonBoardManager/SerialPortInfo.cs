@@ -22,8 +22,8 @@ public class SerialPortInfo
             {
                 SerialPortInfo? portInfo = new(property);
 
-                // Only include ports for which we can resolve the MI, all other ports are not CircuitPyton boards
-                if (portInfo?.MI != null)
+                // Only include ports for which we can resolve the SerNo, all other ports are not CircuitPyton boards
+                if (portInfo?.SerialNumber != null)
                 {
                     retval.Add(portInfo);
                 }
@@ -70,8 +70,7 @@ public class SerialPortInfo
                 {
                     VID = vpmParts[0];
                     PID = vpmParts[1];
-                    MI = vpmParts[2];
-                    AddlID = idParts[2];
+                    SerialNumber = idParts[2];
                 }
             }
         }
@@ -87,13 +86,12 @@ public class SerialPortInfo
     public string? PortName;
     public string? VID;
     public string? PID;
-    public string? MI;
-    public string? AddlID;
+    public string? SerialNumber;
 
     public override string ToString()
     {
         return string.IsNullOrEmpty(PortName) ? $"{DeviceID}//{Name}"
-            : $"{PortName} // VID: {VID}, PID: {PID}, MI: {MI}, Addl: {AddlID}";
+            : $"{PortName} // VID: {VID}, PID: {PID}, SerNo: {SerialNumber}";
     }
 
 #if ADDITIONAL_PORT_PROPS
