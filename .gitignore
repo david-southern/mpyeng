@@ -38,3 +38,8 @@ bin/
 *.out
 *.app
 *.log
+*.Trashes
+*.metadata_never_index
+no_log
+WPSettings.dat
+IndexerVolumeGuid

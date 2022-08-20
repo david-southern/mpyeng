@@ -1,0 +1,157 @@
+# Write your query or mutation here
+query PowerData {
+  reactors(simulatorId:"1fbd91c4-763a-4351-98bf-e1e7d3560c7e") {
+    name
+    heat
+    heatRate
+    ejected
+    model
+    powerOutput
+    leftWingPower
+    leftWingRequest
+    leftWingRequested
+    rightWingPower
+    rightWingRequest
+    rightWingRequested
+  }
+}
+
+
+MUTATIONS:
+  insertIsochip(id: ID, simulatorId: ID, slot: Int, chip: Int): Isochip
+  updateIsochip(
+    id: ID
+    simulatorId: ID
+    slot: Int
+    isochip: IsochipInput
+  ): Isochip
+  batchIsochipUpdate(simulatorId: ID, chips: [IsochipInput]): [Isochip]
+  
+  
+ changePower(systemId: ID!, power: Int!): String
+  changeSystemPowerLevels(systemId: ID!, powerLevels: [Int]!): String
+  changeSystemDefaultPowerLevel(id: ID!, level: Int!): String
+
+ reactorRequireBalance(id: ID!, balance: Boolean!): String
+  reactorSetHasWings(id: ID!, hasWings: Boolean!): String
+  reactorSetWingPower(id: ID!, wing: String!, power: Int!): String
+  reactorRequestWingPower(id: ID!, wing: String!, power: Int!): String
+
+query Reactors {
+  reactors(simulatorId: "1fbd91c4-763a-4351-98bf-e1e7d3560c7e", model:"reactor") {
+    id
+    type
+    name
+    heat # - total heat accumulated in the reactor 0 - 1.0
+    ejected
+    powerOutput
+    efficiency
+    damage {
+      damaged
+      destroyed
+    }
+    hasWings
+    leftWingPower
+    leftWingRequest
+    leftWingRequested
+    rightWingPower
+    rightWingRequest
+    rightWingRequested
+  }
+}
+
+
+
+query Simulators {
+  simulators(template: false) {
+    id
+    name
+    template
+    templateId
+    capabilities {
+      systems
+    }
+  }
+}
+
+
+query Reactors {
+  reactors(
+    simulatorId: "90c46159-68b9-4a68-8702-fedf20fe377f"
+    model: "reactor"
+  ) {
+    id
+    type
+    name
+    heat # - total heat accumulated in the reactor 0 - 1.0
+    ejected
+    powerOutput
+    efficiency
+    damage {
+      damaged
+      destroyed
+    }
+    hasWings
+    leftWingPower
+    leftWingRequest
+    leftWingRequested
+    rightWingPower
+    rightWingRequest
+    rightWingRequested
+  }
+}
+
+
+
+
+export const SYSTEMS_SUB = gql`
+  subscription SystemsUpdate($simulatorId: ID) {
+    systemsUpdate(simulatorId: $simulatorId, power: true) {
+      id
+      displayName
+      type
+      wing
+      power {
+        power
+        powerLevels
+      }
+      damage {
+        damaged
+      }
+    }
+  }
+`;
+
+export const REACTOR_SUB = gql`
+  subscription ReactorUpdate($simulatorId: ID) {
+    reactorUpdate(simulatorId: $simulatorId) {
+      id
+      model
+      batteryChargeLevel
+      efficiency
+      powerOutput
+      hasWings
+      leftWingPower
+      leftWingRequest
+      leftWingRequested
+      rightWingPower
+      rightWingRequest
+      rightWingRequested
+    }
+  }
+`;
+
+  const battery = reactors.find(r => r.model === "battery");
+  const reactor = reactors.find(r => r.model === "reactor");
+  const charge = battery && battery.batteryChargeLevel;
+  // Sim has 4 batteries, charge [0 - 1.0] is the total charge of all 4 batteries:
+  * First battery = [0 - 0.25]
+  * Second battery = [0.25 - 0.5]
+  * Third battery = [0.5 - 0.75]
+  * Fourth battery = [0.75 - 1.0]
+  
+  
+  
+  
+  
+

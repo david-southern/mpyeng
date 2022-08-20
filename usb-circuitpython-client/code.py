@@ -1,0 +1,84 @@
+import random
+import time
+
+import usb_cdc
+import adafruit_logging as logging
+
+logger = logging.getLogger("main")
+logger.setLevel(logging.INFO)
+
+from pixel_manager import BLACK, PixelManager
+from power_grid_manager import PowerGridManager
+from power_display_manager import PowerDisplayManager
+
+from card_manager import CardReaderManager
+from protocol_manager import ProtocolManager
+from switchboard_manager import SwitchboardManager
+
+# Only check the serial line this often so we don't use up all the client's cycles
+SERIAL_READ_FREQUENCY_SEC = 0.01
+HEARTBEAT_FREQUENCY_SEC = 2
+
+if usb_cdc.data is None:
+    raise ConnectionError("Unable to open USB_cdc.data Serial connection")
+
+logger.info("Initializing USB Client")
+
+next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
+
+showSerialDiags = False
+showSerialStats = False
+
+showCardReaderDiags = False
+showSwitchboardDiags = True
+
+prevSwitchboard = ""
+
+GRID_CHANGE_FREQ = 0.1
+nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
+
+for gridIndex in range(6):
+    PowerGridManager.SetGridMaxLevel(gridIndex, 1000)
+
+for readerIndex in range(10):
+    PowerDisplayManager.SetDisplayValue(readerIndex, 1000)
+
+while True:
+    ProtocolManager.HandleComms()
+    CardReaderManager.UpdateReaderState()
+    PixelManager.UpdatePixelData()
+    PowerGridManager.UpdateGridState()
+
+    if time.monotonic() > nextGridChange:
+        nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
+        gridIndex = random.randint(0, 5)
+        newValue = random.randint(0, 1000)
+        PowerGridManager.SetGridCurLevel(gridIndex, newValue)
+        readerIndex = gridIndex if gridIndex < 2 else (gridIndex - 2) * 2 + 3
+        PowerDisplayManager.SetDisplayValue(readerIndex, newValue)
+
+    if time.monotonic() > next_heartbeat:
+        logString = f"Heartbeat"
+
+        if(showSerialDiags):
+            connState = "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
+            logString += f": SerProto: {connState}"
+
+        if showSerialStats:
+            logString += (
+                f", bytes read/sent: {ProtocolManager.TotalBytesRead}/{ProtocolManager.TotalBytesSent}, "
+                + f"commands handled: {ProtocolManager.TotalCommandsHandled}"
+            )
+
+        if(showSwitchboardDiags):
+            logString += f": Switchboard: {SwitchboardManager.ConnectionStatus()}"
+
+        if(showCardReaderDiags):
+            cardLog = ", ".join(CardReaderManager.ReaderCards())
+            logString += f", ReaderState: {cardLog}"
+
+        logger.info(logString)
+
+        next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
+
+    time.sleep(SERIAL_READ_FREQUENCY_SEC)

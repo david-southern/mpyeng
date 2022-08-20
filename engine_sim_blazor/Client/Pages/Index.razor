@@ -1,0 +1,262 @@
+﻿@page "/"
+
+@inject ApiHelper API
+@inject ILogger<Index> Logger
+
+<PageTitle>Engineering Board Manager</PageTitle>
+<p>@Message</p>
+<h3>Reactor Control</h3>
+@*<MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+           StartIcon="@Icons.Material.Filled.Refresh"
+           OnClick="RefreshData">Refresh All Thorium Data</MudButton>
+<hr />
+*@
+<MudPaper Class="@(TrackedFlight == null ? "pa-2" : "d-none")" Outlined="true">
+    <h4>Flights</h4>
+    <MudTable Items="AllFlights" Hover="true" Elevation="0">
+        <HeaderContent>
+            <MudTh>Flight</MudTh>
+            <MudTh>Running</MudTh>
+            <MudTh>Simulator</MudTh>
+            <MudTh>Mission</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Running">@context.Running</MudTd>
+            <MudTd DataLabel="Running">@(context.Simulator?.Name ?? "--")</MudTd>
+            <MudTd DataLabel="Running">@(context.Simulator?.Mission?.Name ?? "--")</MudTd>
+            <MudTd>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Grading"
+                           OnClick="@(async () => { TrackedFlight = context; await RefreshData(); })">
+                    Track
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{50, 100}" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+<MudPaper Class="@(TrackedFlight != null && TrackedReactor == null ? "pa-2" : "d-none")" Outlined="true">
+    <h4>Reactors for flight: @(TrackedFlight?.Name ?? "--")</h4>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="async () => { await RefreshData(); TrackedFlight = null; }">Change Flight</MudButton>
+    <MudTable Items="AllReactors" Hover="true" Elevation="0">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Model</MudTh>
+            <MudTh>Power</MudTh>
+            <MudTh>Effic</MudTh>
+            <MudTh>Effective</MudTh>
+            <MudTh>LeftWing</MudTh>
+            <MudTh>RightWing</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Model">@context.Model</MudTd>
+            <MudTd DataLabel="Power">@context.PowerOutput</MudTd>
+            <MudTd DataLabel="Effic">@context.Efficiency</MudTd>
+            <MudTd DataLabel="Effective">@context.EffectivePower</MudTd>
+            <MudTd DataLabel="LeftWing">@context.LeftWingPower</MudTd>
+            <MudTd DataLabel="RightWing">@context.RightWingPower</MudTd>
+
+            <MudTd>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Grading"
+                           OnClick="@(async () => { TrackedReactor = context; await RefreshData(); })">
+                    Track
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{50, 100}" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+<MudPaper Class="@(TrackedFlight != null && TrackedReactor != null ? "pa-2" : "d-none")" Outlined="true">
+    <h4>Flight: @(TrackedFlight?.Name)</h4>
+    <h4>Reactor: @(TrackedReactor?.Name)</h4>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="async () => { await RefreshData(); TrackedFlight = null; }">Change Flight</MudButton>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="async () => { await RefreshData(); TrackedReactor = null; }">Change Reactor</MudButton>
+    <ul>
+        <li>Power: @(TrackedReactor?.EffectivePower.ToString()) [ @(TrackedReactor?.PowerOutput) ]</li>
+        <li>Left Wing power: @(TrackedReactor?.EffectiveLeftWingPower) [ @(TrackedReactor?.LeftWingPower) ]</li>
+        <li>Right Wing power: @(TrackedReactor?.EffectiveRightWingPower) [ @(TrackedReactor?.RightWingPower) ]</li>
+    </ul>
+</MudPaper>
+<br />
+<br />
+<hr />
+<h3>Power Display Test</h3>
+<MudPaper Class="pa-2" Outlined="true">
+    <MudButton OnClick="RandomizeAll">Randomize All</MudButton>
+    <br />
+    <br />
+    Index:
+    <MudNumericField @bind-Value="PowerDisplayIndex" Label="Standard" Variant="Variant.Text" Min="0" Max="@PowerDisplayCount" />
+    <br />
+    Value:
+    <MudNumericField @bind-Value="PowerDisplayValue" Label="Standard" Variant="Variant.Text" Min="0" Max="9999" />
+    <MudButton OnClick="() => PowerDisplayValue = Random.Shared.Next(9999)">Random Value</MudButton>
+</MudPaper>
+
+@code {
+    private string Message = "";
+    private List<Flight> AllFlights = new();
+    private List<Reactor> AllReactors = new();
+    private Flight? TrackedFlight = null;
+    private Reactor? TrackedReactor = null;
+
+    private const int PowerDisplayCount = 10;
+
+    private string InfoMessage
+    {
+        set
+        {
+            Message = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}: {value}";
+        }
+    }
+
+    private PowerDisplay powerDisplay = new();
+
+    private int PowerDisplayIndex
+    {
+        get => powerDisplay.DisplayIndex;
+        set
+        {
+            if (value == powerDisplay.DisplayIndex)
+            {
+                return;
+            }
+
+            powerDisplay.DisplayIndex = value;
+            _ = UpdateSevenSeg();
+        }
+    }
+
+    private int PowerDisplayValue
+    {
+        get => powerDisplay.Value;
+        set
+        {
+            if (value == powerDisplay.Value)
+            {
+                return;
+            }
+
+            powerDisplay.Value = value;
+            _ = UpdateSevenSeg();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task UpdateSevenSeg()
+    {
+        string result = await API.UpdatePowerDisplays(new List<PowerDisplay>() { powerDisplay });
+
+        InfoMessage = $"{result} ===> Updated PowerDisplay {PowerDisplayIndex} to value {PowerDisplayValue}";
+    }
+
+    private async Task RandomizeAll()
+    {
+        string result = await API.UpdatePowerDisplays(
+            Enumerable.Range(0, PowerDisplayCount).Select(idx =>
+                new PowerDisplay()
+                    {
+                        DisplayIndex = idx,
+                        Value = Random.Shared.Next(0, 9999)
+                    }).ToList()
+            );
+
+        InfoMessage = $"{result} ===> Randomize PowerDisplays";
+    }
+
+    private async Task RefreshData()
+    {
+        await RefreshFlights();
+        await RefreshReactors();
+    }
+
+    private async Task RefreshFlights()
+    {
+        FlightsResponse flightsResponse = await API.GetFlights();
+        AllFlights = flightsResponse.Flights;
+        if (flightsResponse.ErrorMessage != null)
+        {
+            Message = flightsResponse.ErrorMessage;
+            return;
+        }
+
+        if (AllFlights.Count == 1)
+        {
+            if (TrackedFlight?.Id != AllFlights[0].Id)
+            {
+                TrackedReactor = null;
+            }
+
+            TrackedFlight = AllFlights[0];
+        }
+        else if (TrackedFlight != null)
+        {
+            Flight? matchingFlight = AllFlights.FirstOrDefault(f => f.Id == TrackedFlight.Id);
+
+            if (matchingFlight == null || matchingFlight.Simulator?.Id != TrackedFlight.Simulator?.Id)
+            {
+                TrackedFlight = null;
+                TrackedReactor = null;
+            }
+        }
+    }
+
+    private async Task RefreshReactors()
+    {
+        if (TrackedFlight?.Simulator?.Id != null)
+        {
+            ReactorsResponse reactorsResponse = await API.GetReactors(TrackedFlight.Simulator.Id);
+            AllReactors = reactorsResponse.Reactors;
+            if (reactorsResponse.ErrorMessage != null)
+            {
+                Message = reactorsResponse.ErrorMessage;
+                return;
+            }
+
+            if (AllReactors.Count == 0)
+            {
+                TrackedReactor = null;
+            }
+            else if (AllReactors.Count == 1)
+            {
+                TrackedReactor = AllReactors[0];
+            }
+            else
+            {
+                if (!AllReactors.Any(r => r.Id == TrackedReactor?.Id))
+                {
+                    TrackedReactor = null;
+                }
+            }
+
+        }
+        else
+        {
+            TrackedReactor = null;
+        }
+    }
+
+    private void TrackReactor(Reactor trackedReactor)
+    {
+        Message = $"Tracking reactor: {trackedReactor.Name}";
+    }
+}
