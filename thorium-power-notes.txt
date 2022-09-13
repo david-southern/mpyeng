@@ -1,0 +1,99 @@
+Code files to consider:
+src/components/views/PowerDistribution/index.js
+
+
+Overall interactions to consider:
+* System.power is manipulated on the PowerDistribution view - It calls the systemPowerMutation for each system whenever the power allocation for the system is changed.  There does not appear to be any limit on what the kids can set the power to, beyond the view limit of a max of 40 power per system.  
+** Note: The power allocation controls are not limited by "available power" the kids can assign more power than is available.  Need to find out how this is accounted for.
+
+* Each system has a `power` value - power allocated to this system and a `powerLevels` value - an array of required power allocations for different levels of system functionality.
+** The base System object has `setPower` and `setPowerLevels` methods that track the `this.power` and `this.powerLevels` values, but does not do anything else,
+
+* There is a system named "Crm" (something about sending out fighters) that has a "setPower" method.  In this method, if the power is set to a value less than `this.powerLevels[0]`, then the system `this.activated` is set to false, no other action is taken, and powerLevels is not considered anywhere else in this system.  Perhaps the system only has a single power level.
+
+Power is produced by Reactors:
+Two types of Reactors: model="reactor" and model="battery"
+
+export const REACTOR_SUB = gql`
+  subscription ReactorUpdate($simulatorId: ID) {
+    reactorUpdate(simulatorId: $simulatorId) {
+      id
+      model
+      batteryChargeLevel
+      efficiency
+      powerOutput
+      hasWings
+      leftWingPower
+      leftWingRequest
+      leftWingRequested
+      rightWingPower
+      rightWingRequest
+      rightWingRequested
+    }
+  }
+`;
+
+Battery power available: Reactor.batteryChargeLevel - values of [0, 1.0]
+Reactor actual power output: Reactor.powerOutput * Reactor.efficiency
+
+Power is consumed by Systems that have a powerLevels array with at least one element:
+export const SYSTEMS_SUB = gql`
+  subscription SystemsUpdate($simulatorId: ID) {
+    systemsUpdate(simulatorId: $simulatorId, power: true) {
+      id
+      displayName
+      type
+      wing
+      power {
+        power
+        powerLevels
+      }
+      damage {
+        damaged
+      }
+    }
+  }
+`;
+
+System.power.power = Current system power allocation
+System.power.powerLevels = required power allocation for each level of output - powerLevels[0] is the minimum power required for the system to function at all.
+
+Mutating a system's power:
+const systemPowerMutation = gql`
+  mutation ChangePower($id: ID!, $level: Int!) {
+    changePower(systemId: $id, power: $level)
+  }
+`;
+
+
+const Power = ({systems, client, battery, reactor, wing}) => {
+  const [powerAdjust, setPowerAdjust] = React.useState(0);
+
+  const powerTotal =
+    systems.reduce((prev, next) => {
+      return next.power.power + prev;
+    }, 0) + powerAdjust;
+  React.useEffect(() => {
+    if (systems) {
+      setPowerAdjust(0);
+    }
+  }, [systems]);
+
+// PowerAdjust notes: (not pertinent to the eng board)
+// React.useEffect runs the first parameter (lambda) if the content of the second parameter (array of Systems?) change
+// Translation of this code: 
+** Total Power used by sytems = sum of system.power + powerAdjust
+** powerAdjust is set to zero if the collection of systems defined by the simultor ever change
+** powerAdjust is used to update the "Total Power Used" value while a System Power bar is being manipulated.  Guessing that once the power change is committed, powerAdjust is set back to zero...
+
+
+
+  const battery = reactors.find(r => r.model === "battery");
+  const reactor = reactors.find(r => r.model === "reactor");
+  const charge = battery && battery.batteryChargeLevel;
+  // Sim has 4 batteries, charge [0 - 1.0] is the total charge of all 4 batteries:
+  * First battery = [0 - 0.25]
+  * Second battery = [0.25 - 0.5]
+  * Third battery = [0.5 - 0.75]
+  * Fourth battery = [0.75 - 1.0]
+  
