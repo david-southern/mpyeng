@@ -1,0 +1,16 @@
+{
+    "ApiSelections": {
+        "ExcludedControllerNames": [ ],
+        "DataModelAssemblyNames": [ ],
+        "CherryPickingMethods": 3
+    },
+    "ClientApiOutputs": {
+        "ClientLibraryProjectFolderName": "..\\Client\\APIProxies",
+        "CSClientNamespaceSuffix": ".Proxy",
+        "DIFriendly": true,
+        "GenerateBothAsyncAndSync": false,
+        "StringAsString": true,
+        "CamelCase": true,
+        "Plugins": []
+    }
+}

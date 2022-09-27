@@ -1,0 +1,11 @@
+﻿h2 {
+    color: green;
+}
+
+.ssg-layout {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    column-gap: 11px;
+    row-gap: 11px;
+    background-color: aliceblue;
+}

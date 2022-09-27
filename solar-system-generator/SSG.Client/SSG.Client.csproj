@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Using Include="Newtonsoft.Json" />
+        <Using Include="SSG.Shared" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.9" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.9" PrivateAssets="all" />
+        <PackageReference Include="MudBlazor" Version="6.0.16" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Shared\SSG.Shared.csproj" />
+        <ProjectReference Include="..\SSG.Shared\SSG.Shared.csproj" />
+    </ItemGroup>
+
+    <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+        <Exec Command="npm install" WorkingDirectory="wwwroot" />
+        <Exec Command="npm run build" WorkingDirectory="wwwroot" />
+    </Target>
+
+    <ItemGroup>
+        <None Include="compilerconfig.json" />
+    </ItemGroup>
+
+    <Target Name="DumpDiags">
+        <Message Text="Compile item type contains:" />
+        <Message Text="@(Compile, '%0D')" />
+        <Message Text="------------------------------" />
+        <Message Text="None item type contains:" />
+        <Message Text="@(None, '%0D')" />
+    </Target>
+</Project>
