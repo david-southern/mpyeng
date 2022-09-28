@@ -19,24 +19,23 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Shared\SSG.Shared.csproj" />
         <ProjectReference Include="..\SSG.Shared\SSG.Shared.csproj" />
     </ItemGroup>
 
-    <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-        <Exec Command="npm install" WorkingDirectory="wwwroot" />
-        <Exec Command="npm run build" WorkingDirectory="wwwroot" />
-    </Target>
-
     <ItemGroup>
-        <None Include="compilerconfig.json" />
+        <!-- Exclude all Content items from being watched. -->
+        <Content Update="@(Content)" Watch="false" />
+        <Watch Include="wwwroot/index.html;wwwroot/css/*.css;wwwroot/public/*" />
     </ItemGroup>
 
     <Target Name="DumpDiags">
         <Message Text="Compile item type contains:" />
         <Message Text="@(Compile, '%0D')" />
-        <Message Text="------------------------------" />
-        <Message Text="None item type contains:" />
-        <Message Text="@(None, '%0D')" />
+        <Message Text="   " />
+        <Message Text="EmbeddedResource item type contains:" />
+        <Message Text="@(EmbeddedResource, '%0D')" />
+        <Message Text="   " />
+        <Message Text="Watch item type contains:" />
+        <Message Text="@(Watch, '%0D')" />
     </Target>
 </Project>

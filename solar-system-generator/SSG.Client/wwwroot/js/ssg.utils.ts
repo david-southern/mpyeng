@@ -12,9 +12,15 @@ export class Constants {
     public static SolarRadius = 6.960e8;
     public static EarthMass = 5.974e24;
     public static EarthRadius = 6.378e6;
+
+    public static AsAU = (meters: number) => meters / Constants.OneAU;
 }
 
 export class Utils {
+    public static DumpVec3(vec: THREE.Vector3): string {
+        return `(${vec.x}, ${vec.y}, ${vec.z})`;
+    }
+
     public static setPosition(object3d: THREE.Object3D, x: number, y: number, z: number) {
         object3d.position.x = x;
         object3d.position.y = y;
@@ -54,7 +60,8 @@ export class Utils {
     }
 
     public static starMaterial(color: string) {
-        return new THREE.MeshLambertMaterial({ emissive: color });
+        return new THREE.MeshBasicMaterial({ color });
+        // return new THREE.MeshLambertMaterial({ emissive: color });
     }
 
     public static orbitalMaterial(color: string) {

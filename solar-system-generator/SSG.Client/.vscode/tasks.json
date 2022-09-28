@@ -1,0 +1,115 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "buildall",
+            "dependsOn": [
+                "dotnet build",
+                "npm: build:sass",
+                "npm: build:webpack"
+            ],
+            "dependsOrder": "parallel",
+            "type": "shell",
+            "command": "echo Building...",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "revealProblems": "onProblem",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "dotnet build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/SSG.Client.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "npm: build:sass",
+            "type": "npm",
+            "script": "build:sass",
+            "group": "build",
+            "problemMatcher": {
+                "owner": "sassypants",
+                "pattern": [
+                    {
+                        "regexp": "^(Error): (.+)$",
+                        "severity": 1,
+                        "message": 2
+                    },
+                    {
+                        "regexp": "^.*$"
+                    },
+                    {
+                        "regexp": "^.*$"
+                    },
+                    {
+                        "regexp": "^.*$"
+                    },
+                    {
+                        "regexp": "^.*$"
+                    },
+                    {
+                        "regexp": "^\\s+([^\\s]+)\\s+(\\d+):.*$",
+                        "file": 1,
+                        "line": 2
+                    }
+                ]
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "npm: build:webpack",
+            "type": "npm",
+            "script": "build:webpack",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/SSG.Client.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/SSG.Client.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

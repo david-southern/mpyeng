@@ -9,7 +9,62 @@ Overall interactions to consider:
 * Each system has a `power` value - power allocated to this system and a `powerLevels` value - an array of required power allocations for different levels of system functionality.
 ** The base System object has `setPower` and `setPowerLevels` methods that track the `this.power` and `this.powerLevels` values, but does not do anything else,
 
-* There is a system named "Crm" (something about sending out fighters) that has a "setPower" method.  In this method, if the power is set to a value less than `this.powerLevels[0]`, then the system `this.activated` is set to false, no other action is taken, and powerLevels is not considered anywhere else in this system.  Perhaps the system only has a single power level.
+* Each System implementation is responsible for overriding the setPower method, and reducing its functionality to the appropriate powerLevel
+
+* There is a system named "Crm" (something about sending out fighters, located at server/classes/crm.js) that has a "setPower" method.  In this method, if the power is set to a value less than `this.powerLevels[0]`, then the system `this.activated` is set to false, no other action is taken, and powerLevels is not considered anywhere else in this system.  Perhaps the system only has a single power level.
+** The `this.activated` is write-only in this class. (It has no effect)  Must be read by other components?
+
+* 'Engine' system (server/classes/engine.js) - when setPower() is called:
+* If the current `this.powerLevels[this.speed]` is greater than the new powerLevel, then reduce the `this.speed` to the first `this.powerLevel` where the incoming powerLevel is EQUAL TO (not <=???) to the powerLevel.
+** If this changes the speed to zero, then issue an application event "engined have stopped"
+
+
+### Management of power allocation - make sure they don't have too much power allocated
+* in server/processes/reactor.js
+
+* When a 'Power Warning' event is triggered (`triggerPowerWarning`)
+** Find all Stations that have a card named "PowerDistribution": (left/right wings)
+** Send those stations a 'notify' message: 'Power Imbalance: Please balance your power'
+
+* Update Reactor:
+* For each running flight: Sum up the total `System.power` values for all Systems in the flight (call this `oldLevel`)
+* Sum up the total reactor power from all Systems of type Reactor and mode=`reactor` by summing Reactor.powerOutput * reactor.efficienct
+* Calculate `level` as "The difference between system allocation and reactor output" - Positive level means systems are using more power than reactors are producing
+** if level is positive (system power usage (`oldLevel`) is greated then total reactor power), then trigger a `triggerPowerWarning` - notify the wings to balane their power levels
+** for all batteries, increase/reduce the `batteryChargeLevel` according to the `level` value, multiplied by the `batteryChargeRate`
+** clamp battery charge leven to [0, 1]
+* If the new charge level is changed from the old charge level than 'handleEvent': `reactorBatteryChargeLevel`
+
+
+### Call with Alex
+
+Power Output
+150
+
+Efficiency:
+
+Reactor => Map animation speed to the efficiency -> Check the min/max, map 0-1 to the range of efficiencies
+
+States: 
+
+No animation - Black
+External Power
+Ejected
+Power Output == 0
+
+
+Otherwise:
+Use the animation mapping described above
+
+
+
+
+Eng Board:
+Have the controller set the system power directly.  We'll put the Power Distribution on on-interactive monitors for feedback...
+
+
+
+
 
 Power is produced by Reactors:
 Two types of Reactors: model="reactor" and model="battery"

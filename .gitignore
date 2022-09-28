@@ -4,6 +4,7 @@ bin/
 .vs/
 000-attic/
 *.user
+node_modules
 
 # Prerequisites
 *.d

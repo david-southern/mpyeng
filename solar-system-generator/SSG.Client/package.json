@@ -1,0 +1,30 @@
+{
+    "name": "wwwroot",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "build:blazor": "dotnet build",
+        "build:webpack": "webpack",
+        "build:sass": "sass --update Pages:Pages wwwroot/css:wwwroot/css",
+        "build": "npm-run-all -p build:*",
+        "watch:webpack": "webpack watch",
+        "watch:dotnet": "dotnet watch",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "three": "^0.144.0"
+    },
+    "devDependencies": {
+        "npm-run-all": "^4.1.5",
+        "@types/three": "^0.144.0",
+        "sass": "^1.55.0",
+        "ts-node": "^10.9.1",
+        "typescript": "^4.8.3",
+        "webpack": "^5.74.0",
+        "webpack-cli": "^4.10.0"
+    }
+}

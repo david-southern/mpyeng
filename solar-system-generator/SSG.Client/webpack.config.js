@@ -8,7 +8,7 @@ module.exports = {
             {
                 test: /\.(ts)$/,
                 exclude: /node_modules/,
-                include: [path.resolve(__dirname, 'js')],
+                include: [path.resolve(__dirname, 'wwwroot/js')],
                 use: 'ts-loader',
             }
         ]
@@ -17,10 +17,10 @@ module.exports = {
         extensions: ['.ts', '.js'],
     },
     entry: {
-        SSG: ['./js/SSG.ts']  
+        SSG: ['./wwwroot/js/SSG.ts']  
     },
     output: {
-        path: path.resolve(__dirname, '../wwwroot/public'),
+        path: path.resolve(__dirname, './wwwroot/public'),
         filename: '[name]-bundle.js',
         library: "[name]"
     }

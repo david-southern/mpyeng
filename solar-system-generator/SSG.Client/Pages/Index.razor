@@ -24,54 +24,62 @@
     <MudItem xs="3">
         <MudStack Spacing="1">
             <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="UpdateSystem">Update</MudButton>
-            <MudSlider @bind-Value="Zoom" T="float" Min="0.5f" Max="30" Step="0.1f" Color="Color.Info">Zoom: @Zoom.ToString()</MudSlider>
-            <MudSlider @bind-Value="AnimateSpeed" T="float" Min="0.1f" Step="0.1f" Max="10f" Color="Color.Info">Speed: @($"{AnimateSpeed}")</MudSlider>
-                <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">Angle: @($"{ViewAngle}")</MudSlider>
-                <MudText Class="mb-8">Solar System: </MudText>
-                <MudTreeView Items="SolarSystemTree" Dense="true" Hover="true" Color="Color.Tertiary" @bind-SelectedValue="SelectedObject">
-                    <ItemTemplate>
-                        <MudTreeViewItem Items="@context.ChildObjects" Value="@context"
-                                     Expanded="true"
-                                     Icon="@(ObjectIcon(context))"
-                                     Text="@context.Name"
-                                     EndText="@(EndText(context))" EndTextTypo="@Typo.caption" />
-                    </ItemTemplate>
-                </MudTreeView>
+            <MudSlider @bind-Value="Zoom" T="float" Min="0.5f" Max="30" Step="0.1f" Color="Color.Info">Zoom:
+                @Zoom.ToString()</MudSlider>
+            <MudSlider @bind-Value="AnimateSpeed" T="float" Min="0.1f" Step="0.1f" Max="10f" Color="Color.Info">Speed:
+                @($"{AnimateSpeed}")</MudSlider>
+            <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">Angle:
+                @($"{ViewAngle}")</MudSlider>
+            <MudText Class="mb-8">Solar System: </MudText>
+            <MudTreeView Items="SolarSystemTree" Dense="true" Hover="true" Color="Color.Tertiary"
+                @bind-SelectedValue="SelectedObject">
+                <ItemTemplate>
+                    <MudTreeViewItem Items="@context.ChildObjects" Value="@context" Expanded="true"
+                        Icon="@(ObjectIcon(context))" Text="@context.Name" EndText="@(EndText(context))"
+                        EndTextTypo="@Typo.caption" />
+                </ItemTemplate>
+            </MudTreeView>
 
-                <table>
-                    <tr>
-                        <td colspan="2">
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMajorAxis" Label="SemiMajor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                        <td>
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis" Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalInclination" Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                        <td>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectRadius" Label="Radius" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                        <td>
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditBaseColor" Label="Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                        </td>
-                    </tr>
-                </table>
-            </MudStack>
-        </MudItem>
-    </MudGrid>
-    @code {
+            <table>
+                <tr>
+                    <td colspan="2">
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name"
+                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMajorAxis"
+                            Label="SemiMajor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis"
+                            Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalInclination"
+                            Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                    <td>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectRadius" Label="Radius"
+                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditBaseColor" Label="Color"
+                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                </tr>
+            </table>
+        </MudStack>
+    </MudItem>
+</MudGrid>
+@code {
     const string GRID_TYPE_GRID = "Grid";
     const string GRID_TYPE_POLAR = "Polar";
     const string GRID_TYPE_NONE = "None";
@@ -86,7 +94,7 @@
         public float ViewAngleXDegrees = -80;
         public float ViewAngleYDegrees = 0;
         public float ViewAngleZDegrees = 0;
-        public float AnimateZSpeed = 0.001f;
+        public float AnimateZSpeed = 0.01f;
         public string GridType = GRID_TYPE_NONE;
         public float WorldViewWidth = 1200;
         public float SystemScale = 1;
@@ -340,8 +348,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        SolarSystem = await ssProxy.GetSolarSystem() ?? new("");
+        try
+        {
+            SolarSystem = await ssProxy.GetSolarSystem() ?? MockSolarSystemData.TestSystem;
+            Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception loading solar system: {ex.Message}");
+            SolarSystem = MockSolarSystemData.TestSystem;
+        }
         SolarSystemTree.Add(SolarSystem);
+        await UpdateSystem();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -356,7 +374,8 @@
 
     private string ObjectIcon(CelestialObject context)
     {
-        return context.ObjectMass > Constants.SolarMass / 10 ? Icons.Material.Filled.AutoAwesome : Icons.Material.Filled.BlurCircular;
+        return context.ObjectMass > Constants.SolarMass / 10 ? Icons.Material.Filled.AutoAwesome :
+        Icons.Material.Filled.BlurCircular;
     }
 
     private string EndText(CelestialObject context)
@@ -369,7 +388,7 @@
         SolarSystem = await ssProxy.GetSolarSystem() ?? new("");
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
-        UpdateSystem();
+        await UpdateSystem();
     }
 
     private void LoadSystem()
@@ -382,8 +401,8 @@
 
     private async Task UpdateSystem()
     {
-        string solarSystemJson = SolarSystem.SafeJson();
-        string settingsJson = Settings.SafeJson();
+        string solarSystemJson = SolarSystem.SafeJson() ?? "null";
+        string settingsJson = Settings.SafeJson() ?? "null";
         await JS.InvokeVoidAsync("SSG.Renderer.render", solarSystemJson, settingsJson);
     }
 }

@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.Hosting.StaticWebAssets;
-using Microsoft.AspNetCore.ResponseCompression;
-
 using Newtonsoft.Json.Serialization;
 
 const string LogEnvVar = "LOG_FOLDER";
@@ -12,7 +10,6 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", true)
     .Build();
-
 
 // Set up the top-level logger from the config file so that log messages from Service registration are captured.
 Log.Logger = new LoggerConfiguration()
@@ -26,6 +23,8 @@ try
     Logger.Info("Starting SSG web host");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseSerilog((builderContext, loggerConfig) => loggerConfig.ReadFrom.Configuration(builderContext.Configuration));
 
     StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 

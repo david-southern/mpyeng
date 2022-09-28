@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../SSG.Server"
+		},
+		{
+			"path": "."
+		}
+	],
+    "settings": {}
+}

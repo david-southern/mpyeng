@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../SSG.Shared"
+		}
+	],
+    "settings": {
+        "cSpell.words": [
+            "greenyellow"
+        ]
+    }
+}

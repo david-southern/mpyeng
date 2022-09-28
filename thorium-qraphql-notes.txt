@@ -141,6 +141,39 @@ export const REACTOR_SUB = gql`
   }
 `;
 
+};
+export const SYSTEMS_QUERY = gql`
+  query Systems($simulatorId: ID) {
+    systems(simulatorId: $simulatorId, power: true) {
+      id
+      displayName
+      wing
+      type
+      power {
+        power
+        powerLevels
+      }
+      damage {
+        damaged
+      }
+    }
+    reactors(simulatorId: $simulatorId) {
+      id
+      model
+      batteryChargeLevel
+      efficiency
+      powerOutput
+      hasWings
+      leftWingPower
+      leftWingRequest
+      leftWingRequested
+      rightWingPower
+      rightWingRequest
+      rightWingRequested
+    }
+  }
+`;
+
   const battery = reactors.find(r => r.model === "battery");
   const reactor = reactors.find(r => r.model === "reactor");
   const charge = battery && battery.batteryChargeLevel;
@@ -152,6 +185,38 @@ export const REACTOR_SUB = gql`
   
   
   
+curl 'http://172.19.48.1:4444/graphql' -X POST \
+  -H 'content-type: application/json' \
+  --data-raw '{
+	"query": "query Flight { flights { id flightType } } "
+  }'
+
+
+REACTOR STATUS:
+
+curl 'http://172.19.48.1:4444/graphql' -X POST \
+  -H 'content-type: application/json' \
+  --data-raw '{ "query": "query ReactorStatus { reactors(model: \"reactor\" simulatorId: \"3c0959dd-f65c-4324-84ff-f8b084164b86\") { name model batteryChargeLevel efficiency powerOutput leftWingPower rightWingPower } } " }'
+
+
+SIMULATOR STATUS:
+curl 'http://172.19.48.1:4444/graphql' -X POST \
+  -H 'content-type: application/json' \
+  --data-raw '{ "query": "query SimulatorStatus { simulators { id name template } } " }'
+
+
+  
   
   
 
+
+simulators(template: false) {
+    id
+    name
+    template
+    templateId
+    capabilities {
+      systems
+    }
+  }
+http://localhost:4444/flight/94a02daf-858f-4b20-a7cc-bb9b1999a6a1

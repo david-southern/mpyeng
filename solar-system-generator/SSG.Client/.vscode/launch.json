@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "compounds": [
+        {
+            "name": "VSCode Debug SSG",
+            "preLaunchTask": "buildall",
+            "configurations": [
+                "BlazorLaunch"
+            ]
+        },
+        {
+            "name": "VSCode Watch SSG",
+            "configurations": [
+                "dotnet watch",
+                
+            ]
+        }
+    ],
+    "configurations": [
+        {
+            "name": "dotnet watch",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "dotnet",
+            "args": [
+                "watch"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "console": "internalConsole",
+            "launchBrowser": {
+                "enabled": true
+            },
+            "logging": {
+                "moduleLoad": false,
+                "engineLogging": false
+            }
+        },
+        {
+            "name": "BlazorLaunch",
+            "type": "blazorwasm",
+            "request": "launch",
+            "url": "http://localhost:5153",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

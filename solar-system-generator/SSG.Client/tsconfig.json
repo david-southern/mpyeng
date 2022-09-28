@@ -1,5 +1,4 @@
 {
-    "display": "Node 16",
     "compilerOptions": {
         "allowJs": true,
         "noImplicitAny": true,
@@ -16,9 +15,8 @@
         "emitDecoratorMetadata": true,
         "moduleResolution": "node"
     },
-    "include": [ "js/**/*.ts" ],
+    "include": [ "wwwroot/js/**/*.ts" ],
     "exclude": [
-        "node_modules",
-        "wwwroot"
+        "node_modules"
     ]
 }
