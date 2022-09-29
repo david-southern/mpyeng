@@ -17,14 +17,20 @@ export class Constants {
 }
 
 export class Utils {
-    public static DumpVec3(vec: THREE.Vector3): string {
-        return `(${vec.x}, ${vec.y}, ${vec.z})`;
+    public static DumpVec(vec: THREE.Vector2 | THREE.Vector3): string {
+        return (vec instanceof THREE.Vector2) ? `(${vec.x}, ${vec.y})` : `(${vec.x}, ${vec.y}, ${vec.z})`;
     }
 
-    public static setPosition(object3d: THREE.Object3D, x: number, y: number, z: number) {
-        object3d.position.x = x;
-        object3d.position.y = y;
-        object3d.position.z = z;
+    public static setPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number) {
+        if (typeof x === 'number') {
+            object3d.position.x = x;
+            object3d.position.y = y ?? 0;
+            object3d.position.z = z ?? 0;
+        } else {
+            object3d.position.x = x.x;
+            object3d.position.y = x.y;
+            object3d.position.z = x.z;
+        }
     }
 
     public static degreesToRadians(degrees: number) {
@@ -68,13 +74,15 @@ export class Utils {
         return new THREE.LineBasicMaterial({ color });
     }
 
-    public static buildEllipse(x: number, y: number, z: number, xrad: number, yrad: number, color: string, inclination: number = 0) {
+    public static buildOrbitalEllipse(x: number, y: number, xRadius: number, yRadius: number): THREE.EllipseCurve {
         const startAngle = 0;
         const endAngle = 2 * Math.PI;
         const clockwiseDirection = false;
 
-        const curve = new THREE.EllipseCurve(x, y, xrad, yrad, startAngle, endAngle, clockwiseDirection, inclination);
+        return new THREE.EllipseCurve(x, y, xRadius, yRadius, startAngle, endAngle, clockwiseDirection, 0);
+    }
 
+    public static buildOrbitalMesh(x: number, y: number, z: number, curve: THREE.EllipseCurve, color: string) {
         const points = curve.getPoints(250);
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
 

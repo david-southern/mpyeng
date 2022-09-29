@@ -2,35 +2,52 @@
 
 @using SSG.APIProxies
 
+@namespace SSG.Client.Pages
+
 @inject IJSRuntime JS
 @inject SolarSystemProxy ssProxy;
 
 <PageTitle>Solar System Generator</PageTitle>
 
-<MudText Class="mb-8">Create a Solar System</MudText>
+<MudPopover Open="@(FileMenuOpen)" AnchorOrigin="@(Origin.TopRight)" TransformOrigin="@(Origin.TopRight)"
+    Class="px-4 pt-4">
+    <div class="d-flex flex-column">
+        <MudText>Current System: @($"{(SolarSystem?.Name ?? "<none>")}")</MudText>
+        <MudPaper Elevation="2" Class="pa-2 pt-0">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="NewSystem">New</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="LoadSystem">Load</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="SaveSystem">Save</MudButton>
+        </MudPaper>
+        <MudButton OnClick="@ToggleFileMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
+    </div>
+</MudPopover>
+
+<MudPopover Open="@(SettingsMenuOpen)" AnchorOrigin="@(Origin.TopRight)" TransformOrigin="@(Origin.TopRight)"
+    Class="px-4 pt-4">
+    <div class="d-flex flex-column">
+        <MudText>Settings:</MudText>
+        <MudPaper Elevation="2" Class="pa-2 pt-0">
+            <MudSlider @bind-Value="Zoom" T="float" Min="0.1f" Max="30" Step="0.1f" Color="Color.Info">Zoom:
+                @Zoom.ToString()</MudSlider>
+            <MudSlider @bind-Value="AnimationSpeed" T="float" Min="0" Step="0.1f" Max="10f" Color="Color.Info">Speed:
+                @($"{AnimationSpeed}")</MudSlider>
+            <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">Angle:
+                @($"{ViewAngle}")</MudSlider>
+        </MudPaper>
+        <MudButton OnClick="@ToggleSettingsMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
+    </div>
+</MudPopover>
 
 <MudGrid>
     <MudItem xs="9">
         <MudPaper Elevation="2" Class="pa-2">
-            <div id="ssgCanvas" style="width: 100%; height: calc(100vh - 230px);"></div>
-            <MudPaper Elevation="2" Class="pa-2 pt-0">
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="NewSystem">New</MudButton>
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="LoadSystem">Load</MudButton>
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="SaveSystem">Save</MudButton>
-
-            </MudPaper>
+            <div id="ssgCanvas" style="width: 100%; height: calc(100vh - 90px);"></div>
         </MudPaper>
     </MudItem>
     <MudItem xs="3">
         <MudStack Spacing="1">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="UpdateSystem">Update</MudButton>
-            <MudSlider @bind-Value="Zoom" T="float" Min="0.5f" Max="30" Step="0.1f" Color="Color.Info">Zoom:
-                @Zoom.ToString()</MudSlider>
-            <MudSlider @bind-Value="AnimateSpeed" T="float" Min="0.1f" Step="0.1f" Max="10f" Color="Color.Info">Speed:
-                @($"{AnimateSpeed}")</MudSlider>
-            <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">Angle:
-                @($"{ViewAngle}")</MudSlider>
-            <MudText Class="mb-8">Solar System: </MudText>
+            @* <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="UpdateSystem">Update</MudButton> *@
+            <MudText>Solar System: @($"{(SolarSystem?.Name ?? "<none>")}")</MudText>
             <MudTreeView Items="SolarSystemTree" Dense="true" Hover="true" Color="Color.Tertiary"
                 @bind-SelectedValue="SelectedObject">
                 <ItemTemplate>
@@ -63,6 +80,8 @@
                             Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
                     </td>
                     <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalColor"
+                            Label="Orbit Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
                     </td>
                 </tr>
                 <tr>
@@ -71,7 +90,7 @@
                             Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
                     </td>
                     <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditBaseColor" Label="Color"
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectColor" Label="Color"
                             Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
                     </td>
                 </tr>
@@ -79,330 +98,3 @@
         </MudStack>
     </MudItem>
 </MudGrid>
-@code {
-    const string GRID_TYPE_GRID = "Grid";
-    const string GRID_TYPE_POLAR = "Polar";
-    const string GRID_TYPE_NONE = "None";
-
-    public class SSGSettings
-    {
-        public string AmbientLightColor = "#404040";
-        public string OrbitalColor = "#ffff00";
-        public bool IncludeDirectionalLight = false;
-        public float FieldOfViewDegrees = 10;
-        public float ViewCameraDistance = 9000;
-        public float ViewAngleXDegrees = -80;
-        public float ViewAngleYDegrees = 0;
-        public float ViewAngleZDegrees = 0;
-        public float AnimateZSpeed = 0.01f;
-        public string GridType = GRID_TYPE_NONE;
-        public float WorldViewWidth = 1200;
-        public float SystemScale = 1;
-        // public float PlanetScale = 2000;
-        public float PlanetScale = 2000;
-        public float StarScale = 50;
-        public float Zoom = 1;
-    };
-
-    private SSGSettings Settings = new();
-
-    private CelestialObject SolarSystem = new("");
-    private HashSet<CelestialObject> SolarSystemTree = new();
-    CelestialObject? SelectedObject { get; set; }
-
-    public float Zoom
-    {
-        get
-        {
-            return Settings.Zoom;
-        }
-        set
-        {
-            if (value == Settings.Zoom)
-            {
-                return;
-            }
-
-            Settings.Zoom = value;
-        }
-    }
-
-    public float AnimateSpeed
-    {
-        get
-        {
-            return Settings.AnimateZSpeed * 1000;
-        }
-        set
-        {
-            if (value == Settings.AnimateZSpeed * 1000)
-            {
-                return;
-            }
-
-            Settings.AnimateZSpeed = value / 1000;
-        }
-    }
-
-    public float ViewAngle
-    {
-        get
-        {
-            return -Settings.ViewAngleXDegrees;
-        }
-        set
-        {
-            if (value == -Settings.ViewAngleXDegrees)
-            {
-                return;
-            }
-
-            Settings.ViewAngleXDegrees = -value;
-        }
-    }
-
-    public string EditName
-    {
-        get
-        {
-            return SelectedObject?.Name ?? "";
-        }
-
-        set
-        {
-            if (SelectedObject == null || SelectedObject.Name == value)
-            {
-                return;
-            }
-            SelectedObject.Name = value;
-            StateHasChanged();
-        }
-    }
-
-    public string EditOrbitalSemiMajorAxis
-    {
-        get
-        {
-            return $"{Constants.AsAU(SelectedObject?.OrbitalSemiMajorAxis ?? 0)} AU";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            value = value.ToLower();
-            if (value.Contains("au"))
-            {
-                value = value.Replace("au", "");
-            }
-
-            float floatValue = SelectedObject.OrbitalSemiMajorAxis;
-
-            try
-            {
-                floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfAU(floatValue);
-            }
-            catch { }
-
-
-            if (Utils.FloatEQ(SelectedObject.OrbitalSemiMajorAxis, floatValue))
-            {
-                return;
-            }
-
-            SelectedObject.OrbitalSemiMajorAxis = floatValue;
-            StateHasChanged();
-        }
-    }
-
-    public string EditOrbitalSemiMinorAxis
-    {
-        get
-        {
-            return $"{Constants.AsAU(SelectedObject?.OrbitalSemiMinorAxis ?? 0)} AU";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            value = value.ToLower();
-            if (value.Contains("au"))
-            {
-                value = value.Replace("au", "");
-            }
-
-            float floatValue = SelectedObject.OrbitalSemiMinorAxis;
-
-            try
-            {
-                floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfAU(floatValue);
-            }
-            catch { }
-
-
-            if (Utils.FloatEQ(SelectedObject.OrbitalSemiMinorAxis, floatValue))
-            {
-                return;
-            }
-
-            SelectedObject.OrbitalSemiMinorAxis = floatValue;
-            StateHasChanged();
-        }
-    }
-
-    public string EditOrbitalInclination
-    {
-        get
-        {
-            return $"{SelectedObject?.OrbitalInclination ?? 0} deg";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            value = value.ToLower();
-            if (value.Contains("deg"))
-            {
-                value = value.Replace("deg", "");
-            }
-
-            float floatValue = SelectedObject.OrbitalInclination;
-
-            try
-            {
-                floatValue = Convert.ToSingle(value);
-            }
-            catch { }
-
-
-            if (Utils.FloatEQ(SelectedObject.OrbitalInclination, floatValue))
-            {
-                return;
-            }
-
-            SelectedObject.OrbitalInclination = floatValue;
-            StateHasChanged();
-        }
-    }
-
-    public string EditObjectRadius
-    {
-        get
-        {
-            return $"{Constants.AsEarthRadii(SelectedObject?.ObjectRadius ?? 0)} ER";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            value = value.ToLower();
-            if (value.Contains("er"))
-            {
-                value = value.Replace("er", "");
-            }
-
-            float floatValue = SelectedObject.ObjectRadius;
-
-            try
-            {
-                floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfEarthRadius(floatValue);
-            }
-            catch { }
-
-
-            if (Utils.FloatEQ(SelectedObject.ObjectRadius, floatValue))
-            {
-                return;
-            }
-
-            SelectedObject.ObjectRadius = floatValue;
-            StateHasChanged();
-        }
-    }
-
-    public string EditBaseColor
-    {
-        get
-        {
-            return SelectedObject?.BaseColor ?? "";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            if (SelectedObject.BaseColor == value)
-            {
-                return;
-            }
-            SelectedObject.BaseColor = value;
-            StateHasChanged();
-        }
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            SolarSystem = await ssProxy.GetSolarSystem() ?? MockSolarSystemData.TestSystem;
-            Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Exception loading solar system: {ex.Message}");
-            SolarSystem = MockSolarSystemData.TestSystem;
-        }
-        SolarSystemTree.Add(SolarSystem);
-        await UpdateSystem();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JS.InvokeVoidAsync("SSG.Renderer.initialize", "ssgCanvas");
-        }
-
-        await base.OnAfterRenderAsync(firstRender);
-    }
-
-    private string ObjectIcon(CelestialObject context)
-    {
-        return context.ObjectMass > Constants.SolarMass / 10 ? Icons.Material.Filled.AutoAwesome :
-        Icons.Material.Filled.BlurCircular;
-    }
-
-    private string EndText(CelestialObject context)
-    {
-        return Utils.FloatLT(context.OrbitalSemiMajorAxis, 1) ? "--" : $"{Constants.AsAU(context.OrbitalSemiMajorAxis):N3}AU";
-    }
-
-    private async Task NewSystem()
-    {
-        SolarSystem = await ssProxy.GetSolarSystem() ?? new("");
-        SolarSystemTree.Clear();
-        SolarSystemTree.Add(SolarSystem);
-        await UpdateSystem();
-    }
-
-    private void LoadSystem()
-    {
-    }
-
-    private void SaveSystem()
-    {
-    }
-
-    private async Task UpdateSystem()
-    {
-        string solarSystemJson = SolarSystem.SafeJson() ?? "null";
-        string settingsJson = Settings.SafeJson() ?? "null";
-        await JS.InvokeVoidAsync("SSG.Renderer.render", solarSystemJson, settingsJson);
-    }
-}

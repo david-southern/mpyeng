@@ -1,87 +1,116 @@
 ﻿import * as THREE from 'three';
+import { Vector2, Vector3 } from 'three';
 
 import { CelestialObject } from './celestial-object';
-import { ColladaExporter } from './collada';
-import { PLYExporter } from './PLYExporter';
+import { OrbitControls } from './OrbitControls';
+import { Logger, SSGSystemFilter } from './ssg.logger';
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGSettings, EmptySettings } from './ssg.settings';
 import { Constants, Utils } from './ssg.utils';
 
-export const GRID_TYPE_GRID = 'Grid';
-export const GRID_TYPE_POLAR = 'Polar';
-export const GRID_TYPE_NONE = 'None';
+const DEFAULT_FOV = 70;
+const DEFAULT_ASPECT = 1.61;
+const DEFAULT_ORBITAL_COLOR = '#999999';
 
+// I modeled all the planetary data in actual units, but those numbers are huge, and hard to track while debugging.
+// Scale everything down to 'smallish' numbers internally.
 const CoordsScale = Constants.OneAU;
 
-export class SSGSettings {
-    public AmbientLightColor = "#404040";
-    public OrbitalColor = "#ffff00";
-    public IncludeDirectionalLight = false;
+class Orbiter {
+    constructor(
+        public threeObject: THREE.Object3D,
+        public orbitCurve: THREE.EllipseCurve,
+        public initialAngle: number,
+        public angVelDegPerSecond: number,
+    ) {
+        this.currentAngle = initialAngle;
+    }
 
-    // We want a perspective view so that we get a sense of 'nearer/farther', but we also want our planets to be apparent
-    // spheres.  If the camera is too close, then we get fisheye distortion of the scene.  Instead put the camera way far
-    // away, and use a very narrow FOV to get the right look.
-    public FieldOfViewDegrees = 10;
+    private currentAngle: number;
 
-    public ViewCameraDistance = 9000;
-    public ViewAngleXDegrees = -80;
-    public ViewAngleYDegrees = 0;
-    public ViewAngleZDegrees = 0;
+    public updatePosition(elapsedSeconds: number) {
+        this.currentAngle += (this.angVelDegPerSecond * elapsedSeconds);
+        this.currentAngle = this.currentAngle % 360;
 
-    public AnimateZSpeed = 0.001;
+        const objectPosition = new Vector2();
+        this.orbitCurve.getPointAt(this.currentAngle / 360, objectPosition);
+        Utils.setPosition(this.threeObject, objectPosition.x, objectPosition.y, 0);
+    }
+}
 
-    public GridType = GRID_TYPE_NONE;
+type SettingsCB = (settings: SSGSettings) => void;
 
-    /**
-     * The max visible width of the renderer's view frustum.
-     */
-    public WorldViewWidth = 1200;
+class SettingsManagerImpl {
+    public CurrentSettings: SSGSettings = EmptySettings;
+    public PrevSettings: SSGSettings = EmptySettings;;
 
-    /**
-     * The amount to scale the final solar system representation so it is visible in the renderer's view frustum.
-     */
-    public SystemScale = 1;
+    private settingsCallbacks: SettingsCB[] = [];
 
-    /**
-     * The amount to scale planets over their 'actual' size so that they are visible on an orbital scale.
-     */
-    public PlanetScale = 50;
+    public publishSettings(newSettings: SSGSettings) {
+        this.PrevSettings = this.CurrentSettings;
+        this.CurrentSettings = newSettings;
 
-    /**
-     * The amount to scale planets over their 'actual' size so that they are visible on an orbital scale.
-     */
-    public StarScale = 50;
+        for (const nextCB of this.settingsCallbacks) {
+            nextCB(newSettings);
+        }
+    }
 
-    public Zoom = 1;
+    public subscribeSettings = (settingsCB: SettingsCB) => {
+        if (settingsCB) {
+            this.settingsCallbacks.push(settingsCB);
+        }
+    };
+
+    public clearSettingsSubscriptions = () => {
+        this.settingsCallbacks = [];
+    }
 };
 
-const DefaultSSGSettings = new SSGSettings();
+const SettingsManager = new SettingsManagerImpl();
 
 export class SSGRenderer {
-    private ssgSettings: SSGSettings = null!;
+    // private ssgSettings: SSGSettings = null!;
 
     private canvasElement: HTMLElement = null!;
+
     private canvasWidth: number = null!;
     private canvasHeight: number = null!;
     private canvasAspect: number = null!;
 
-    private scene: THREE.Scene = null!;
-    private camera: THREE.PerspectiveCamera = null!;
-    private renderer = new THREE.WebGLRenderer();
-    private viewZRot: THREE.Group = null!;
-    private viewYRot: THREE.Group = null!;
-    private viewXRot: THREE.Group = null!;
+    private systemScene: THREE.Scene;
+    private gridScene: THREE.Scene;
+    private camera: THREE.PerspectiveCamera;
+    private ambientLight: THREE.AmbientLight;
+    private directionalLight: THREE.DirectionalLight;
+    private orbitControls: OrbitControls = null!;
+    private renderer: THREE.WebGLRenderer;
+    private systemGroup: THREE.Object3D = null!;
+    private orbiters: Orbiter[] = [];
+    private gridGroup: THREE.Object3D = null!;
 
     private solarSystem: CelestialObject = null!;
-    private animating = false;
+    private lastActualMillis = 0;
+    private simTime = 0;
 
-    public initialize(canvasDivId: string, settings?: SSGSettings) {
+    constructor() {
+        this.systemScene = new THREE.Scene();
+        this.gridScene = new THREE.Scene();
+        this.systemScene.name = 'SSG-root';
+        this.ambientLight = new THREE.AmbientLight();
+        this.systemScene.add(this.ambientLight);
+        this.directionalLight = new THREE.DirectionalLight();
+        this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, DEFAULT_ASPECT);
+        this.renderer = new THREE.WebGLRenderer();
+
+        this.getNextAnimationFrame();
+    }
+
+    public initialize(canvasDivId: string) {
         const checkCanvas = document.getElementById(canvasDivId);
 
         if (!checkCanvas) {
             console.error(`SSG Canvas Div Id '${canvasDivId}' did not select any DOM element`);
             return;
         }
-
-        this.ssgSettings = settings ?? DefaultSSGSettings;
 
         this.canvasElement = checkCanvas;
 
@@ -91,112 +120,194 @@ export class SSGRenderer {
 
         var rect = this.canvasElement.getBoundingClientRect();
 
-        console.log(`Initializing SSG render with:`);
-        console.log(`    window @(${rect.top}, ${rect.left}), size: (${this.canvasWidth} x ${this.canvasHeight}), aspect: ${this.canvasAspect}`);
-        console.log(`    fov ${this.ssgSettings.FieldOfViewDegrees}, near: ${this.ssgSettings.ViewCameraDistance / 100}, far: ${this.ssgSettings.ViewCameraDistance * 2}`);
+        Logger.info(SSGSystemFilter.Initialization, `Initializing SSG render with:`);
+        Logger.info(SSGSystemFilter.Initialization, `    window @(${rect.left}, ${rect.top}), size: (${this.canvasWidth} x ${this.canvasHeight}), aspect: ${this.canvasAspect}`);
 
-        this.camera = new THREE.PerspectiveCamera(this.ssgSettings.FieldOfViewDegrees, this.canvasAspect,
-            0.1, this.ssgSettings.ViewCameraDistance * 2);
+        this.camera.aspect = this.canvasAspect;
+        this.camera.updateProjectionMatrix();
 
+        // We want the grid to render behind everything else.  We will manage the renderers clearing manually to achieve this.
+        this.renderer.autoClear = false;
         this.renderer.setSize(this.canvasWidth, this.canvasHeight);
+
+        this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+
         this.canvasElement.appendChild(this.renderer.domElement);
     }
 
-    public render(solarSystemJson: string, settingsJson?: string) {
+    public render(solarSystemJson: string, settingsJson: string) {
         const solarSystemPartial = JSON.parse(solarSystemJson);
 
         this.solarSystem = new CelestialObject(solarSystemPartial);
 
-        this.ssgSettings = DefaultSSGSettings;
+        Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: System: ", this.solarSystem);
 
-        if (settingsJson) {
-            this.ssgSettings = JSON.parse(settingsJson);
+        SettingsManager.clearSettingsSubscriptions();
+
+        if (this.systemGroup) {
+            this.systemScene.remove(this.systemGroup);
+        }
+        if (this.gridGroup) {
+            this.gridScene.remove(this.gridGroup);
         }
 
-        console.log("Render Solar System: ", this.solarSystem);
-        console.log("  with settings: ", this.ssgSettings);
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            this.camera.fov = settings.FieldOfViewDegrees;
+            this.camera.updateProjectionMatrix();
+        })
 
-        this.scene = new THREE.Scene();
-        this.scene.name = 'SSG-root';
-        this.scene.add(new THREE.AmbientLight(this.ssgSettings.AmbientLightColor));
+        const newSettings = new SSGSettings(JSON.parse(settingsJson));
+        Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: Settings: ", newSettings);
 
-        if (this.ssgSettings.IncludeDirectionalLight) {
-            const directionalLight = new THREE.DirectionalLight('#ffffff', 1);
-            Utils.setPosition(directionalLight, 1, 1, 0);
-            this.scene.add(directionalLight);
-        }
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            this.ambientLight.color = new THREE.Color(settings.AmbientLightColor);
+        });
 
-        const testSystem = false;
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            // It is safe to remove a child that you don't have, but not safe to add a child twice.  Remove the
+            // light here before adding it so that I don't have to track whether the light has been added or not.
+            this.systemScene.remove(this.directionalLight);
 
-        let systemGroup;
+            if (settings.IncludeDirectionalLight) {
+                this.systemScene.add(this.directionalLight);
+            }
 
-        if (testSystem) {
-            console.log(`Building test scene`);
-            systemGroup = this.buildTestScene();
-        }
-        else {
-            // const systemRadius = this.calculateSystemRadius(this.solarSystem);
-            // console.log(`Max systemRadius: ${systemRadius} - AsAU: ${Constants.AsAU(systemRadius)}`);
-            // this.ssgSettings.SystemScale = this.ssgSettings.WorldViewWidth / systemRadius;
-            // console.log(`SystemScale factor: ${this.ssgSettings.SystemScale}`);
+            this.directionalLight.color = new THREE.Color(settings.DirectionalLightColor);
+            this.directionalLight.intensity = settings.DirectionalLightIntensity;
+            Utils.setPosition(this.directionalLight, settings.DirectionalLightPositionVec3);
+        });
 
-            systemGroup = this.buildSolarSystem(this.solarSystem);
-        }
+        this.orbiters = [];
+        this.systemGroup = this.buildSolarSystem(this.solarSystem);
+        this.gridGroup = new THREE.Group();
+        this.gridGroup.name = 'SSG-system-grid';
 
-        // It is easier to rotate the top-level sceneGroup than to try and reposition the camera. Unfortunately I don't
-        // understand 3D math well enough to get the rotation I want in one go, but separate rotations seem to work well
-        // enough.
-        this.viewZRot = new THREE.Group();
-        this.viewZRot.name = `SSG-z-rot`;
-        this.viewZRot.add(systemGroup);
-        this.viewZRot.rotation.z = Utils.degreesToRadians(this.ssgSettings.ViewAngleZDegrees);
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            while (this.gridGroup.children.length > 0) {
+                this.gridGroup.remove(this.gridGroup.children[0]);
+            }
 
-        this.viewYRot = new THREE.Group();
-        this.viewYRot.name = `SSG-y-rot`;
-        this.viewYRot.add(this.viewZRot);
-        this.viewYRot.rotation.y = Utils.degreesToRadians(this.ssgSettings.ViewAngleYDegrees);
+            if (!settings.GridType || settings.GridType === GRID_TYPE_NONE) {
+                return;
+            }
 
-        this.viewXRot = new THREE.Group();
-        this.viewXRot.name = `SSG-x-rot`;
-        this.viewXRot.add(this.viewYRot);
-        this.viewXRot.rotation.x = Utils.degreesToRadians(this.ssgSettings.ViewAngleXDegrees);
+            const boundingBox = new THREE.Box3();
+            boundingBox.setFromObject(this.systemGroup);
 
-        this.scene.add(this.viewXRot);
+            const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y)
+                * settings.GridSizeFactor;
+
+            let gridMesh;
+
+            if (settings.GridType == GRID_TYPE_RECTANGULAR) {
+                gridMesh = Utils.buildGrid(gridSize, settings.GridMajorDivisions,
+                    settings.GridMajorColor, settings.GridMinorColor);
+            }
+
+            if (settings.GridType == GRID_TYPE_POLAR) {
+                gridMesh = Utils.buildPolarGrid(gridSize / 2,
+                    settings.GridMinorDivisions, settings.GridMajorDivisions, 64,
+                    settings.GridMajorColor, settings.GridMinorColor);
+            }
+
+            if (gridMesh) {
+                this.gridGroup.add(gridMesh);
+            }
+        });
+
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            // It is easier to rotate the top-level sceneGroup than to try and reposition the camera. Unfortunately I don't
+            // understand 3D math well enough to get the rotation I want in one go, but separate rotations seem to work well
+            // enough.
+
+            this.gridGroup.setRotationFromAxisAngle(new Vector3(0, 0, 1), Utils.degreesToRadians(settings.ViewAngleZDegrees));
+            this.gridGroup.setRotationFromAxisAngle(new Vector3(0, 1, 0), Utils.degreesToRadians(settings.ViewAngleYDegrees));
+            this.gridGroup.setRotationFromAxisAngle(new Vector3(1, 0, 0), Utils.degreesToRadians(settings.ViewAngleXDegrees));
+
+            this.systemGroup.setRotationFromAxisAngle(new Vector3(0, 0, 1), Utils.degreesToRadians(settings.ViewAngleZDegrees));
+            this.systemGroup.setRotationFromAxisAngle(new Vector3(0, 1, 0), Utils.degreesToRadians(settings.ViewAngleYDegrees));
+            this.systemGroup.setRotationFromAxisAngle(new Vector3(1, 0, 0), Utils.degreesToRadians(settings.ViewAngleXDegrees));
+        });
+
+        this.systemScene.add(this.systemGroup);
+        this.gridScene.add(this.gridGroup);
+
+        Logger.info(SSGSystemFilter.ModelBuilding, `Ready to fix camera to scene`);
+
+        // We need all the changes to the scene pushed before fitting the camera, so publish here
+        SettingsManager.publishSettings(newSettings)
 
         // Fit the camera before applying zoom, otherwise the camera will be fit to the zoomed scene, which is no good
-        this.fitCameraToObject(this.camera, this.scene);
+        this.fitCameraToObject();
 
-        this.viewXRot.scale.x = this.ssgSettings.Zoom;
-        this.viewXRot.scale.y = this.ssgSettings.Zoom;
-        this.viewXRot.scale.z = this.ssgSettings.Zoom;
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            this.gridGroup.scale.x = settings.Zoom;
+            this.gridGroup.scale.y = settings.Zoom;
+            this.gridGroup.scale.z = settings.Zoom;
 
-        // console.log(`SSG Scene: `, this.scene)
-        // console.log(`SSG Camera: `, this.camera)
-        // console.log('Scene.JSON export: ', JSON.stringify(this.scene.toJSON()));
-
-        this.updateRender();
-    }
-
-    private updateRender() {
-        //this.startAnimation(() => {
-        //    this.stopAnimation();
-        //});
-        this.startAnimation(() => {
-            this.viewZRot.rotation.z += this.ssgSettings.AnimateZSpeed;
+            this.systemGroup.scale.x = settings.Zoom;
+            this.systemGroup.scale.y = settings.Zoom;
+            this.systemGroup.scale.z = settings.Zoom;
         });
+
+        // And publish once more to get the zoom updated
+        SettingsManager.publishSettings(newSettings)
+
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG System: `, this.systemGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Scene: `, this.systemScene);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Grid: `, this.gridGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Camera: `, this.camera);
+
+        if (Logger.wouldLog(SSGSystemFilter.ExportDiagnostics)) {
+            Logger.info(SSGSystemFilter.ExportDiagnostics, 'Scene.JSON export: ', JSON.stringify(this.systemScene.toJSON()));
+        }
     }
 
-    private fitCameraToObject(camera: THREE.PerspectiveCamera, object: THREE.Object3D,
-        offset?: any, controls?: any) {
+    public updateSettings(settingsJson: string) {
+        const newSettings = new SSGSettings(JSON.parse(settingsJson));
+        SettingsManager.publishSettings(newSettings);
+    }
 
-        offset = offset || 1.05;
+    private getNextAnimationFrame() {
+        requestAnimationFrame((animationTime: DOMHighResTimeStamp) => { this.updateAnimation(animationTime); });
+    }
+
+    private updateAnimation(actualMillis: number) {
+        if (SettingsManager.CurrentSettings.Animate) {
+            let speedScale = 1;
+            
+            if (SettingsManager.CurrentSettings.AnimationSpeed > 0) {
+                speedScale = Math.pow(2, SettingsManager.CurrentSettings.AnimationSpeed + 18)
+            }
+
+            let actualElapsedSeconds = (actualMillis - this.lastActualMillis) / 1000;
+            this.lastActualMillis = actualMillis;
+            let simElapsedSeconds = actualElapsedSeconds * speedScale;
+
+            for (const nextOrbiter of this.orbiters) {
+                nextOrbiter.updatePosition(simElapsedSeconds);
+            }
+        }
+
+        // Clear buffers
+        this.renderer.clear();
+        this.renderer.render(this.gridScene, this.camera);
+        // clear depth buffer
+        this.renderer.clearDepth();
+        this.renderer.render(this.systemScene, this.camera);
+
+        this.getNextAnimationFrame();
+    }
+
+    private fitCameraToObject() {
+        const offset = 1.05;
 
         const boundingBox = new THREE.Box3();
 
         // get bounding box of object - this will be used to setup controls and camera
-        boundingBox.setFromObject(object);
+        boundingBox.setFromObject(this.systemScene);
 
-        console.log(`fitCamera: Object boundingBox: min: ${Utils.DumpVec3(boundingBox.min)}, max: ${Utils.DumpVec3(boundingBox.max)}`);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: Object boundingBox: min: ${Utils.DumpVec(boundingBox.min)}, max: ${Utils.DumpVec(boundingBox.max)}`);
 
         const center = new THREE.Vector3();
         const size = new THREE.Vector3();
@@ -204,13 +315,13 @@ export class SSGRenderer {
         boundingBox.getCenter(center);
         boundingBox.getSize(size);
 
-        console.log(`fitCamera: Object boundingBox: center: ${Utils.DumpVec3(center)}, size: ${Utils.DumpVec3(size)}`);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: Object boundingBox: center: ${Utils.DumpVec(center)}, size: ${Utils.DumpVec(size)}`);
 
         // get the max side of the bounding box (fits to width OR height as needed )
         const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
+        const fov = this.camera.fov * (Math.PI / 180);
 
-        console.log(`Initial camera params: FOV: ${fov}, Z: ${camera.position.z}, maxDim: ${maxDim}`);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `Initial camera params: FOV: ${fov}, Z: ${this.camera.position.z}, maxDim: ${maxDim}`);
 
         let ySize = Math.max(size.y, size.x / this.canvasAspect);
 
@@ -222,103 +333,70 @@ export class SSGRenderer {
         const minZ = boundingBox.min.z;
         const cameraToFarEdge = (minZ < 0) ? -minZ + cameraDistance : cameraDistance - minZ;
 
-        console.log(`New camera params: Z: ${cameraDistance}, FAR: ${cameraToFarEdge * 3}`);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `New camera params: Z: ${cameraDistance}, FAR: ${cameraToFarEdge * 3}`);
 
-        camera.position.z = cameraDistance;
-        camera.far = cameraToFarEdge * 3;
-        camera.updateProjectionMatrix();
+        this.camera.position.z = cameraDistance;
+        this.camera.far = cameraToFarEdge * 3;
+        this.camera.updateProjectionMatrix();
 
-        if (controls) {
-
+        if (this.orbitControls) {
             // set camera to rotate around center of loaded object
-            controls.target = center;
-
+            this.orbitControls.target = center;
             // prevent camera from zooming out far enough to create far plane cutoff
-            controls.maxDistance = cameraToFarEdge * 2;
-
-            controls.saveState();
+            this.orbitControls.maxDistance = cameraToFarEdge * 2;
+            this.orbitControls.TSsaveState();
+            this.orbitControls.TSupdate();
         }
     };
-
-    private startAnimation(updateScene?: () => void) {
-        if (this.animating) {
-            return;
-        }
-        this.animating = true;
-
-        const animate = () => {
-            if (this.animating) {
-                requestAnimationFrame(animate);
-            }
-
-            if (updateScene) {
-                updateScene();
-            }
-
-            this.renderer.render(this.scene, this.camera);
-        }
-
-        animate();
-    }
-
-    private stopAnimation() {
-        this.animating = false;
-    }
-
-    private calculateSystemRadius(rootObject: CelestialObject): number {
-        // If the object doesn't have an orbit then make sure we include enough space to render the object itself.
-        let maxRadius = rootObject.ObjectRadius * (rootObject.IsStar ? this.ssgSettings.StarScale : this.ssgSettings.PlanetScale);
-        console.log(`SystemRadius: Obj: ${rootObject.Name} - Object Radius: ${Constants.AsAU(maxRadius)} AU, SMAxis: ${Constants.AsAU(rootObject.OrbitalSemiMajorAxis)}`);
-
-        if (rootObject.ChildObjects?.length > 0) {
-            for (const childObj of rootObject.ChildObjects) {
-                maxRadius = Math.max(maxRadius, this.calculateSystemRadius(childObj))
-            }
-
-            console.log(`SystemRadius: Obj: ${rootObject.Name} - Child Radius: ${Constants.AsAU(maxRadius)} AU`);
-        }
-
-        const retval = maxRadius + rootObject.OrbitalSemiMajorAxis;
-        console.log(`SystemRadius: Obj: ${rootObject.Name} - Final Radius: ${Constants.AsAU(retval)} AU`);
-        return retval;
-    }
 
     private buildSolarSystem(rootObject: CelestialObject): THREE.Group {
         const sceneGroup = new THREE.Group();
         sceneGroup.name = `${rootObject.Name}-root`;
 
-        let planetaryRadius = rootObject.ObjectRadius * this.ssgSettings.SystemScale / CoordsScale;
-        const majorAxis = rootObject.OrbitalSemiMajorAxis * this.ssgSettings.SystemScale / CoordsScale;
-        const minorAxis = rootObject.OrbitalSemiMinorAxis * this.ssgSettings.SystemScale / CoordsScale;
+        let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
+        const majorAxis = rootObject.OrbitalSemiMajorAxis / CoordsScale;
+        const minorAxis = rootObject.OrbitalSemiMinorAxis / CoordsScale;
 
-        console.log(`Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
+        Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
 
         let objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
+        if (majorAxis > 0) {
+            const orbitCurve = Utils.buildOrbitalEllipse(0, 0, majorAxis, minorAxis);
+            const orbitObject = Utils.buildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitalColor ?? DEFAULT_ORBITAL_COLOR);
+            orbitObject.name = `${rootObject.Name}-orbit-geom`;
+
+            if (objectGroup) {
+                const planetOrbiter = new Orbiter(objectGroup, orbitCurve, 0, rootObject.OrbitalVelocity);
+                planetOrbiter.updatePosition(0);
+                this.orbiters.push(planetOrbiter);
+            }
+
+            sceneGroup.add(orbitObject);
+        }
+
         if (planetaryRadius > 0) {
             if (rootObject.IsStar) {
-                planetaryRadius *= this.ssgSettings.StarScale;
-                objectGroup.add(Utils.buildStar(0, 0, 0, planetaryRadius, rootObject.BaseColor));
+                SettingsManager.subscribeSettings((settings: SSGSettings) => {
+                    if (rootObject.Obj3D) {
+                        objectGroup.remove(rootObject.Obj3D);
+                    }
+                    rootObject.Obj3D = Utils.buildStar(0, 0, 0, planetaryRadius * settings.StarScale, rootObject.ObjectColor)
+                    objectGroup.add(rootObject.Obj3D);
+                });
             }
             else {
-                planetaryRadius *= this.ssgSettings.PlanetScale;
-                objectGroup.add(Utils.buildPlanet(0, 0, 0, planetaryRadius, rootObject.BaseColor));
+                SettingsManager.subscribeSettings((settings: SSGSettings) => {
+                    if (rootObject.Obj3D) {
+                        objectGroup.remove(rootObject.Obj3D);
+                    }
+                    rootObject.Obj3D = Utils.buildPlanet(0, 0, 0, planetaryRadius * settings.PlanetScale, rootObject.ObjectColor)
+                    objectGroup.add(rootObject.Obj3D);
+                });
             }
 
             sceneGroup.add(objectGroup);
-        }
-
-        if (majorAxis > 0) {
-            if (objectGroup) {
-                Utils.setPosition(objectGroup, majorAxis, 0, 0);
-            }
-
-            const orbitObject = Utils.buildEllipse(0, 0, 0, majorAxis, minorAxis,
-                this.ssgSettings.OrbitalColor, 0);
-            orbitObject.name = `${rootObject.Name}-orbit-geom`;
-
-            sceneGroup.add(orbitObject);
         }
 
         if (rootObject.PhaseAngle != 0) {
@@ -343,9 +421,6 @@ export class SSGRenderer {
         const origin = Utils.buildPlanet(0, 0, 0, 50, '#ffff00');
         sceneGroup.add(origin);
 
-        // const grid = Utils.buildGrid(4, 8, '#0000dd', '#000077');
-        // const polarGrid = Utils.buildPolarGrid(300, 16, 6, 64, '#000077', '#000055');
-
         const redMaj = 600;
         const redMin = 550;
 
@@ -354,13 +429,14 @@ export class SSGRenderer {
 
         const blueMaj = 500;
 
+        const redCurve = Utils.buildOrbitalEllipse(0, 0, redMaj, redMin);
+
         sceneGroup.add(
             Utils.buildPlanet(redMaj, 0, 0, 30, '#ff0000'),
             Utils.buildPlanet(-redMaj, 0, 0, 30, '#770000'),
-            Utils.buildEllipse(0, 0, 0, redMaj, redMin, '#ff0000'),
+            Utils.buildOrbitalMesh(0, 0, 0, redCurve, '#ff0000'),
             Utils.buildPlanet(0, greenMin, 0, 30, '#00ff00'),
             Utils.buildPlanet(0, -greenMin, 0, 30, '#007700'),
-            Utils.buildEllipse(0, 0, 0, greenMaj, greenMin, '#00ff00'),
             Utils.buildPlanet(0, 0, blueMaj, 30, '#0000ff'),
             Utils.buildPlanet(0, 0, -blueMaj, 30, '#000077'),
         );
@@ -368,5 +444,3 @@ export class SSGRenderer {
         return sceneGroup;
     }
 }
-
-console.log('TS Interop starting up!');

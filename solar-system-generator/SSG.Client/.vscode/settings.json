@@ -6,5 +6,6 @@
         "wwwroot/**/*.js.map": true
     },
     "cSpell.words": [
+        "nocheck"
     ]
 }

@@ -23,18 +23,24 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Exclude all Content items from being watched. -->
+        <!-- Exclude all items from being watched. -->
+        <!-- <Compile Update="@(Compile)" Watch="false" /> -->
         <Content Update="@(Content)" Watch="false" />
-        <Watch Include="wwwroot/index.html;wwwroot/css/*.css;wwwroot/public/*" />
+
+        <!-- Then add them back in with exclusions for the webpack files -->
+        <Watch Include="@(Content)" Exclude="wwwroot/**/*.css.map;wwwroot/**/*.scss;wwwroot/**/*.ts" />
     </ItemGroup>
 
     <Target Name="DumpDiags">
         <Message Text="Compile item type contains:" />
         <Message Text="@(Compile, '%0D')" />
-        <Message Text="   " />
+        <Message Text="~~~~~~~~~~~~~~~~~~~~~~~~" />
         <Message Text="EmbeddedResource item type contains:" />
         <Message Text="@(EmbeddedResource, '%0D')" />
-        <Message Text="   " />
+        <Message Text="~~~~~~~~~~~~~~~~~~~~~~~~" />
+        <Message Text="MSBuildProjectFiles item type contains:" />
+        <Message Text="@(MSBuildProjectFiles, '%0D')" />
+        <Message Text="~~~~~~~~~~~~~~~~~~~~~~~~" />
         <Message Text="Watch item type contains:" />
         <Message Text="@(Watch, '%0D')" />
     </Target>

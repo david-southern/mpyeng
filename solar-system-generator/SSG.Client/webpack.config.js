@@ -6,7 +6,7 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.(ts)$/,
+                test: /\.([jt]s)$/,
                 exclude: /node_modules/,
                 include: [path.resolve(__dirname, 'wwwroot/js')],
                 use: 'ts-loader',

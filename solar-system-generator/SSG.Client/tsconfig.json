@@ -5,7 +5,10 @@
         "noEmitOnError": true,
         "removeComments": false,
         "sourceMap": true,
-        "lib": [ "es2020", "DOM" ],
+        "lib": [
+            "es2020",
+            "DOM"
+        ],
         "target": "es6",
         "strict": true,
         "esModuleInterop": true,
@@ -15,7 +18,9 @@
         "emitDecoratorMetadata": true,
         "moduleResolution": "node"
     },
-    "include": [ "wwwroot/js/**/*.ts" ],
+    "include": [
+        "wwwroot/js/**/*.ts"
+    ],
     "exclude": [
         "node_modules"
     ]

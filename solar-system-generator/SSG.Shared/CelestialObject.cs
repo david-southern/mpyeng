@@ -23,6 +23,38 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     public const float DEFAULT_INCLINATION = 0;
     public const float DEFAULT_PHASE_ANGLE = 0;
 
+    public CelestialObject(string name, CelestialObject? parentObject = null,
+        float? semiMajorAxis = null, float? semiMinorAxis = null,
+        float? orbitalVelocity = null, float? orbitalInclination = null,
+        float? objectMass = null, float? objectRadius = null,
+        string? objectColor = null, string? orbitColor = null
+    )
+    {
+        Name = name;
+        ParentObject = parentObject;
+        if (parentObject != null)
+        {
+            ParentName = parentObject.Name;
+            SystemOrder = parentObject.ChildObjects.Count;
+            parentObject.ChildObjects.Add(this);
+        }
+        else
+        {
+            RootObject = null;
+            TotalMass = 0;
+        }
+
+        ObjectMass = objectMass ?? DEFAULT_MASS;
+        ObjectRadius = objectRadius ?? DEFAULT_RADIUS;
+        OrbitalSemiMajorAxis = semiMajorAxis ?? DEFAULT_ORBITAL_RADIUS;
+        OrbitalSemiMinorAxis = semiMinorAxis ?? DEFAULT_ORBITAL_RADIUS;
+        OrbitalVelocity = orbitalVelocity ?? DEFAULT_ORBITAL_VELOCITY;
+        OrbitalInclination = orbitalInclination ?? DEFAULT_INCLINATION;
+        ObjectColor = objectColor ?? "white";
+        OrbitalColor = orbitColor;
+    }
+
+
     public string Name { get; set; } = null!;
 
     [JsonIgnore]
@@ -47,6 +79,11 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// constructed.
     /// </summary>
     public int SystemOrder { get; set; }
+
+    /// <summary>
+    /// Indicates the currently selected CelestialObject(s)
+    /// </summary>
+    public bool IsSelected { get; set; }
 
     /// Sum of the mass of the system, only calculated for the root object.
     /// Used to approximate orbital period by placing each celestial object in
@@ -107,8 +144,8 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
 
     private float m_PhaseAngle = 0;
     /// <summary>
-    /// Describes the 'starting point' of the object - i.e. what is the object's angle at time zero.  Describes a
-    /// right-handed angle in degrees.  
+    /// Describes the rotation of the orbit around the system's Z axis - the angular offset of the orbit's semi-major
+    /// axis from the system's x-axis.  Describes a right-handed angle in degrees.  
     ///
     /// The angle will be clamped to [0, 360) degrees.
     ///
@@ -130,39 +167,12 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// <summary>
     /// The primary color used to render the object
     /// </summary>
-    public string BaseColor { get; set; } = "white";
+    public string? ObjectColor { get; set; } = "white";
 
-    public CelestialObject(string name, CelestialObject? parentObject = null,
-        float? semiMajorAxis = null, float? semiMinorAxis = null,
-        float? orbitalVelocity = null, float? orbitalInclination = null, 
-        float? objectMass = null, float? objectRadius = null, 
-        string? objectColor = null
-    )
-    {
-        Name = name;
-        ParentObject = parentObject;
-        if (parentObject != null)
-        {
-            ParentName = parentObject.Name;
-            SystemOrder = parentObject.ChildObjects.Count;
-            parentObject.ChildObjects.Add(this);
-        }
-        else
-        {
-            RootObject = null;
-            TotalMass = 0;
-        }
-
-        ObjectMass = objectMass ?? DEFAULT_MASS;
-        ObjectRadius = objectRadius ?? DEFAULT_RADIUS;
-        OrbitalSemiMajorAxis = semiMajorAxis ?? DEFAULT_ORBITAL_RADIUS;
-        OrbitalSemiMinorAxis = semiMinorAxis ?? DEFAULT_ORBITAL_RADIUS;
-        OrbitalVelocity = orbitalVelocity ?? DEFAULT_ORBITAL_VELOCITY;
-        OrbitalInclination = orbitalInclination ?? DEFAULT_INCLINATION;
-        BaseColor = objectColor ?? "white";
-
-        PhaseAngle = Random.Shared.Next(0, 359);
-    }
+    /// <summary>
+    /// The primary color used to render the object's orbit
+    /// </summary>
+    public string? OrbitalColor { get; set; }
 
 #if CELESTIAL_MECHANICS_ARE_TOO_COMPLICATED
     public float DistanceTo(CelestialObject other)
@@ -194,7 +204,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
 
     private Vector3 m_Barycenter { get; set; }
     /// <summary>
-    /// The common center of mass of this CelectialObject and all child objects. In a system dominated by one large
+    /// The common center of mass of this CelestialObject and all child objects. In a system dominated by one large
     /// (solar) mass, the Barycenter will be very close to (likely inside the radius of) the central mass.  In a
     /// multi-solar mass system, the Barycenter may not be near any of the solar masses.  
     ///
