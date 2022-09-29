@@ -133,5 +133,45 @@ export class Utils {
 
         return gridHelper;
     }
+
+    /**
+     * Returns the totalSeconds as a string in the form of `3.438 days` where the units are the largest unit (up to
+     * centuries) that results in a value greater than one.
+     * @param totalSeconds 
+     * @returns 
+     */
+    public static humanTime(totalSeconds: number): string {
+        // Yes, I know about Humanizr, but they don't have this format...
+        let scaleFactors = [
+            { factor: 60, unit: "minute" },
+            { factor: 60, unit: "hour" },
+            { factor: 24, unit: "day" },
+            { factor: 365, unit: "year" },
+            { factor: 10, unit: "decade" },
+            { factor: 10, unit: "century" }
+        ];
+
+        let retTime = totalSeconds;
+        let retUnit = "seconds";
+
+        const nextScale = (factor: number, newUnit: string): boolean => {
+            if (retTime > factor) {
+                retTime /= factor;
+                retUnit = newUnit;
+                return true;
+            }
+            return false;
+        }
+
+        for (const nextFactor of scaleFactors) {
+            if (!nextScale(nextFactor.factor, nextFactor.unit)) {
+                break;
+            }
+        }
+
+        return `${retTime.toFixed(3)} ${retUnit}${(retTime == 1) ? '' : 's'}`;
+    }
+
+
 }
 

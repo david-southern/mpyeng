@@ -24,18 +24,22 @@
 
 <MudPopover Open="@(SettingsMenuOpen)" AnchorOrigin="@(Origin.TopRight)" TransformOrigin="@(Origin.TopRight)"
     Class="px-4 pt-4">
-    <div class="d-flex flex-column">
-        <MudText>Settings:</MudText>
-        <MudPaper Elevation="2" Class="pa-2 pt-0">
-            <MudSlider @bind-Value="Zoom" T="float" Min="0.1f" Max="30" Step="0.1f" Color="Color.Info">Zoom:
-                @Zoom.ToString()</MudSlider>
-            <MudSlider @bind-Value="AnimationSpeed" T="float" Min="0" Step="0.1f" Max="10f" Color="Color.Info">Speed:
-                @($"{AnimationSpeed}")</MudSlider>
-            <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">Angle:
-                @($"{ViewAngle}")</MudSlider>
-        </MudPaper>
-        <MudButton OnClick="@ToggleSettingsMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
+    <MudText>Settings</MudText>
+    <div class="property-grid">
+        <MudText Typo="Typo.caption">Speed:</MudText>
+        <div>
+            <MudSlider @bind-Value="AnimationSpeed" T="float" Min="0" Step="0.01f" Max="1f" Color="Color.Info">
+            </MudSlider>
+            <MudText Typo="Typo.caption">@(AnimationSpeed) (@(Settings.AnimationTimeScaleHuman))</MudText>
+        </div>
+        <MudText Typo="Typo.caption">View Angle:</MudText>
+        <div>
+            <MudSlider @bind-Value="ViewAngle" T="float" Min="0.1f" Step="0.1f" Max="90f" Color="Color.Info">
+            </MudSlider>
+            <MudText Typo="Typo.caption">@($"{ViewAngle}") degrees</MudText>
+        </div>
     </div>
+    <MudButton OnClick="@ToggleSettingsMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
 </MudPopover>
 
 <MudGrid>

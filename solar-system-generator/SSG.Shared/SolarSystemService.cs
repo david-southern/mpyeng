@@ -16,8 +16,27 @@ public class SolarSystemService
 
 public static class MockSolarSystemData
 {
+    public static readonly CelestialObject SpeedTest = new("SpeedTest", null,
+    semiMajorAxis: 0, semiMinorAxis: 0,
+    orbitalVelocity: 0, orbitalInclination: 0,
+    objectMass: Constants.OfSolarMass(0.815F), objectRadius: Constants.OfSolarRadius(0.5F),
+    objectColor: "#770000")
+    {
+        PhaseAngle = 0,
+        IsStar = true
+    };
 
-    public static readonly CelestialObject TestSystem = new("Cygnus X-1", null,
+    public static readonly CelestialObject S1 = new("One Day", SpeedTest,
+        semiMajorAxis: Constants.OfAU(8F), semiMinorAxis: Constants.OfAU(8F),
+        orbitalVelocity: Constants.AngVelByDays(365f), orbitalInclination: 0,
+        objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
+        objectColor: "white", orbitColor: "#dddddd")
+    {
+        PhaseAngle = 0
+    };
+
+
+    public static readonly CelestialObject CygnusX1 = new("Cygnus X-1", null,
         semiMajorAxis: 0, semiMinorAxis: 0,
         orbitalVelocity: 0, orbitalInclination: 0,
         objectMass: Constants.OfSolarMass(0.815F), objectRadius: Constants.OfSolarRadius(2.5F),
@@ -27,7 +46,7 @@ public static class MockSolarSystemData
         IsStar = true
     };
 
-    public static readonly CelestialObject P1 = new("Vanilla Circle", TestSystem,
+    public static readonly CelestialObject P1 = new("Vanilla Circle", CygnusX1,
         semiMajorAxis: Constants.OfAU(8F), semiMinorAxis: Constants.OfAU(8F),
         orbitalVelocity: 0, orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
@@ -36,7 +55,7 @@ public static class MockSolarSystemData
         PhaseAngle = 0
     };
 
-    public static readonly CelestialObject P2 = new("Vanilla Ellipse", TestSystem,
+    public static readonly CelestialObject P2 = new("Vanilla Ellipse", CygnusX1,
         semiMajorAxis: Constants.OfAU(8F), semiMinorAxis: Constants.OfAU(5F),
         orbitalVelocity: 0, orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
@@ -45,7 +64,7 @@ public static class MockSolarSystemData
         PhaseAngle = 180
     };
 
-    public static readonly CelestialObject P3 = new("Phased", TestSystem,
+    public static readonly CelestialObject P3 = new("Phased", CygnusX1,
         semiMajorAxis: Constants.OfAU(15F), semiMinorAxis: Constants.OfAU(11F),
         orbitalVelocity: 0, orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(7.3f),
@@ -54,13 +73,13 @@ public static class MockSolarSystemData
         PhaseAngle = 30
     };
 
-    public static readonly CelestialObject P4 = new("Inclined", TestSystem,
+    public static readonly CelestialObject P4 = new("Phased-Inclined", CygnusX1,
         semiMajorAxis: Constants.OfAU(19F), semiMinorAxis: Constants.OfAU(13F),
         orbitalVelocity: 0, orbitalInclination: 20,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
         objectColor: "red", orbitColor: "#ff7777")
     {
-        PhaseAngle = 0
+        PhaseAngle = 90
     };
 
 
@@ -138,4 +157,6 @@ public static class MockSolarSystemData
         objectColor: "DarkGray");
 
     public static readonly CelestialObject MockSolarSystem = Sol;
+
+    public static readonly CelestialObject TestSystem = Sol;
 }

@@ -7,7 +7,8 @@ public class SSGSettings
     const string GRID_TYPE_NONE = "None";
 
     public string AmbientLightColor = "#404040";
-
+    public float AmbientLightIntensity = 1;
+   
     public bool IncludeDirectionalLight = false;
     public string DirectionalLightColor = "#000000";
     public float DirectionalLightIntensity = 0;
@@ -38,7 +39,7 @@ public class SSGSettings
     public string GridMajorColor = "#004000";
 
     // For a polar grid, this is the number of radial sectors
-    public float GridMinorDivisions = 18;
+    public float GridMinorDivisions = 36;
     // For a rectangular grid, this is the color of the non-center lines.  For a polar grid, this is the second of two
     // alternating colors used to render the rings and sector lines.
     public string GridMinorColor = "#003000";
@@ -46,10 +47,14 @@ public class SSGSettings
     // If true, the planets will rotate along their orbits.
     public bool Animate = true;
 
-    // By default, the animation runs in real time.  This setting runs the animation faster so that it is visible.  The
-    // setting is exponential, so a setting of 0 is real time (one Earth orbit per real-time year) while a setting of
-    // about 7 will have Earth completing a full orbit once per second.
+    // Animation Speed, ranging from zero to one.
     public float AnimationSpeed = 0;
+
+    // Animation Time Scale - a linear interpolation of AnimationSpeed over the range [0, 10e7]
+    public float AnimationTimeScale => (float)(Math.Clamp(AnimationSpeed, 0, 1) * 10e7);
+
+    // A human-readable representation of the AnimationTimeScale
+    public string AnimationTimeScaleHuman => Utils.FloatEQ(AnimationTimeScale, 0) ? "paused" : $"{Utils.HumanTime(AnimationTimeScale)} per second";
 
     // The amount to scale planets over their 'actual' size so that they are visible on an orbital scale.
     public float PlanetScale = 2000;

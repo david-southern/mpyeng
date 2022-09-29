@@ -88,8 +88,9 @@ export class SSGRenderer {
     private gridGroup: THREE.Object3D = null!;
 
     private solarSystem: CelestialObject = null!;
-    private lastActualMillis = 0;
-    private simTime = 0;
+    private actualStartTime?: number;
+    private lastActualTime?: number;
+    private simTime?: number;
 
     constructor() {
         this.systemScene = new THREE.Scene();
@@ -143,6 +144,8 @@ export class SSGRenderer {
         Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: System: ", this.solarSystem);
 
         SettingsManager.clearSettingsSubscriptions();
+
+        this.actualStartTime = this.lastActualTime = this.simTime = undefined;
 
         if (this.systemGroup) {
             this.systemScene.remove(this.systemGroup);
@@ -272,17 +275,44 @@ export class SSGRenderer {
         requestAnimationFrame((animationTime: DOMHighResTimeStamp) => { this.updateAnimation(animationTime); });
     }
 
+    private nextTimeDiags = 0;
     private updateAnimation(actualMillis: number) {
         if (SettingsManager.CurrentSettings.Animate) {
-            let speedScale = 1;
-            
-            if (SettingsManager.CurrentSettings.AnimationSpeed > 0) {
-                speedScale = Math.pow(2, SettingsManager.CurrentSettings.AnimationSpeed + 18)
+            const actualTime = actualMillis / 1000;
+
+            if (this.actualStartTime === undefined) {
+                this.actualStartTime = actualTime;
             }
 
-            let actualElapsedSeconds = (actualMillis - this.lastActualMillis) / 1000;
-            this.lastActualMillis = actualMillis;
+            if (this.lastActualTime === undefined) {
+                this.lastActualTime = actualTime;
+            }
+
+            if (this.simTime === undefined) {
+                this.simTime = 0;
+            }
+
+            let speedScale = 1;
+
+            if (SettingsManager.CurrentSettings.AnimationSpeed > 0) {
+                speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
+            }
+
+            const actualSimTime = (actualTime - this.actualStartTime)
+            let actualElapsedSeconds = actualTime - this.lastActualTime;
+            this.lastActualTime = actualTime;
             let simElapsedSeconds = actualElapsedSeconds * speedScale;
+            this.simTime += simElapsedSeconds;
+
+            if (Date.now() > this.nextTimeDiags) {
+                let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
+                diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
+                diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
+                diagsString += `, Frame: Actual: ${Utils.humanTime(actualElapsedSeconds)}, Sim: ${Utils.humanTime(simElapsedSeconds)}`;
+
+                console.log(diagsString);
+                this.nextTimeDiags = Date.now() + 1000;
+            }
 
             for (const nextOrbiter of this.orbiters) {
                 nextOrbiter.updatePosition(simElapsedSeconds);

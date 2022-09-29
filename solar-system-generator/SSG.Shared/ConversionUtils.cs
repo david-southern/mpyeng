@@ -339,4 +339,47 @@ public static partial class Utils
         return JsonConvert.SerializeObject(thingy, formatted ? Formatting.Indented : Formatting.None,
             new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore });
     }
+
+    /// <summary>
+    ///      Returns the totalSeconds as a string in the form of `3.438 days` where the units are the largest unit (up to centuries) that results in a value greater than one.
+    /// </summary>
+    /// <param name="thingy"></param>
+    /// <param name="formatted"></param>
+    /// <returns></returns>
+    public static string HumanTime(float totalSeconds)
+    {
+        // Yes, I know about Humanizr, but they don't have this format...
+        (int factor, string unit)[] scaleFactors = {
+            (factor: 60, unit: "minute"),
+            (factor: 60, unit: "hour"),
+            (factor: 24, unit: "day"),
+            (factor: 365, unit: "year"),
+            (factor: 10, unit: "decade"),
+            (factor: 10, unit: "century"),
+        };
+
+        float retTime = totalSeconds;
+        string retUnit = "seconds";
+
+        Boolean nextScale(float factor, string newUnit)
+        {
+            if (retTime > factor)
+            {
+                retTime /= factor;
+                retUnit = newUnit;
+                return true;
+            }
+            return false;
+        }
+
+        foreach (var nextFactor in scaleFactors)
+        {
+            if (!nextScale(nextFactor.factor, nextFactor.unit))
+            {
+                break;
+            }
+        }
+
+        return $"{retTime:N3} {retUnit}{(Utils.FloatEQ(retTime, 1) ? "" : "s")}";
+    }
 }

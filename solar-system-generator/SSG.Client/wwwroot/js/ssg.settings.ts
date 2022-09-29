@@ -26,6 +26,8 @@ export class SSGSettings {
 
     public Animate = false;
     public AnimationSpeed = 0;
+    public AnimationTimeScale = 0;
+    public AnimationTimeScaleHuman = '';
 
     public GridType = GRID_TYPE_NONE;
     public GridSizeFactor = 1;

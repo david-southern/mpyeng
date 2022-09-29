@@ -23,8 +23,7 @@ public partial class Index : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"Exception loading solar system: {ex.Message}");
-            //SolarSystem = MockSolarSystemData.TestSystem;
-            SolarSystem = MockSolarSystemData.Sol;
+            SolarSystem = MockSolarSystemData.TestSystem;
         }
         SolarSystemTree.Add(SolarSystem);
         UpdateSystem();
