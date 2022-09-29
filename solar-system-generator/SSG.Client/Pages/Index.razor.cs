@@ -17,13 +17,13 @@ public partial class Index : IDisposable
             EventService.FileMenuInvoked += FileMenuHandler;
             EventService.SettingsInvoked += SettingsHandler;
 
-            SolarSystem = await ssProxy.GetSolarSystem() ?? MockSolarSystemData.TestSystem;
+            SolarSystem = await api.GetSolarSystem() ?? MockSolarSystemData.TestSystem;
             Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Exception loading solar system: {ex.Message}");
-            SolarSystem = MockSolarSystemData.TestSystem;
+            SolarSystem = new("");
         }
         SolarSystemTree.Add(SolarSystem);
         UpdateSystem();

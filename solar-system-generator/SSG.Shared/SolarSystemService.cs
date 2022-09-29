@@ -9,7 +9,7 @@ public class SolarSystemService
     public async Task<CelestialObject> LoadSolarSystem(string? solarSystemName = null)
     {
         await Task.CompletedTask;
-        return MockSolarSystemData.MockSolarSystem;
+        return MockSolarSystemData.Sol;
     }
 }
 
@@ -48,7 +48,7 @@ public static class MockSolarSystemData
 
     public static readonly CelestialObject P1 = new("Vanilla Circle", CygnusX1,
         semiMajorAxis: Constants.OfAU(8F), semiMinorAxis: Constants.OfAU(8F),
-        orbitalVelocity: 0, orbitalInclination: 0,
+        orbitalVelocity: Constants.AngVelByDays(65.24f), orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
         objectColor: "cyan", orbitColor: "#dddddd")
     {
@@ -57,7 +57,7 @@ public static class MockSolarSystemData
 
     public static readonly CelestialObject P2 = new("Vanilla Ellipse", CygnusX1,
         semiMajorAxis: Constants.OfAU(8F), semiMinorAxis: Constants.OfAU(5F),
-        orbitalVelocity: 0, orbitalInclination: 0,
+        orbitalVelocity: Constants.AngVelByDays(165.24f), orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
         objectColor: "magenta", orbitColor: "#777777")
     {
@@ -66,7 +66,7 @@ public static class MockSolarSystemData
 
     public static readonly CelestialObject P3 = new("Phased", CygnusX1,
         semiMajorAxis: Constants.OfAU(15F), semiMinorAxis: Constants.OfAU(11F),
-        orbitalVelocity: 0, orbitalInclination: 0,
+        orbitalVelocity: Constants.AngVelByDays(65.24f), orbitalInclination: 0,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(7.3f),
         objectColor: "yellow", orbitColor: "yellow")
     {
@@ -75,7 +75,7 @@ public static class MockSolarSystemData
 
     public static readonly CelestialObject P4 = new("Phased-Inclined", CygnusX1,
         semiMajorAxis: Constants.OfAU(19F), semiMinorAxis: Constants.OfAU(13F),
-        orbitalVelocity: 0, orbitalInclination: 20,
+        orbitalVelocity: Constants.AngVelByDays(265.24f), orbitalInclination: 20,
         objectMass: Constants.OfEarthMass(0.055F), objectRadius: Constants.OfEarthRadius(3.3f),
         objectColor: "red", orbitColor: "#ff7777")
     {
@@ -158,5 +158,5 @@ public static class MockSolarSystemData
 
     public static readonly CelestialObject MockSolarSystem = Sol;
 
-    public static readonly CelestialObject TestSystem = Sol;
+    public static readonly CelestialObject TestSystem = CygnusX1;
 }

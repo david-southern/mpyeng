@@ -309,8 +309,7 @@ export class SSGRenderer {
                 diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
                 diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
                 diagsString += `, Frame: Actual: ${Utils.humanTime(actualElapsedSeconds)}, Sim: ${Utils.humanTime(simElapsedSeconds)}`;
-
-                console.log(diagsString);
+                Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
                 this.nextTimeDiags = Date.now() + 1000;
             }
 

@@ -1,11 +1,11 @@
 {
 	"folders": [
-		{
-			"path": "../SSG.Server"
-		},
-		{
-			"path": "."
-		}
-	],
+        {
+            "path": "../SSG.Server"
+        },
+        {
+            "path": "../SSG.Shared"
+        }
+    ],
     "settings": {}
 }

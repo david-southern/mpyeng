@@ -333,7 +333,7 @@ public partial class Index : IDisposable
 
     private async Task NewSystem()
     {
-        SolarSystem = await ssProxy.GetSolarSystem() ?? new("");
+        SolarSystem = await api.GetSolarSystem() ?? new("");
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
         UpdateSystem();

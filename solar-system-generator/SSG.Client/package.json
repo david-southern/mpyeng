@@ -9,7 +9,7 @@
         "build:sass": "sass --update Pages:Pages wwwroot/css:wwwroot/css",
         "build": "npm-run-all -p build:*",
         "watch:webpack": "webpack watch",
-        "watch:dotnet": "dotnet watch",
+        "watch:dotnet": "dotnet watch --no-hot-reload",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "keywords": [],

@@ -4,6 +4,7 @@ export enum SSGSystemFilter {
     RenderDiagnostics,
     ExportDiagnostics,
     ModelBuilding,
+    TimingDiagnostics,
     Always
 }
 
@@ -13,6 +14,7 @@ class LoggerImpl {
     constructor() {
         this.filterSystem(SSGSystemFilter.ExportDiagnostics, false);
         this.filterSystem(SSGSystemFilter.RenderDiagnostics, false);
+        this.filterSystem(SSGSystemFilter.TimingDiagnostics, false);
     }
 
     public filterSystem(system: SSGSystemFilter, allow: boolean = false) {

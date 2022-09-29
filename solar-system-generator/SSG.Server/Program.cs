@@ -20,11 +20,25 @@ ILogger Logger = Log.ForContext<Program>();
 
 try
 {
+    const string OpenCORSPolicy = "_openCORS";
+
     Logger.Info("Starting SSG web host");
 
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog((builderContext, loggerConfig) => loggerConfig.ReadFrom.Configuration(builderContext.Configuration));
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy(name: OpenCORSPolicy,
+                          policy =>
+                          {
+                              policy.AllowAnyOrigin();
+                              policy.AllowAnyMethod();
+                              policy.AllowAnyHeader();
+                              // policy.WithOrigins("http://example.com", "http://www.contoso.com");
+                          });
+    });
 
     StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
@@ -62,6 +76,7 @@ try
 
     app.UseRouting();
 
+    app.UseCors(OpenCORSPolicy);
 
     app.MapRazorPages();
     app.MapControllers();
@@ -71,7 +86,7 @@ try
 }
 catch (Exception ex)
 {
-    Logger.Error(ex, "HRS web host exception");
+    Logger.Error(ex, "HRS web host exception:");
 }
 finally
 {

@@ -12,7 +12,6 @@
             "name": "VSCode Watch SSG",
             "configurations": [
                 "dotnet watch",
-                
             ]
         }
     ],
@@ -23,7 +22,8 @@
             "request": "launch",
             "program": "dotnet",
             "args": [
-                "watch"
+                "watch",
+                "--no-hot-reload"
             ],
             "cwd": "${workspaceFolder}",
             "env": {
@@ -42,7 +42,7 @@
             "name": "BlazorLaunch",
             "type": "blazorwasm",
             "request": "launch",
-            "url": "http://localhost:5153",
+            "url": "http://localhost:8943",
             "cwd": "${workspaceFolder}"
         }
     ]

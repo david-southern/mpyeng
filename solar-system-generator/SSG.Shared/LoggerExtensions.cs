@@ -51,21 +51,21 @@ public static class LoggerExtensions
         logger.Write(LogEventLevel.Warning, message);
     }
 
-    public static void Error(this ILogger logger, string message, [CallerMemberName] string memberName = "")
-    {
-        using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
-        logger.Write(LogEventLevel.Error, message);
-    }
+    // public static void Error(this ILogger logger, string message, [CallerMemberName] string memberName = "")
+    // {
+    //     using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
+    //     logger.Write(LogEventLevel.Error, message);
+    // }
 
-    public static void Error(this ILogger logger, Exception ex, string message, [CallerMemberName] string memberName = "")
-    {
-        using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
-        logger.Write(LogEventLevel.Error, message);
-    }
+    // public static void Error(this ILogger logger, Exception ex, string message, [CallerMemberName] string memberName = "")
+    // {
+    //     using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
+    //     logger.Write(LogEventLevel.Error, ex, message);
+    // }
 
-    public static void Exception(this ILogger logger, Exception ex, string message, [CallerMemberName] string memberName = "")
-    {
-        using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
-        logger.Write(LogEventLevel.Error, message);
-    }
+    // public static void Exception(this ILogger logger, Exception ex, string message, [CallerMemberName] string memberName = "")
+    // {
+    //     using var prop = LogContext.PushProperty("MemberName", MEMBER_NAME_SEPARATOR + memberName);
+    //     logger.Write(LogEventLevel.Error, ex, message);
+    // }
 }

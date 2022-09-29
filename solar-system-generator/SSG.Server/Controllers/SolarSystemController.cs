@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace SSG.APIProxies;
 
-[ApiExplorerSettings(IgnoreApi = false)]
 [ApiController]
 [Route("/api/solar-system")]
 public class SolarSystemController : ControllerBase
@@ -16,8 +15,8 @@ public class SolarSystemController : ControllerBase
     }
 
     [HttpGet]
-    public Task<CelestialObject> Get(string? solarSystemName = null)
+    public Task<CelestialObject> Get(string? systemName = null)
     {
-        return solarSystemService.LoadSolarSystem(solarSystemName);
+        return solarSystemService.LoadSolarSystem(systemName);
     }
 }
