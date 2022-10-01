@@ -16,6 +16,35 @@ namespace SSG.Shared;
 /// </summary>
 public class CelestialObject : IEquatable<CelestialObject>, IComparable<CelestialObject>
 {
+    public static CelestialObject EmptySystem
+    {
+        get
+        {
+            CelestialObject postSol = new("Empty System", null,
+               semiMajorAxis: 0, semiMinorAxis: 0,
+               orbitalVelocity: 0, orbitalInclination: 0,
+               objectMass: Constants.OfSolarMass(0.965F), objectRadius: Constants.OfAU(0.08f),
+               objectColor: "#ffd8d8")
+            {
+                IsStar = true
+            };
+
+            CelestialObject postEarth = new("Blasted Planet", postSol,
+                semiMajorAxis: Constants.OfAU(1.0F), semiMinorAxis: Constants.OfAU(0.999F),
+                orbitalVelocity: Constants.AngVelByDays(365.24f), orbitalInclination: 0,
+                objectMass: Constants.OfEarthMass(1.0F), objectRadius: Constants.OfEarthRadius(1.0F),
+                objectColor: "grey");
+
+            CelestialObject postLuna = new("Blasted Moon", postEarth,
+                semiMajorAxis: 384_000_000, semiMinorAxis: 384_000_000,
+                orbitalVelocity: Constants.AngVelByDays(27.3f), orbitalInclination: -23.0F,
+                objectMass: 735e20F, objectRadius: 3_476_000,
+                objectColor: "WhiteSmoke");
+
+            return postSol;
+        }
+    }
+
     public const float DEFAULT_MASS = Constants.EarthMass;
     public const float DEFAULT_RADIUS = Constants.EarthRadius;
     public const float DEFAULT_ORBITAL_RADIUS = Constants.OneAU;

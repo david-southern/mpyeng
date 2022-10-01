@@ -6,9 +6,27 @@ using SSG.Helpers;
 
 namespace SSG.Client.Pages;
 
-public partial class Index : IDisposable
+public partial class SystemDisplay : IDisposable
 {
     [Inject] private SSGEventService EventService { get; set; } = null!;
+
+    private bool FileMenuOpen = false;
+    private bool SettingsMenuOpen = false;
+    private bool LoadDialogVisible = false;
+    private DialogOptions LoadDialogOptions = new()
+    {
+        FullWidth = true,
+        CloseButton = true,
+        CloseOnEscapeKey = true,
+    };
+    private object? LoadDialogSelection;
+
+    private SSGSettings Settings = new();
+
+    private CelestialObject[] SolarSystemList = Array.Empty<CelestialObject>();
+
+    private CelestialObject SolarSystem = new("");
+    private HashSet<CelestialObject> SolarSystemTree = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -16,17 +34,12 @@ public partial class Index : IDisposable
         {
             EventService.FileMenuInvoked += FileMenuHandler;
             EventService.SettingsInvoked += SettingsHandler;
-
-            SolarSystem = await api.GetSolarSystem() ?? MockSolarSystemData.TestSystem;
-            Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
+            await GetSystemList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Exception loading solar system: {ex.Message}");
-            SolarSystem = new("");
         }
-        SolarSystemTree.Add(SolarSystem);
-        UpdateSystem();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -63,16 +76,6 @@ public partial class Index : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private bool FileMenuOpen = false;
-
-
-    private bool SettingsMenuOpen = false;
-
-    private SSGSettings Settings = new();
-
-    private CelestialObject SolarSystem = new("");
-    private HashSet<CelestialObject> SolarSystemTree = new();
-
     private string ObjectIcon(CelestialObject context)
     {
         return context.ObjectMass > Constants.SolarMass / 10 ? Icons.Material.Filled.AutoAwesome :
@@ -82,6 +85,12 @@ public partial class Index : IDisposable
     private string EndText(CelestialObject context)
     {
         return Utils.FloatLT(context.OrbitalSemiMajorAxis, 1) ? "--" : $"{Constants.AsAU(context.OrbitalSemiMajorAxis):N3}AU";
+    }
+
+    private async Task GetSystemList()
+    {
+        List<CelestialObject> apiList = new(await api.ListSolarSystems() ?? Array.Empty<CelestialObject>());
+        SolarSystemList = apiList.ToArray();
     }
 
     private void UpdateSystem()

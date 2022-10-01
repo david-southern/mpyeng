@@ -7,9 +7,5 @@
 			"path": "../SSG.Shared"
 		}
 	],
-    "settings": {
-        "cSpell.words": [
-            "greenyellow"
-        ]
-    }
+    "settings": {}
 }

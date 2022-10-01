@@ -6,8 +6,14 @@ using SSG.Helpers;
 
 namespace SSG.Client.Pages;
 
-public partial class Index : IDisposable
+public partial class SystemDisplay : IDisposable
 {
+    private void CloseMenus()
+    {
+        FileMenuOpen = false;
+        SettingsMenuOpen = false;
+    }
+
     private void ToggleFileMenu()
     {
         FileMenuOpen = !FileMenuOpen;
@@ -134,6 +140,25 @@ public partial class Index : IDisposable
                 return;
             }
             SelectedObject.Name = value;
+            StateHasChanged();
+        }
+    }
+
+    public bool EditIsStar
+    {
+        get
+        {
+            return SelectedObject?.IsStar ?? false;
+        }
+
+        set
+        {
+            if (SelectedObject == null || SelectedObject.IsStar == value)
+            {
+                return;
+            }
+            SelectedObject.IsStar = value;
+            UpdateSystem();
             StateHasChanged();
         }
     }
@@ -333,17 +358,49 @@ public partial class Index : IDisposable
 
     private async Task NewSystem()
     {
-        SolarSystem = await api.GetSolarSystem() ?? new("");
+        await Task.CompletedTask;
+        CloseMenus();
+        SolarSystem = CelestialObject.EmptySystem;
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
+        SelectedObject = null;
         UpdateSystem();
     }
 
-    private void LoadSystem()
+    private async Task ShowLoadDialog()
     {
+        CloseMenus();
+        await GetSystemList();
+        Console.WriteLine($"Loaded Solar System List: {string.Join(", ", SolarSystemList.Select(co => co.Name))}");
+        LoadDialogVisible = true;
     }
 
-    private void SaveSystem()
+    private async Task LoadSystem()
     {
+        LoadDialogVisible = false;
+        if (!(LoadDialogSelection is CelestialObject selectedSystem))
+        {
+            await DialogService.ShowMessageBox("Load Error", "No System Selected");
+            return;
+        }
+
+        Console.WriteLine($"Selected solar system: {selectedSystem.Name}");
+
+        SolarSystem = (await api.LoadSolarSystem(selectedSystem.Name)) ?? CelestialObject.EmptySystem;
+        Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
+        SolarSystemTree.Clear();
+        SolarSystemTree.Add(SolarSystem);
+        SelectedObject = null;
+        UpdateSystem();
+    }
+
+    private async void SaveSystem()
+    {
+        CloseMenus();
+        Console.WriteLine($"Saving solar system: {SolarSystem.Name}");
+        bool result = await api.SaveSolarSystem(SolarSystem);
+
+        string saveMessage = result ? $"System {SolarSystem.Name} saved" : $"An error occurred while trying to save {SolarSystem.Name}";
+        _ = DialogService.ShowMessageBox("Save System", saveMessage);
     }
 }

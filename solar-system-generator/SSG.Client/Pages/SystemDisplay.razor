@@ -3,6 +3,7 @@
 @namespace SSG.Client.Pages
 
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 @inject SSGAPIClient api;
 
 <PageTitle>Solar System Generator</PageTitle>
@@ -13,8 +14,10 @@
         <MudText>Current System: @($"{(SolarSystem?.Name ?? "<none>")}")</MudText>
         <MudPaper Elevation="2" Class="pa-2 pt-0">
             <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="NewSystem">New</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="LoadSystem">Load</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="SaveSystem">Save</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="ShowLoadDialog">Load
+            </MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                Disabled="@(string.IsNullOrEmpty(SolarSystem?.Name))" @onclick="SaveSystem">Save</MudButton>
         </MudPaper>
         <MudButton OnClick="@ToggleFileMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
     </div>
@@ -62,8 +65,11 @@
             <table>
                 <tr>
                     <td colspan="2">
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name"
-                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                        <MudStack Row="true">
+                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name"
+                                Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                            <MudCheckBox Disabled="@(SelectedObject == null)" @bind-Checked="@EditIsStar" Label="Is Star?"></MudCheckBox>
+                        </MudStack>
                     </td>
                 </tr>
                 <tr>
@@ -100,3 +106,25 @@
         </MudStack>
     </MudItem>
 </MudGrid>
+
+<MudDialog @bind-IsVisible="LoadDialogVisible" Options="LoadDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Download" Class="mr-3" />Load a System
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudList Clickable="true" @bind-SelectedValue="LoadDialogSelection">
+            @{
+                foreach (CelestialObject system in SolarSystemList)
+                {
+                    <MudListItem Text="@(system.Name)" Value="@system" />
+                }
+            }
+        </MudList>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(LoadDialogSelection == null)"
+            OnClick="@(LoadSystem)" Class="px-10">Load</MudButton>
+    </DialogActions>
+</MudDialog>
