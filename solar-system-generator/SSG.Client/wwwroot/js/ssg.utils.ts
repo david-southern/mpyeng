@@ -21,6 +21,14 @@ export class Utils {
         return (vec instanceof THREE.Vector2) ? `(${vec.x}, ${vec.y})` : `(${vec.x}, ${vec.y}, ${vec.z})`;
     }
 
+    public static clampDegrees(angle: number): number {
+        let retval = angle % 360;
+        if (retval < 0) {
+            retval += 360;
+        }
+        return retval;
+    }
+
     public static setPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number) {
         if (typeof x === 'number') {
             object3d.position.x = x;
@@ -172,6 +180,15 @@ export class Utils {
         return `${retTime.toFixed(3)} ${retUnit}${(retTime == 1) ? '' : 's'}`;
     }
 
-
+    public static  async downloadFileFromStream(fileName: string, contentStreamReference: any) {
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const url = URL.createObjectURL(blob);
+        const anchorElement = document.createElement('a');
+        anchorElement.href = url;
+        anchorElement.download = fileName ?? '';
+        anchorElement.click();
+        anchorElement.remove();
+        URL.revokeObjectURL(url);
+    }
 }
-

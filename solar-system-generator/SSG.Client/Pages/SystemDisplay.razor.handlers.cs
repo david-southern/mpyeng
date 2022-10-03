@@ -1,4 +1,7 @@
+using System.Text;
+using Humanizer;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using MudBlazor;
 using SSG.Client.Services;
@@ -108,6 +111,84 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
+    public float StarScale
+    {
+        get
+        {
+            return Settings.StarScale;
+        }
+        set
+        {
+            if (value == Settings.StarScale)
+            {
+                return;
+            }
+
+            Settings.StarScale = value;
+
+            UpdateSettings();
+        }
+    }
+
+    public float PlanetScale
+    {
+        get
+        {
+            return Settings.PlanetScale;
+        }
+        set
+        {
+            if (value == Settings.PlanetScale)
+            {
+                return;
+            }
+
+            Settings.PlanetScale = value;
+
+            UpdateSettings();
+        }
+    }
+
+    public string GridType
+    {
+        get
+        {
+            return Settings.GridType;
+        }
+        set
+        {
+            if (value == Settings.GridType)
+            {
+                return;
+            }
+
+            Settings.GridType = value;
+
+            UpdateSettings();
+        }
+    }
+
+
+    public string BackgroundType
+    {
+        get
+        {
+            return Settings.BackgroundType;
+        }
+        set
+        {
+            if (value == Settings.BackgroundType)
+            {
+                return;
+            }
+
+            Settings.BackgroundType = value;
+
+            UpdateSettings();
+        }
+    }
+
+
     public float ViewAngle
     {
         get
@@ -158,7 +239,7 @@ public partial class SystemDisplay : IDisposable
                 return;
             }
             SelectedObject.IsStar = value;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -196,7 +277,7 @@ public partial class SystemDisplay : IDisposable
             }
 
             SelectedObject.OrbitalSemiMajorAxis = floatValue;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -234,7 +315,81 @@ public partial class SystemDisplay : IDisposable
             }
 
             SelectedObject.OrbitalSemiMinorAxis = floatValue;
-            UpdateSystem();
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
+    public string EditOrbitalVelocity
+    {
+        get
+        {
+            return $"{Constants.AngVelToDays((SelectedObject?.OrbitalVelocity ?? 0))} days";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            value = value.ToLower();
+            if (value.Contains("days"))
+            {
+                value = value.Replace("days", "");
+            }
+
+            float floatValue = SelectedObject.OrbitalVelocity;
+
+            try
+            {
+                floatValue = Constants.AngVelFromDays(Convert.ToSingle(value));
+            }
+            catch { }
+
+
+            if (Utils.FloatEQ(SelectedObject.OrbitalVelocity, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.OrbitalVelocity = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
+    public string EditPhaseAngle
+    {
+        get
+        {
+            return $"{SelectedObject?.PhaseAngle ?? 0} deg";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            value = value.ToLower();
+            if (value.Contains("deg"))
+            {
+                value = value.Replace("deg", "");
+            }
+
+            float floatValue = SelectedObject.PhaseAngle;
+
+            try
+            {
+                floatValue = Convert.ToSingle(value);
+            }
+            catch { }
+
+
+            if (Utils.FloatEQ(SelectedObject.PhaseAngle, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.PhaseAngle = floatValue;
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -271,7 +426,7 @@ public partial class SystemDisplay : IDisposable
             }
 
             SelectedObject.OrbitalInclination = floatValue;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -280,7 +435,15 @@ public partial class SystemDisplay : IDisposable
     {
         get
         {
-            return $"{Constants.AsEarthRadii(SelectedObject?.ObjectRadius ?? 0)} ER";
+            if (SelectedObject == null)
+            {
+                return "";
+            }
+
+            float radius = SelectedObject.IsStar ? Constants.AsSolarRadii(SelectedObject.ObjectRadius)
+                : Constants.AsEarthRadii(SelectedObject.ObjectRadius);
+            string units = SelectedObject.IsStar ? "SR" : "ER";
+            return $"{radius:N2} {units}";
         }
 
         set
@@ -288,17 +451,16 @@ public partial class SystemDisplay : IDisposable
             if (SelectedObject == null) { return; }
 
             value = value.ToLower();
-            if (value.Contains("er"))
-            {
-                value = value.Replace("er", "");
-            }
+            bool valueIsStar = value.Contains("sr") || (!value.Contains("er") && SelectedObject.IsStar);
+
+            value = value.Replace("er", "").Replace("sr", "");
 
             float floatValue = SelectedObject.ObjectRadius;
 
             try
             {
                 floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfEarthRadius(floatValue);
+                floatValue = valueIsStar ? Constants.OfSolarRadius(floatValue) : Constants.OfEarthRadius(floatValue);
             }
             catch { }
 
@@ -309,7 +471,7 @@ public partial class SystemDisplay : IDisposable
             }
 
             SelectedObject.ObjectRadius = floatValue;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -330,7 +492,7 @@ public partial class SystemDisplay : IDisposable
                 return;
             }
             SelectedObject.ObjectColor = value;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -351,7 +513,7 @@ public partial class SystemDisplay : IDisposable
                 return;
             }
             SelectedObject.OrbitalColor = value;
-            UpdateSystem();
+            _ = UpdateSystem();
             StateHasChanged();
         }
     }
@@ -361,46 +523,141 @@ public partial class SystemDisplay : IDisposable
         await Task.CompletedTask;
         CloseMenus();
         SolarSystem = CelestialObject.EmptySystem;
+        SolarSystem.IsExpanded = true;
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
         SelectedObject = null;
-        UpdateSystem();
+        await UpdateSystem();
+        StateHasChanged();
     }
 
     private async Task ShowLoadDialog()
     {
+        await Task.CompletedTask;
         CloseMenus();
-        await GetSystemList();
-        Console.WriteLine($"Loaded Solar System List: {string.Join(", ", SolarSystemList.Select(co => co.Name))}");
         LoadDialogVisible = true;
     }
 
-    private async Task LoadSystem()
+    private async Task LoadSystem(InputFileChangeEventArgs e)
     {
+        await Task.CompletedTask;
         LoadDialogVisible = false;
-        if (!(LoadDialogSelection is CelestialObject selectedSystem))
+
+        CelestialObject? jsonResult = null;
+
+        string systemJSON = await new StreamReader(e.File.OpenReadStream()).ReadToEndAsync();
+
+        if (systemJSON.HasValue())
         {
-            await DialogService.ShowMessageBox("Load Error", "No System Selected");
+            jsonResult = JsonConvert.DeserializeObject<CelestialObject>(systemJSON);
+        }
+
+        if (jsonResult == null)
+        {
+            await DialogService.ShowMessageBox("Load System Error", "The uploaded file was not a SolarSystem");
             return;
         }
 
-        Console.WriteLine($"Selected solar system: {selectedSystem.Name}");
-
-        SolarSystem = (await api.LoadSolarSystem(selectedSystem.Name)) ?? CelestialObject.EmptySystem;
+        SolarSystem = jsonResult;
         Console.WriteLine($"Loaded solar system: {SolarSystem.Name}");
+        SolarSystem.IsExpanded = true;
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
         SelectedObject = null;
-        UpdateSystem();
+        await UpdateSystem();
+        StateHasChanged();
+    }
+
+    private async Task LoadPremade(CelestialObject obj)
+    {
+        await Task.CompletedTask;
+        LoadDialogVisible = false;
+
+        SolarSystem = obj.CloneJSON();
+        Console.WriteLine($"Premade solar system: {SolarSystem.Name}");
+        SolarSystem.IsExpanded = true;
+        SolarSystemTree.Clear();
+        SolarSystemTree.Add(SolarSystem);
+        SelectedObject = null;
+        await UpdateSystem();
+        StateHasChanged();
     }
 
     private async void SaveSystem()
     {
+        await Task.CompletedTask;
         CloseMenus();
         Console.WriteLine($"Saving solar system: {SolarSystem.Name}");
-        bool result = await api.SaveSolarSystem(SolarSystem);
 
-        string saveMessage = result ? $"System {SolarSystem.Name} saved" : $"An error occurred while trying to save {SolarSystem.Name}";
-        _ = DialogService.ShowMessageBox("Save System", saveMessage);
+        string systemJSON = JsonConvert.SerializeObject(SolarSystem);
+
+        byte[] byteArray = Encoding.UTF8.GetBytes(systemJSON);
+        var fileStream = new MemoryStream(byteArray);
+        var fileName = $"{Utils.SafeFilename(SolarSystem.Name)}.json";
+
+        using var streamRef = new DotNetStreamReference(stream: fileStream);
+
+        await JS.InvokeVoidAsync("SSG.Utils.downloadFileFromStream", fileName, streamRef);
+    }
+
+    private async Task AddChild(CelestialObject parent)
+    {
+        if (parent == null)
+        {
+            return;
+        }
+        int childCount = (parent.ChildObjects?.Count ?? 0) + 1;
+
+        float effectiveParentRadius = parent.ObjectRadius * (parent.IsStar ? Settings.StarScale : Settings.PlanetScale);
+        float effectiveChildRadius = (effectiveParentRadius / 10) / Settings.PlanetScale;
+
+        CelestialObject newChild = new($"{parent.Name} {childCount.ToRoman()}", parent,
+            semiMajorAxis: effectiveParentRadius * childCount * 10, semiMinorAxis: effectiveParentRadius * childCount * 10,
+            orbitalVelocity: Constants.AngVelFromDays(parent.ObjectRadius * childCount * 10), orbitalInclination: 0,
+            objectMass: Constants.OfEarthMass(1.0F), objectRadius: effectiveChildRadius,
+            objectColor: "magenta");
+
+        parent.IsExpanded = true;
+
+        SolarSystemTree.Clear();
+        SolarSystemTree.Add(SolarSystem);
+        SelectedObject = null;
+
+        await UpdateSystem();
+        StateHasChanged();
+    }
+
+    private async Task RemoveElement(CelestialObject child)
+    {
+        if (child.ParentObject == null)
+        {
+            await NewSystem();
+        }
+        else
+        {
+            child.ParentObject?.RemoveChild(child);
+            child.ParentObject = null;
+        }
+
+        SolarSystemTree.Clear();
+        SolarSystemTree.Add(SolarSystem);
+        SelectedObject = null;
+
+        await UpdateSystem();
+        StateHasChanged();
+    }
+
+    public async Task ResetZoom()
+    {
+        Settings.Zoom = 1;
+        await UpdateSystem();
+    }
+
+    public async Task ResetView()
+    {
+        Settings.ViewAngleXDegrees = SSGSettings.DEFAULT_VIEW_ANGLE_X;
+        Settings.ResetOrbitControls = true;
+        await UpdateSystem();
+        Settings.ResetOrbitControls = false;
     }
 }

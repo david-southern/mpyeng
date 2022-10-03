@@ -10,13 +10,19 @@
         "build": "npm-run-all -p build:*",
         "watch:webpack": "webpack watch",
         "watch:sass": "sass --update Pages:Pages wwwroot/css:wwwroot/css --watch",
-        "watch:dotnet": "dotnet watch --no-hot-reload",
+        "watch:dotnet": "cross-env DOTNET_WATCH_SUPPRESS_EMOJIS=1 dotnet watch --no-hot-reload",
+        "watch": "npm-run-all -p -l watch:*",
+        "publish:blazor": "dotnet publish -c Release",
+        "publish:webpack": "webpack",
+        "publish:sass": "sass --update Pages:Pages wwwroot/css:wwwroot/css",
+        "publish": "npm-run-all publish:sass publish:webpack publish:blazor",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "keywords": [],
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "cross-env": "^7.0.3",
         "three": "^0.144.0"
     },
     "devDependencies": {

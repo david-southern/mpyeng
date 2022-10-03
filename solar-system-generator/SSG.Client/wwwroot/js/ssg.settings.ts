@@ -41,6 +41,8 @@ export class SSGSettings {
 
     public Zoom = 1;
 
+    public ResetOrbitControls = false;
+
     constructor(partialObj: Partial<SSGSettings>) {
         if (partialObj) {
             Object.assign(this, partialObj);

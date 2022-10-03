@@ -1,9 +1,6 @@
-﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Drawing;
-using System.Net;
+﻿using SSG.Helpers;
 
-namespace SSG.Helpers;
+namespace SSG.Client.Services;
 
 /// <summary>
 /// Describes a system of CelestialObjects in Keplerian Orbits. This system simulates the bodies using very simplified
@@ -16,41 +13,27 @@ namespace SSG.Helpers;
 /// </summary>
 public class CelestialObject : IEquatable<CelestialObject>, IComparable<CelestialObject>
 {
-    public static CelestialObject EmptySystem
-    {
-        get
-        {
-            CelestialObject postSol = new("Empty System", null,
-               semiMajorAxis: 0, semiMinorAxis: 0,
-               orbitalVelocity: 0, orbitalInclination: 0,
-               objectMass: Constants.OfSolarMass(0.965F), objectRadius: Constants.OfAU(0.08f),
-               objectColor: "#ffd8d8")
-            {
-                IsStar = true
-            };
-
-            CelestialObject postEarth = new("Blasted Planet", postSol,
-                semiMajorAxis: Constants.OfAU(1.0F), semiMinorAxis: Constants.OfAU(0.999F),
-                orbitalVelocity: Constants.AngVelByDays(365.24f), orbitalInclination: 0,
-                objectMass: Constants.OfEarthMass(1.0F), objectRadius: Constants.OfEarthRadius(1.0F),
-                objectColor: "grey");
-
-            CelestialObject postLuna = new("Blasted Moon", postEarth,
-                semiMajorAxis: 384_000_000, semiMinorAxis: 384_000_000,
-                orbitalVelocity: Constants.AngVelByDays(27.3f), orbitalInclination: -23.0F,
-                objectMass: 735e20F, objectRadius: 3_476_000,
-                objectColor: "WhiteSmoke");
-
-            return postSol;
-        }
-    }
-
     public const float DEFAULT_MASS = Constants.EarthMass;
     public const float DEFAULT_RADIUS = Constants.EarthRadius;
     public const float DEFAULT_ORBITAL_RADIUS = Constants.OneAU;
     public const float DEFAULT_ORBITAL_VELOCITY = Constants.OneAU;
     public const float DEFAULT_INCLINATION = 0;
     public const float DEFAULT_PHASE_ANGLE = 0;
+
+    public static CelestialObject EmptySystem
+    {
+        get
+        {
+            return new("Cygnus X-1", parentObject: null,
+                semiMajorAxis: 0, semiMinorAxis: 0,
+                orbitalVelocity: 0, orbitalInclination: 0,
+                objectMass: Constants.SolarMass, objectRadius: Constants.SolarRadius,
+                objectColor: "#ddddff")
+            {
+                IsStar = true
+            };
+        }
+    }
 
     public CelestialObject(string name, CelestialObject? parentObject = null,
         float? semiMajorAxis = null, float? semiMinorAxis = null,
@@ -70,7 +53,6 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
         else
         {
             RootObject = null;
-            TotalMass = 0;
         }
 
         ObjectMass = objectMass ?? DEFAULT_MASS;
@@ -80,7 +62,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
         OrbitalVelocity = orbitalVelocity ?? DEFAULT_ORBITAL_VELOCITY;
         OrbitalInclination = orbitalInclination ?? DEFAULT_INCLINATION;
         ObjectColor = objectColor ?? "white";
-        OrbitalColor = orbitColor;
+        OrbitalColor = orbitColor ?? "white";
     }
 
 
@@ -109,23 +91,25 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// </summary>
     public int SystemOrder { get; set; }
 
+    public HashSet<CelestialObject> ChildObjects { get; } = new();
+    public bool HasChild => ChildObjects?.Count > 0;
+
+    public void RemoveChild(CelestialObject child)
+    {
+        ChildObjects.RemoveWhere(co => co.Name == child.Name);
+    }
+
     /// <summary>
     /// Indicates the currently selected CelestialObject(s)
     /// </summary>
     public bool IsSelected { get; set; }
 
-    /// Sum of the mass of the system, only calculated for the root object.
-    /// Used to approximate orbital period by placing each celestial object in
-    /// orbit around the system's barycenter and solving the simplified two-body
-    /// equation.
-    public float TotalMass { get; set; }
+    public bool IsExpanded { get; set; }
 
     /// <summary>
     /// If true, then this object will emit light, otherwise it will only receive light
     /// </summary>
     public bool IsStar { get; set; } = false;
-
-    public HashSet<CelestialObject> ChildObjects { get; } = new();
 
     /// <summary>
     /// This is the length in meters of the semi-major axis of the object's orbit.
@@ -201,7 +185,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// <summary>
     /// The primary color used to render the object's orbit
     /// </summary>
-    public string? OrbitalColor { get; set; }
+    public string? OrbitalColor { get; set; } = "white";
 
 #if CELESTIAL_MECHANICS_ARE_TOO_COMPLICATED
     public float DistanceTo(CelestialObject other)

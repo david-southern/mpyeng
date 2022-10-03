@@ -30,11 +30,11 @@ public partial class SystemDisplay : IDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        await Task.CompletedTask;
         try
         {
             EventService.FileMenuInvoked += FileMenuHandler;
             EventService.SettingsInvoked += SettingsHandler;
-            await GetSystemList();
         }
         catch (Exception ex)
         {
@@ -44,6 +44,7 @@ public partial class SystemDisplay : IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await Task.CompletedTask;
         if (firstRender)
         {
             string settingsJson = Settings.SafeJson() ?? "null";
@@ -78,8 +79,7 @@ public partial class SystemDisplay : IDisposable
 
     private string ObjectIcon(CelestialObject context)
     {
-        return context.ObjectMass > Constants.SolarMass / 10 ? Icons.Material.Filled.AutoAwesome :
-        Icons.Material.Filled.BlurCircular;
+        return context.IsStar ? Icons.Material.Filled.AutoAwesome : Icons.Material.Filled.BlurCircular;
     }
 
     private string EndText(CelestialObject context)
@@ -87,17 +87,11 @@ public partial class SystemDisplay : IDisposable
         return Utils.FloatLT(context.OrbitalSemiMajorAxis, 1) ? "--" : $"{Constants.AsAU(context.OrbitalSemiMajorAxis):N3}AU";
     }
 
-    private async Task GetSystemList()
-    {
-        List<CelestialObject> apiList = new(await api.ListSolarSystems() ?? Array.Empty<CelestialObject>());
-        SolarSystemList = apiList.ToArray();
-    }
-
-    private void UpdateSystem()
+    private async Task UpdateSystem()
     {
         string solarSystemJson = SolarSystem.SafeJson() ?? "null";
         string settingsJson = Settings.SafeJson() ?? "null";
-        _ = JS.InvokeVoidAsync("SSG.Renderer.render", solarSystemJson, settingsJson);
+        await JS.InvokeVoidAsync("SSG.Renderer.render", solarSystemJson, settingsJson);
     }
 
     private void UpdateSettings()

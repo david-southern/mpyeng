@@ -45,6 +45,15 @@ class OrbitControls extends EventDispatcher implements OrbitControlsTS {
         this.saveState();
     }
 
+    public TSreset() {
+        this.reset();
+    }
+
+    public TSsetTarget(target: Vector3)
+    {
+        this.setTarget(target);
+    }
+
     constructor(object, domElement) {
 
         super();
@@ -170,6 +179,11 @@ class OrbitControls extends EventDispatcher implements OrbitControlsTS {
             state = STATE.NONE;
 
         };
+
+        this.setTarget = function (newTarget: Vector3) {
+            scope.target0 = newTarget.clone();
+            this.reset();
+        }
 
         // this method is exposed, but perhaps it would be better if we can make it private...
         this.update = function () {

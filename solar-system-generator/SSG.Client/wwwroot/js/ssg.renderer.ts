@@ -29,7 +29,7 @@ class Orbiter {
 
     public updatePosition(elapsedSeconds: number) {
         this.currentAngle += (this.angVelDegPerSecond * elapsedSeconds);
-        this.currentAngle = this.currentAngle % 360;
+        this.currentAngle = Utils.clampDegrees(this.currentAngle);
 
         const objectPosition = new Vector2();
         this.orbitCurve.getPointAt(this.currentAngle / 360, objectPosition);
@@ -130,8 +130,6 @@ export class SSGRenderer {
         // We want the grid to render behind everything else.  We will manage the renderers clearing manually to achieve this.
         this.renderer.autoClear = false;
         this.renderer.setSize(this.canvasWidth, this.canvasHeight);
-
-        this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.canvasElement.appendChild(this.renderer.domElement);
     }
@@ -268,6 +266,11 @@ export class SSGRenderer {
 
     public updateSettings(settingsJson: string) {
         const newSettings = new SSGSettings(JSON.parse(settingsJson));
+        
+        if (newSettings.ResetOrbitControls) {
+            this.orbitControls.TSreset();
+        }
+
         SettingsManager.publishSettings(newSettings);
     }
 
@@ -294,7 +297,7 @@ export class SSGRenderer {
 
             let speedScale = 1;
 
-            if (SettingsManager.CurrentSettings.AnimationSpeed > 0) {
+            if (SettingsManager.CurrentSettings.AnimationSpeed != 0) {
                 speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
             }
 
@@ -350,8 +353,6 @@ export class SSGRenderer {
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = this.camera.fov * (Math.PI / 180);
 
-        Logger.info(SSGSystemFilter.RenderDiagnostics, `Initial camera params: FOV: ${fov}, Z: ${this.camera.position.z}, maxDim: ${maxDim}`);
-
         let ySize = Math.max(size.y, size.x / this.canvasAspect);
 
         let cameraYDistance = Math.abs(ySize / 2 / Math.tan(fov / 2));
@@ -382,19 +383,20 @@ export class SSGRenderer {
         const sceneGroup = new THREE.Group();
         sceneGroup.name = `${rootObject.Name}-root`;
 
-        let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
         const majorAxis = rootObject.OrbitalSemiMajorAxis / CoordsScale;
         const minorAxis = rootObject.OrbitalSemiMinorAxis / CoordsScale;
-
-        Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
 
         let objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
         if (majorAxis > 0) {
             const orbitCurve = Utils.buildOrbitalEllipse(0, 0, majorAxis, minorAxis);
-            const orbitObject = Utils.buildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitalColor ?? DEFAULT_ORBITAL_COLOR);
-            orbitObject.name = `${rootObject.Name}-orbit-geom`;
+
+            if (rootObject.OrbitalColor !== 'none') {
+                const orbitObject = Utils.buildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitalColor ?? DEFAULT_ORBITAL_COLOR);
+                orbitObject.name = `${rootObject.Name}-orbit-geom`;
+                sceneGroup.add(orbitObject);                
+            }
 
             if (objectGroup) {
                 const planetOrbiter = new Orbiter(objectGroup, orbitCurve, 0, rootObject.OrbitalVelocity);
@@ -402,31 +404,31 @@ export class SSGRenderer {
                 this.orbiters.push(planetOrbiter);
             }
 
-            sceneGroup.add(orbitObject);
         }
 
-        if (planetaryRadius > 0) {
-            if (rootObject.IsStar) {
-                SettingsManager.subscribeSettings((settings: SSGSettings) => {
-                    if (rootObject.Obj3D) {
-                        objectGroup.remove(rootObject.Obj3D);
-                    }
-                    rootObject.Obj3D = Utils.buildStar(0, 0, 0, planetaryRadius * settings.StarScale, rootObject.ObjectColor)
-                    objectGroup.add(rootObject.Obj3D);
-                });
-            }
-            else {
-                SettingsManager.subscribeSettings((settings: SSGSettings) => {
-                    if (rootObject.Obj3D) {
-                        objectGroup.remove(rootObject.Obj3D);
-                    }
-                    rootObject.Obj3D = Utils.buildPlanet(0, 0, 0, planetaryRadius * settings.PlanetScale, rootObject.ObjectColor)
-                    objectGroup.add(rootObject.Obj3D);
-                });
-            }
+        if (rootObject.ObjectRadius > 0) {
+            SettingsManager.subscribeSettings((settings: SSGSettings) => {
+                if (rootObject.Obj3D) {
+                    objectGroup.remove(rootObject.Obj3D);
+                }
 
-            sceneGroup.add(objectGroup);
+                let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
+
+                if (rootObject.IsStar) {
+                    planetaryRadius *= settings.StarScale;
+                    rootObject.Obj3D = Utils.buildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
+                } else {
+                    planetaryRadius *= settings.PlanetScale;
+                    rootObject.Obj3D = Utils.buildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor)
+                }
+
+                Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
+
+                objectGroup.add(rootObject.Obj3D);
+            });
         }
+
+        sceneGroup.add(objectGroup);
 
         if (rootObject.PhaseAngle != 0) {
             sceneGroup.rotation.order = "ZYX";
