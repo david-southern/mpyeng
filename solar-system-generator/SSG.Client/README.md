@@ -23,6 +23,10 @@ To deploy:
   - run `python3 -m http.server`
   - View the site at `http://localhost:8080`
 
+Newly Completed:
+- Get orbiter working
+- System Backgrounds
+
 
 TODOS:
 Addl object settings:
@@ -39,9 +43,7 @@ General:
 - Download screenshot
 - Help icons everywhere
 - Popups close on click outside popup
-- Get orbiter working
 - Ability to look at a selected object
-- Indicate current object selection
 - Indicate current object selection
 
 Settings:
@@ -53,7 +55,6 @@ Other:
 - Button to reset view to default
 - Add planetary rings
 - Add asteroid fields
-- System Backgrounds
 - Allow updating of planetary settings without resetting the entire simulation
 - Add an "abstract units" setting - rather than having to use AU, etc. for units, just let the user put object radius =1, orbit radius = 5, etc.
 - Pre-defined camera views - top down, side angle, side flat, etc.

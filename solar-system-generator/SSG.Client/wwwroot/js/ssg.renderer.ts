@@ -392,6 +392,15 @@ export class SSGRenderer {
         this.renderer.clearDepth();
         this.renderer.render(this.systemScene, this.camera);
 
+        if (SettingsManager.CurrentSettings.DownloadImage) {
+            SettingsManager.CurrentSettings.DownloadImage = false;
+            const imgData = this.renderer.domElement.toBlob((imageBlob) => {
+                if (imageBlob) {
+                    Utils.downloadFileFromBlob('system-image.png', imageBlob);
+                }
+            });
+        }
+
         this.getNextAnimationFrame();
     }
 

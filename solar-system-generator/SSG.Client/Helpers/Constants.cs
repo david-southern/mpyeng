@@ -64,8 +64,8 @@ public class BackgroundImageData
 {
     public static readonly List<BackgroundImageData> BackgroundImages = new() {
         new BackgroundImageData("None - DkBlue", null, "#080820"),
-        new BackgroundImageData("None - DkGreen", null, "#081008"),
         new BackgroundImageData("None - Black", null, "#000000"),
+        new BackgroundImageData("None - DkGreen", null, "#081008"),
         new BackgroundImageData("Milky Way 1", "images/milky-way-alec-favale-unsplash.jpg"),
         new BackgroundImageData("Milky Way 2", "images/milky-way-marc-schulte-unsplash.jpg"),
         new BackgroundImageData("Nebula 1 - Carina", "images/nebula_apod_carina-PillarJet_VIShst.jpg"),

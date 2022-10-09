@@ -41,6 +41,14 @@ public partial class SystemDisplay : IDisposable
         ToggleSettingsMenu();
     }
 
+    
+    private async void DownloadScreenshotHandler(object? sender, EventArgs args)
+    {
+        Settings.DownloadImage = true;
+        await UpdateSettingsAsync();
+        Settings.DownloadImage = true;
+    }
+
     private CelestialObject? m_SelectedObject;
     public CelestialObject? SelectedObject
     {

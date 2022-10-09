@@ -52,6 +52,7 @@ export class SSGSettings {
     public Zoom = 1;
 
     public ResetOrbitControls = false;
+    public DownloadImage = false;
 
     public BackgroundImage?: BackgroundImageData;
 

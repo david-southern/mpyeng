@@ -79,6 +79,7 @@ public class SSGSettings
     public float Zoom = 1;
 
     public bool ResetOrbitControls = false;
+    public bool DownloadImage = false;
 
     public BackgroundImageData BackgroundImage { get; set; } = BackgroundImageData.BackgroundImages[0];
 };

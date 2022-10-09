@@ -35,6 +35,7 @@ public partial class SystemDisplay : IDisposable
         {
             EventService.FileMenuInvoked += FileMenuHandler;
             EventService.SettingsInvoked += SettingsHandler;
+            EventService.DownloadScreenshotInvoked += DownloadScreenshotHandler;
         }
         catch (Exception ex)
         {
@@ -98,5 +99,11 @@ public partial class SystemDisplay : IDisposable
     {
         string settingsJson = Settings.SafeJson() ?? "null";
         _ = JS.InvokeVoidAsync("SSG.Renderer.updateSettings", settingsJson);
+    }
+
+    private async Task UpdateSettingsAsync()
+    {
+        string settingsJson = Settings.SafeJson() ?? "null";
+        await JS.InvokeVoidAsync("SSG.Renderer.updateSettings", settingsJson);
     }
 }

@@ -180,9 +180,13 @@ export class Utils {
         return `${retTime.toFixed(3)} ${retUnit}${(retTime == 1) ? '' : 's'}`;
     }
 
-    public static  async downloadFileFromStream(fileName: string, contentStreamReference: any) {
+    public static async downloadFileFromStream(fileName: string, contentStreamReference: any) {
         const arrayBuffer = await contentStreamReference.arrayBuffer();
         const blob = new Blob([arrayBuffer]);
+        Utils.downloadFileFromBlob(fileName, arrayBuffer);
+    }
+
+    public static async downloadFileFromBlob(fileName: string, blob: Blob) {
         const url = URL.createObjectURL(blob);
         const anchorElement = document.createElement('a');
         anchorElement.href = url;
