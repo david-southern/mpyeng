@@ -76,15 +76,38 @@
             <MudRadio Option="@(SSGSettings.GRID_TYPE_RECTANGULAR)" Color="Color.Primary" Size="Size.Small">
                 @(SSGSettings.GRID_TYPE_RECTANGULAR)</MudRadio>
         </MudRadioGroup>
-        <MudText Typo="Typo.caption">Background:</MudText>
-        <MudRadioGroup @bind-SelectedOption="BackgroundType">
-            <MudRadio Option="@(SSGSettings.BACKGROUND_TYPE_NONE)" Color="Color.Primary" Size="Size.Small">
-                @(SSGSettings.BACKGROUND_TYPE_NONE)</MudRadio>
-            <MudRadio Option="@(SSGSettings.BACKGROUND_TYPE_STARS)" Color="Color.Primary" Size="Size.Small">
-                @(SSGSettings.BACKGROUND_TYPE_STARS)</MudRadio>
-            <MudRadio Option="@(SSGSettings.BACKGROUND_TYPE_NEBULA)" Color="Color.Primary" Size="Size.Small">
-                @(SSGSettings.BACKGROUND_TYPE_NEBULA)</MudRadio>
-        </MudRadioGroup>
+        <MudSelect @bind-Value="BackgroundImage" Label="Background">
+            @foreach (BackgroundImageData imageData in BackgroundImageData.BackgroundImages)
+            {
+                <MudSelectItem Value="@(imageData)">@(imageData.Description)</MudSelectItem>
+            }
+        </MudSelect>
+        <MudStack Row="true">
+            <MudSlider @bind-Value="Settings.BackgroundImage.Contrast" T="float" Min="0f" Step="1f" Max="100f"
+                Color="Color.Info">
+                Desaturate: @(Settings.BackgroundImage.Contrast)
+            </MudSlider>
+            @* <MudSlider @bind-Value="Settings.BackgroundImage.Brightness" T="float" Min="0f" Step="1f" Max="100f"
+                Color="Color.Info">
+                Brighten: @(Settings.BackgroundImage.Brightness)
+            </MudSlider> *@
+            <MudSlider @bind-Value="Settings.BackgroundImage.Blur" T="float" Min="0f" Step="1f" Max="100f"
+                Color="Color.Info">
+                Blur: @(Settings.BackgroundImage.Blur)
+            </MudSlider>
+        </MudStack>
+        <MudStack Row="true">
+            <MudSlider @bind-Value="Settings.BackgroundImage.Darken" T="float" Min="0f" Step="1f" Max="100f"
+                Color="Color.Info">
+                Darken: @(Settings.BackgroundImage.Darken)
+            </MudSlider>
+            <MudSlider @bind-Value="Settings.BackgroundImage.Lighten" T="float" Min="0f" Step="1f" Max="100f"
+                Color="Color.Info">
+                Lighten: @(Settings.BackgroundImage.Lighten)
+            </MudSlider>
+        </MudStack>
+        <MudButton Variant="Variant.Filled" OnClick="UpdateSettings">Update Background Settings</MudButton>
+
     </MudStack>
     <MudButton OnClick="@ToggleSettingsMenu" Class="ml-auto mr-n3 mb-1" Color="Color.Error">Close</MudButton>
 </MudPopover>

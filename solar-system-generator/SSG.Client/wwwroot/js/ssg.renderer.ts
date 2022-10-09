@@ -1,5 +1,5 @@
 ﻿import * as THREE from 'three';
-import { Vector2, Vector3 } from 'three';
+import { Scene, Vector2, Vector3 } from 'three';
 
 import { CelestialObject } from './celestial-object';
 import { OrbitControls } from './OrbitControls';
@@ -86,6 +86,11 @@ export class SSGRenderer {
     private systemGroup: THREE.Object3D = null!;
     private orbiters: Orbiter[] = [];
     private gridGroup: THREE.Object3D = null!;
+    private loader: THREE.TextureLoader;
+    private cachedBGImage?: any;
+    private cachedBGData?: any;
+    private lastBGUrl?: string;
+    private lastBGSettings?: string;
 
     private solarSystem: CelestialObject = null!;
     private actualStartTime?: number;
@@ -101,6 +106,7 @@ export class SSGRenderer {
         this.directionalLight = new THREE.DirectionalLight();
         this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, DEFAULT_ASPECT);
         this.renderer = new THREE.WebGLRenderer();
+        this.loader = new THREE.TextureLoader();
 
         this.getNextAnimationFrame();
     }
@@ -131,6 +137,8 @@ export class SSGRenderer {
         this.renderer.autoClear = false;
         this.renderer.setSize(this.canvasWidth, this.canvasHeight);
 
+        this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+
         this.canvasElement.appendChild(this.renderer.domElement);
     }
 
@@ -152,9 +160,65 @@ export class SSGRenderer {
             this.gridScene.remove(this.gridGroup);
         }
 
-        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+        SettingsManager.subscribeSettings(async (settings: SSGSettings) => {
             this.camera.fov = settings.FieldOfViewDegrees;
             this.camera.updateProjectionMatrix();
+
+            if (settings.BackgroundImage && settings.BackgroundImage.URL) {
+                Logger.info(SSGSystemFilter.RenderSettings, `Using background data: `, settings.BackgroundImage);
+                if (settings.BackgroundImage.URL.startsWith('#')) {
+                    this.systemScene.background = new THREE.Color(settings.BackgroundImage.URL);
+                    return;
+                }
+
+                const Jimp = (window as any).Jimp;
+
+                if (this.lastBGUrl != settings.BackgroundImage.URL) {
+                    this.cachedBGImage = await Jimp.read(settings.BackgroundImage.URL);
+                    this.lastBGUrl = settings.BackgroundImage.URL;
+                }
+
+                const newBGSettings = `${settings.BackgroundImage.Contrast}:`
+                    + `${settings.BackgroundImage.Brightness}:`
+                    + `${settings.BackgroundImage.Lighten}:`
+                    + `${settings.BackgroundImage.Darken}:`
+                    + `${settings.BackgroundImage.Blur}`;
+
+                if (newBGSettings != this.lastBGSettings) {
+                    this.lastBGSettings = newBGSettings;
+
+                    const bgImage = this.cachedBGImage.clone();
+
+                    const colorArgs: any[] = [];
+
+                    if (settings.BackgroundImage.Contrast != 0) {
+                        colorArgs.push({ apply: 'desaturate', params: [settings.BackgroundImage.Contrast] });
+                    }
+                    if (settings.BackgroundImage.Brightness != 0) {
+                        colorArgs.push({ apply: 'brighten', params: [settings.BackgroundImage.Brightness] });
+                    }
+                    if (settings.BackgroundImage.Lighten != 0) {
+                        colorArgs.push({ apply: 'lighten', params: [settings.BackgroundImage.Lighten] });
+                    }
+                    if (settings.BackgroundImage.Darken != 0) {
+                        colorArgs.push({ apply: 'darken', params: [settings.BackgroundImage.Darken] });
+                    }
+
+                    if (colorArgs.length) {
+                        Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Applying colorArgs: `, colorArgs);
+                        bgImage.color(colorArgs);
+                    }
+
+                    if (settings.BackgroundImage.Blur != 0) {
+                        Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Blurring: `, settings.BackgroundImage.Blur);
+                        bgImage.blur(settings.BackgroundImage.Blur);
+                    }
+
+                    Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Rendering`);
+                    const url = await bgImage.getBase64Async(Jimp.MIME_JPEG);
+                    this.systemScene.background = this.loader.load(url);
+                }
+            }
         })
 
         const newSettings = new SSGSettings(JSON.parse(settingsJson));
@@ -266,7 +330,7 @@ export class SSGRenderer {
 
     public updateSettings(settingsJson: string) {
         const newSettings = new SSGSettings(JSON.parse(settingsJson));
-        
+
         if (newSettings.ResetOrbitControls) {
             this.orbitControls.TSreset();
         }
@@ -395,7 +459,7 @@ export class SSGRenderer {
             if (rootObject.OrbitalColor !== 'none') {
                 const orbitObject = Utils.buildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitalColor ?? DEFAULT_ORBITAL_COLOR);
                 orbitObject.name = `${rootObject.Name}-orbit-geom`;
-                sceneGroup.add(orbitObject);                
+                sceneGroup.add(orbitObject);
             }
 
             if (objectGroup) {

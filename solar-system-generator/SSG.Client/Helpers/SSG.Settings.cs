@@ -7,10 +7,6 @@ public class SSGSettings
     public const string GRID_TYPE_POLAR = "Polar";
     public const string GRID_TYPE_NONE = "None";
 
-    public const string BACKGROUND_TYPE_NEBULA = "Nebula";
-    public const string BACKGROUND_TYPE_STARS = "Stars";
-    public const string BACKGROUND_TYPE_NONE = "None";
-
     public string AmbientLightColor = "#404040";
     public float AmbientLightIntensity = 1;
 
@@ -29,8 +25,6 @@ public class SSGSettings
     public float ViewAngleXDegrees = DEFAULT_VIEW_ANGLE_X;
     public float ViewAngleYDegrees = 0;
     public float ViewAngleZDegrees = 0;
-
-    public string BackgroundType = BACKGROUND_TYPE_NONE;
 
     public string GridType = GRID_TYPE_POLAR;
 
@@ -85,5 +79,7 @@ public class SSGSettings
     public float Zoom = 1;
 
     public bool ResetOrbitControls = false;
+
+    public BackgroundImageData BackgroundImage { get; set; } = BackgroundImageData.BackgroundImages[0];
 };
 

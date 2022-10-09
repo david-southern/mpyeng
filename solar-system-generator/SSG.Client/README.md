@@ -26,30 +26,29 @@ To deploy:
 
 TODOS:
 Addl object settings:
-
 - Perigee settings - center the orbit on the correct focus
 - initial angular offset - orbital position at t=0
 - "Comet" setting - allow for very large orbits that don't trigger the camera auto-zoom
 
 Time mgmt:
-
 - Allow time to run backwards
 - Time slide range from -1 to 1, puase button to set to zero
 - display current sim time
 
-Download screenshot
-
-Help icons everywhere
-
-Popups close on click outside popup
+General:
+- Download screenshot
+- Help icons everywhere
+- Popups close on click outside popup
+- Get orbiter working
+- Ability to look at a selected object
+- Indicate current object selection
+- Indicate current object selection
 
 Settings:
-
 - Quick settings: Speed, Zoom, View Angle
 - Other settings in a full dialog behind an "Advanced" button
 
 Other:
-
 - Button to reset all settings to default
 - Button to reset view to default
 - Add planetary rings
@@ -62,7 +61,6 @@ Other:
 - Background needs to be a cube
 
 Project:
-
 - Add a C# "Units" helper - convert settings string like "1 AU" or "1 ER", "1 day", etc.back and forth to absolute sim units
 - Rx C#?
 - Threejs C# bindings?

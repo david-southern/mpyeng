@@ -168,27 +168,60 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
-
-    public string BackgroundType
+    public BackgroundImageData BackgroundImage
     {
         get
         {
-            return Settings.BackgroundType;
+            return Settings.BackgroundImage;
         }
         set
         {
-            if (value == Settings.BackgroundType)
+            if (value == Settings.BackgroundImage)
             {
                 return;
             }
 
-            Settings.BackgroundType = value;
+            Settings.BackgroundImage = value;
 
             UpdateSettings();
         }
     }
 
+    /*
+        public float BGBrightness
+        {
+            get
+            {
+                return Settings.BackgroundImage.Brightness;
+            }
+            set
+            {
+                if (value == Settings.BackgroundImage.Brightness)
+                {
+                    return;
+                }
 
+                Settings.BackgroundImage.Brightness = value;
+            }
+        }
+
+        public float BGContrast
+        {
+            get
+            {
+                return Settings.BackgroundImage.Contrast;
+            }
+            set
+            {
+                if (value == Settings.BackgroundImage.Contrast)
+                {
+                    return;
+                }
+
+                Settings.BackgroundImage.Contrast = value;
+            }
+        }
+    */
     public float ViewAngle
     {
         get
