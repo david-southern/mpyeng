@@ -23,27 +23,31 @@ To deploy:
   - run `python3 -m http.server`
   - View the site at `http://localhost:8080`
 
+
 Newly Completed:
 - Get orbiter working
 - System Backgrounds
-
+- Allow time to run backwards
+- Time slide range from -1 to 1, puase button to set to zero
+- Download screenshot
+- Ability to look at a selected object
+- Button to reset view to default
+- Add planetary rings
+- Add asteroid fields
+- initial angular offset - orbital position at t=0
 
 TODOS:
 Addl object settings:
 - Perigee settings - center the orbit on the correct focus
-- initial angular offset - orbital position at t=0
 - "Comet" setting - allow for very large orbits that don't trigger the camera auto-zoom
+- Planet textures
 
 Time mgmt:
-- Allow time to run backwards
-- Time slide range from -1 to 1, puase button to set to zero
 - display current sim time
 
 General:
-- Download screenshot
 - Help icons everywhere
 - Popups close on click outside popup
-- Ability to look at a selected object
 - Indicate current object selection
 
 Settings:
@@ -52,9 +56,6 @@ Settings:
 
 Other:
 - Button to reset all settings to default
-- Button to reset view to default
-- Add planetary rings
-- Add asteroid fields
 - Allow updating of planetary settings without resetting the entire simulation
 - Add an "abstract units" setting - rather than having to use AU, etc. for units, just let the user put object radius =1, orbit radius = 5, etc.
 - Pre-defined camera views - top down, side angle, side flat, etc.

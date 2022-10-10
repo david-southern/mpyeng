@@ -104,8 +104,6 @@ export class Utils {
     public static buildPlanet(x: number, y: number, z: number, radius: number, color: string) {
         const geometry = new THREE.SphereGeometry(radius, 32, 16);
         const sphere = new THREE.Mesh(geometry, Utils.planetMaterial(color));
-        sphere.castShadow = true; //default is false
-        sphere.receiveShadow = false; //default
         
         Utils.setPosition(sphere, x, y, z);
 

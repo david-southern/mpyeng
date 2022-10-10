@@ -510,7 +510,7 @@ export class SSGRenderer {
             }
 
             if (objectGroup) {
-                const planetOrbiter = new Orbiter(objectGroup, orbitCurve, 0, rootObject.OrbitalVelocity);
+                const planetOrbiter = new Orbiter(objectGroup, orbitCurve, rootObject.InitialOrbitalAngle, rootObject.OrbitalVelocity);
                 planetOrbiter.updatePosition(0);
                 this.orbiters.push(planetOrbiter);
             }
@@ -535,12 +535,11 @@ export class SSGRenderer {
                     rootObject.Obj3D = Utils.buildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 } else {
                     planetaryRadius *= settings.PlanetScale;
-                    rootObject.Obj3D = Utils.buildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor)
+                    rootObject.Obj3D = Utils.buildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 }
 
                 Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
             } else {
-
                 const ringInnerRadius = rootObject.RingInnerRadius ?? 0;
                 const ringWidth = rootObject.RingWidth ?? 0.5;
                 const ringThickness = 0.001;
@@ -548,6 +547,12 @@ export class SSGRenderer {
                 const ringColor = rootObject.RingColor ?? 'none';
 
                 if (ringInnerRadius > 0 && ringColor != 'none' && rootObject.ParentObject) {
+                    // If the parent object is a planet, make it cast shadows so the rings look correct.
+                    if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D) {
+                        (rootObject.ParentObject.Obj3D as any).castShadow = true; //default is false
+                    }
+
+
                     let planetaryRadius = rootObject.ParentObject.ObjectRadius *
                         (rootObject.ParentObject.IsStar ? settings.StarScale : settings.PlanetScale);
                     planetaryRadius /= CoordsScale;

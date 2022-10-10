@@ -769,7 +769,7 @@ public partial class SystemDisplay : IDisposable
         CelestialObject newChild = new($"{parent.Name} {childCount.ToRoman()}", parent,
             semiMajorAxis: effectiveParentRadius * childCount * 10, semiMinorAxis: effectiveParentRadius * childCount * 10,
             orbitalVelocity: Constants.AngVelFromDays(parent.ObjectRadius * childCount * 10), orbitalInclination: 0,
-            objectMass: Constants.OfEarthMass(1.0F), objectRadius: effectiveChildRadius,
+            objectRadius: effectiveChildRadius,
             objectColor: "magenta");
 
         parent.IsExpanded = true;

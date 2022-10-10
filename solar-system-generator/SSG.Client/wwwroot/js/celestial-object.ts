@@ -12,7 +12,7 @@ export class CelestialObject {
     OrbitalSemiMajorAxis: number = 0;
     OrbitalSemiMinorAxis: number = 0;
     OrbitalVelocity: number = 0;
-    ObjectMass: number = 0;
+    InitialOrbitalAngle: number = 0;
     ObjectRadius: number = 0;
     OrbitalInclination: number = 0;
     PhaseAngle: number = 0;

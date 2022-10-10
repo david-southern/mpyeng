@@ -27,7 +27,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
             return new("Cygnus X-1", parentObject: null,
                 semiMajorAxis: 0, semiMinorAxis: 0,
                 orbitalVelocity: 0, orbitalInclination: 0,
-                objectMass: Constants.SolarMass, objectRadius: Constants.SolarRadius,
+                objectRadius: Constants.SolarRadius,
                 objectColor: "#ddddff")
             {
                 IsStar = true
@@ -37,9 +37,9 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
 
     public CelestialObject(string name, CelestialObject? parentObject = null,
         float? semiMajorAxis = null, float? semiMinorAxis = null,
-        float? orbitalVelocity = null, float? orbitalInclination = null,
-        float? objectMass = null, float? objectRadius = null,
-        string? objectColor = null, string? orbitColor = null
+        float? orbitalVelocity = null, float? orbitalInclination = null, string? orbitColor = null,
+        float? objectRadius = null,string? objectColor = null,
+        float? initialAngle = null
     )
     {
         Name = name;
@@ -55,7 +55,6 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
             RootObject = null;
         }
 
-        ObjectMass = objectMass ?? DEFAULT_MASS;
         ObjectRadius = objectRadius ?? DEFAULT_RADIUS;
         OrbitalSemiMajorAxis = semiMajorAxis ?? DEFAULT_ORBITAL_RADIUS;
         OrbitalSemiMinorAxis = semiMinorAxis ?? DEFAULT_ORBITAL_RADIUS;
@@ -63,6 +62,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
         OrbitalInclination = orbitalInclination ?? DEFAULT_INCLINATION;
         ObjectColor = objectColor ?? "white";
         OrbitalColor = orbitColor ?? "white";
+        InitialOrbitalAngle = initialAngle ?? Random.Shared.NextSingle() * 360;
     }
 
 
@@ -126,8 +126,10 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// </summary>
     public float OrbitalVelocity { get; set; }
 
-    // The mass of the object in kg. Defaults to one Earth mass.
-    public float ObjectMass { get; set; } = Constants.EarthMass;
+    /// <summary>
+    /// This is the angle of the object in its orbit at time = 0
+    /// </summary>
+    public float InitialOrbitalAngle { get; set; } = 0;
 
     /// <summary>
     /// The radius in m of the object. Defaults to one Earth radius.
@@ -206,72 +208,6 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// The primary color used to render the object's ring system
     /// </summary>
     public string? RingColor { get; set; }
-
-
-#if CELESTIAL_MECHANICS_ARE_TOO_COMPLICATED
-    public float DistanceTo(CelestialObject other)
-    {
-        return Vector3.Distance(SystemPosition, other.SystemPosition);
-    }
-
-    public float EscapeVelocity
-    {
-        get
-        {
-            if (ParentObject == null) { return 0; }
-            float distance = DistanceTo(ParentObject);
-            if (Utils.FloatEQ(distance, 0)) { return 0; }
-            return (float)Math.Sqrt((2 * Constants.GravitationalConstant * ObjectMass) / DistanceTo(ParentObject));
-        }
-    }
-
-    public float OrbitalEccentricity => 0.8f;
-
-    public float NearFocusDistance => OrbitalSemiMajorAxis * (1.0f - OrbitalEccentricity);
-
-    public float NearFocusCenterOffset => OrbitalSemiMajorAxis - NearFocusDistance;
-
-    public float SystemMass => RootObject?.TotalMass ?? 0;
-
-    public float OrbitalPeriod => (float)(2 * Math.PI * Math.Sqrt(
-        Math.Pow(OrbitalSemiMajorAxis, 3) / (Constants.GravitationalConstant * (SystemMass))));
-
-    private Vector3 m_Barycenter { get; set; }
-    /// <summary>
-    /// The common center of mass of this CelestialObject and all child objects. In a system dominated by one large
-    /// (solar) mass, the Barycenter will be very close to (likely inside the radius of) the central mass.  In a
-    /// multi-solar mass system, the Barycenter may not be near any of the solar masses.  
-    ///
-    /// Note: We simulate only a single Barycenter for the entire system, rather than every combination of
-    /// CelestialObjects.  In addition, we ignore orbital inclination for now.
-    /// </summary>
-    public Vector3 Barycenter
-    {
-        get
-        {
-            if (RootObject != null)
-            {
-                return RootObject.Barycenter;
-            }
-
-            Vector3 CalculateBarycenter(CelestialObject root)
-            {
-                return new Vector3((float)(OrbitalSemiMajorAxis * Math.Cos(PhaseAngle)), (float)(OrbitalSemiMajorAxis * Math.Sin(PhaseAngle)), 0);
-            }
-
-            m_Barycenter = CalculateBarycenter(this);
-
-            float systemMass = ChildObjects.Select(co => co.ObjectMass).Sum();
-
-            foreach (CelestialObject co in ChildObjects)
-            {
-                retval += Vector3.Multiply(co.SystemPosition, co.ObjectMass);
-            }
-
-            return Vector3.Divide(retval, systemMass);
-        }
-    }
-#endif
 
     #region IEquatable implementation
     public override bool Equals(object? other)
