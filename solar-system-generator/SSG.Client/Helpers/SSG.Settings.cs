@@ -80,6 +80,7 @@ public class SSGSettings
 
     public bool ResetOrbitControls = false;
     public bool DownloadImage = false;
+    public string? LookAt;
 
     public BackgroundImageData BackgroundImage { get; set; } = BackgroundImageData.BackgroundImages[0];
 };

@@ -5,7 +5,10 @@
         "wwwroot/**/*.js": true,
         "wwwroot/**/*.js.map": true
     },
+    "cSpell.enabled": false,
     "cSpell.words": [
-        "nocheck"
+        "absarc",
+        "nocheck",
+        "Premade"
     ]
 }

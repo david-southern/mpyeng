@@ -104,6 +104,9 @@ export class Utils {
     public static buildPlanet(x: number, y: number, z: number, radius: number, color: string) {
         const geometry = new THREE.SphereGeometry(radius, 32, 16);
         const sphere = new THREE.Mesh(geometry, Utils.planetMaterial(color));
+        sphere.castShadow = true; //default is false
+        sphere.receiveShadow = false; //default
+        
         Utils.setPosition(sphere, x, y, z);
 
         return sphere;
@@ -118,6 +121,12 @@ export class Utils {
         const geometry = new THREE.SphereGeometry(radius, 32, 16);
         const sphere = new THREE.Mesh(geometry, Utils.starMaterial(color));
         Utils.setPosition(sphere, x, y, z);
+
+        pointLight.castShadow = true;
+        pointLight.shadow.mapSize.width = 512; // default
+        pointLight.shadow.mapSize.height = 512; // default
+        pointLight.shadow.camera.near = 0.5; // default
+        pointLight.shadow.camera.far = 500; // default        
 
         starGroup.add(sphere);
 

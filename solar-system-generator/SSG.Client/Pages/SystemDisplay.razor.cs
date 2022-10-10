@@ -50,6 +50,7 @@ public partial class SystemDisplay : IDisposable
         {
             string settingsJson = Settings.SafeJson() ?? "null";
             await JS.InvokeVoidAsync("SSG.Renderer.initialize", "ssgCanvas", settingsJson);
+            await LoadPremade(MockSolarSystemData.Sol);
         }
 
         await base.OnAfterRenderAsync(firstRender);

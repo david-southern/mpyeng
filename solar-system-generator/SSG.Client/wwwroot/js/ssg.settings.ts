@@ -53,6 +53,7 @@ export class SSGSettings {
 
     public ResetOrbitControls = false;
     public DownloadImage = false;
+    public LookAt?: string;
 
     public BackgroundImage?: BackgroundImageData;
 

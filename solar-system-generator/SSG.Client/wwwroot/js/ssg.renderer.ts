@@ -1,8 +1,9 @@
 ﻿import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Scene, Vector2, Vector3 } from 'three';
 
 import { CelestialObject } from './celestial-object';
-import { OrbitControls } from './OrbitControls';
+// import { OrbitControls } from './OrbitControls';
 import { Logger, SSGSystemFilter } from './ssg.logger';
 import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGSettings, EmptySettings } from './ssg.settings';
 import { Constants, Utils } from './ssg.utils';
@@ -88,9 +89,9 @@ export class SSGRenderer {
     private gridGroup: THREE.Object3D = null!;
     private loader: THREE.TextureLoader;
     private cachedBGImage?: any;
-    private cachedBGData?: any;
     private lastBGUrl?: string;
     private lastBGSettings?: string;
+    private lookAtTarget?: THREE.Group;
 
     private solarSystem: CelestialObject = null!;
     private actualStartTime?: number;
@@ -106,6 +107,9 @@ export class SSGRenderer {
         this.directionalLight = new THREE.DirectionalLight();
         this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, DEFAULT_ASPECT);
         this.renderer = new THREE.WebGLRenderer();
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
+
         this.loader = new THREE.TextureLoader();
 
         this.getNextAnimationFrame();
@@ -161,13 +165,13 @@ export class SSGRenderer {
         }
 
         SettingsManager.subscribeSettings(async (settings: SSGSettings) => {
+            this.lookAtTarget = undefined;
             this.camera.fov = settings.FieldOfViewDegrees;
             this.camera.updateProjectionMatrix();
 
             if (settings.BackgroundImage && settings.BackgroundImage.URL) {
-                Logger.info(SSGSystemFilter.RenderSettings, `Using background data: `, settings.BackgroundImage);
                 if (settings.BackgroundImage.URL.startsWith('#')) {
-                    this.systemScene.background = new THREE.Color(settings.BackgroundImage.URL);
+                    this.gridScene.background = new THREE.Color(settings.BackgroundImage.URL);
                     return;
                 }
 
@@ -205,18 +209,15 @@ export class SSGRenderer {
                     }
 
                     if (colorArgs.length) {
-                        Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Applying colorArgs: `, colorArgs);
                         bgImage.color(colorArgs);
                     }
 
                     if (settings.BackgroundImage.Blur != 0) {
-                        Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Blurring: `, settings.BackgroundImage.Blur);
                         bgImage.blur(settings.BackgroundImage.Blur);
                     }
 
-                    Logger.info(SSGSystemFilter.RenderSettings, `BGImage: Rendering`);
                     const url = await bgImage.getBase64Async(Jimp.MIME_JPEG);
-                    this.systemScene.background = this.loader.load(url);
+                    this.gridScene.background = this.loader.load(url);
                 }
             }
         })
@@ -302,6 +303,12 @@ export class SSGRenderer {
         // We need all the changes to the scene pushed before fitting the camera, so publish here
         SettingsManager.publishSettings(newSettings)
 
+        if (newSettings.ResetOrbitControls) {
+            console.log("Resetting orbital controls!")
+            this.orbitControls.reset();
+            newSettings.ResetOrbitControls = false;
+        }
+
         // Fit the camera before applying zoom, otherwise the camera will be fit to the zoomed scene, which is no good
         this.fitCameraToObject();
 
@@ -331,8 +338,12 @@ export class SSGRenderer {
     public updateSettings(settingsJson: string) {
         const newSettings = new SSGSettings(JSON.parse(settingsJson));
 
+        Logger.info(SSGSystemFilter.RenderSettings, "updateSettings: Settings: ", newSettings);
+
         if (newSettings.ResetOrbitControls) {
-            this.orbitControls.TSreset();
+            console.log("Resetting orbital controls!")
+            this.orbitControls.reset();
+            newSettings.ResetOrbitControls = false;
         }
 
         SettingsManager.publishSettings(newSettings);
@@ -344,6 +355,8 @@ export class SSGRenderer {
 
     private nextTimeDiags = 0;
     private updateAnimation(actualMillis: number) {
+        let showDiags = false;
+
         if (SettingsManager.CurrentSettings.Animate) {
             const actualTime = actualMillis / 1000;
 
@@ -372,6 +385,7 @@ export class SSGRenderer {
             this.simTime += simElapsedSeconds;
 
             if (Date.now() > this.nextTimeDiags) {
+                showDiags = true;
                 let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
                 diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
                 diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
@@ -382,6 +396,22 @@ export class SSGRenderer {
 
             for (const nextOrbiter of this.orbiters) {
                 nextOrbiter.updatePosition(simElapsedSeconds);
+            }
+        }
+
+        if (this.lookAtTarget) {
+            const lookAtVec = new THREE.Vector3();
+            this.lookAtTarget.getWorldPosition(lookAtVec);
+            if (this.orbitControls) {
+                // set camera to rotate around the target
+                this.orbitControls.target = lookAtVec;
+                this.orbitControls.update();
+            }
+            // this.camera.lookAt(lookAtVec);
+            // this.camera.updateProjectionMatrix();
+
+            if (showDiags) {
+                Logger.info(SSGSystemFilter.Always, `Look At: ${Utils.DumpVec(lookAtVec)}`);
             }
         }
 
@@ -443,12 +473,20 @@ export class SSGRenderer {
         this.camera.updateProjectionMatrix();
 
         if (this.orbitControls) {
-            // set camera to rotate around center of loaded object
-            this.orbitControls.target = center;
             // prevent camera from zooming out far enough to create far plane cutoff
             this.orbitControls.maxDistance = cameraToFarEdge * 2;
-            this.orbitControls.TSsaveState();
-            this.orbitControls.TSupdate();
+            this.orbitControls.saveState();
+
+            // set camera to rotate around the target
+            const lookAtVec = new Vector3(0, 0, 0);
+            if (this.lookAtTarget) {
+                this.lookAtTarget.getWorldPosition(lookAtVec);
+            }
+            this.orbitControls.target = lookAtVec;
+            const lookAtName = this.lookAtTarget?.name ?? 'center';
+            Logger.info(SSGSystemFilter.Always, `Look at: ${lookAtName} (${Utils.DumpVec(this.orbitControls.target)})`);
+
+            this.orbitControls.update();
         }
     };
 
@@ -476,15 +514,20 @@ export class SSGRenderer {
                 planetOrbiter.updatePosition(0);
                 this.orbiters.push(planetOrbiter);
             }
-
         }
 
-        if (rootObject.ObjectRadius > 0) {
-            SettingsManager.subscribeSettings((settings: SSGSettings) => {
-                if (rootObject.Obj3D) {
-                    objectGroup.remove(rootObject.Obj3D);
-                }
+        SettingsManager.subscribeSettings((settings: SSGSettings) => {
+            if (rootObject.Name == settings.LookAt) {
+                this.lookAtTarget = objectGroup;
+                Logger.info(SSGSystemFilter.RenderSettings, `Looking At '${settings.LookAt}'`);
+            }
 
+            if (rootObject.Obj3D) {
+                objectGroup.remove(rootObject.Obj3D);
+                rootObject.Obj3D = undefined;
+            }
+
+            if (rootObject.ObjectRadius > 0) {
                 let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
 
                 if (rootObject.IsStar) {
@@ -496,10 +539,54 @@ export class SSGRenderer {
                 }
 
                 Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
+            } else {
 
+                const ringInnerRadius = rootObject.RingInnerRadius ?? 0;
+                const ringWidth = rootObject.RingWidth ?? 0.5;
+                const ringThickness = 0.001;
+                const ringDensity = Math.max(Math.min(rootObject.RingDensity ?? 0.001, 1), 0);
+                const ringColor = rootObject.RingColor ?? 'none';
+
+                if (ringInnerRadius > 0 && ringColor != 'none' && rootObject.ParentObject) {
+                    let planetaryRadius = rootObject.ParentObject.ObjectRadius *
+                        (rootObject.ParentObject.IsStar ? settings.StarScale : settings.PlanetScale);
+                    planetaryRadius /= CoordsScale;
+
+                    const ringGeomInnerRadius = ringInnerRadius * planetaryRadius;
+                    const ringGeomWidth = ringWidth * planetaryRadius;
+                    const ringGeomOuterRadius = ringGeomInnerRadius + ringGeomWidth;
+                    const ringGeomThickness = ringGeomWidth * ringThickness;
+
+                    Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' ring system with radius ${ringInnerRadius}, width: ${ringWidth}, thickness: ${ringThickness}`);
+                    Logger.info(SSGSystemFilter.ModelBuilding, `    effective ring dimensions: inner ${ringGeomInnerRadius}, width: ${ringGeomWidth}, outer: ${ringGeomOuterRadius}, thick: ${ringGeomThickness}`);
+
+                    const extrudeSettings = { curveSegments: 32, depth: ringGeomThickness, bevelEnabled: false };
+
+                    const outerRing = new THREE.Shape()
+                        .absarc(0, 0, ringGeomOuterRadius, 0, Math.PI * 2, false);
+
+                    const holePath = new THREE.Path()
+                        .absarc(0, 0, ringGeomInnerRadius, 0, Math.PI * 2, true);
+
+                    outerRing.holes.push(holePath);
+
+                    const ringGeometry = new THREE.ExtrudeGeometry(outerRing, extrudeSettings);
+                    // const ringMaterial = Utils.planetMaterial(ringColor)
+                    const ringMaterial = this.ringMaterialTextured(ringColor, ringDensity);
+                    const edgeMaterial = new THREE.MeshLambertMaterial({ color: '#000000' });
+
+                    const ringMesh = new THREE.Mesh(ringGeometry, [ringMaterial, edgeMaterial]);
+                    ringMesh.receiveShadow = true;
+                    Utils.setPosition(ringMesh, 0, 0, -ringGeomThickness / 2);
+
+                    rootObject.Obj3D = ringMesh;
+                }
+            }
+
+            if (rootObject.Obj3D) {
                 objectGroup.add(rootObject.Obj3D);
-            });
-        }
+            }
+        });
 
         sceneGroup.add(objectGroup);
 
@@ -519,6 +606,70 @@ export class SSGRenderer {
 
         return sceneGroup;
     }
+
+    private ringMaterialTextured(ringColor: string, density: number = 0.1, chunkSize: number = 5) {
+        const width = 512;
+        const height = 512;
+
+        const size = width * height;
+        const byteSize = size * 4;
+        const data = new Uint8Array(byteSize);
+
+        let stride = 0;
+
+        while (stride < byteSize) {
+            const c = (Math.random() < density) ? 255 : 0;
+            data[stride++] = c;
+            data[stride++] = c;
+            data[stride++] = c;
+            data[stride++] = 255;
+        }
+        /*
+                let chunkCount = size * density;
+        
+                for (let chunk = 0; chunk < chunkCount; chunk++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const radius = (Math.random() * 0.5 + 0.5) * chunkSize;
+        
+                    let stride = y * width * 4 + x * 4;
+        
+                    for (let dy = 0; dy < radius; dy++) {
+                        for (let dx = 0; dx < radius * 4; dx++) {
+                            if (stride >= byteSize) {
+                                stride -= byteSize;
+                            }
+                            data[stride++] = 255;
+                        }
+                        stride += width * 4;
+                    }
+        
+                }
+        */
+        // used the buffer to create a DataTexture
+
+        const texture = new THREE.DataTexture(data, width, height);
+        texture.needsUpdate = true;
+
+        // // create a texture loader.
+        // const textureLoader = new THREE.TextureLoader();
+
+        // // load a texture
+        // const texture = textureLoader.load(
+        //     'images/ring-texture.png',
+        // );
+
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        // texture.repeat.set(4, 4);
+
+        // create a "standard" material using
+        // return new THREE.MeshStandardMaterial({ color: 'purple' });
+        // return new THREE.MeshStandardMaterial({ alphaMap: texture, color: ringColor, transparent: true });
+        return new THREE.MeshLambertMaterial({ alphaMap: texture, color: ringColor, transparent: true });
+        //return new THREE.MeshLambertMaterial({ color: 'purple' });
+    }
+
 
     private buildTestScene(): THREE.Group {
         const sceneGroup = new THREE.Group();

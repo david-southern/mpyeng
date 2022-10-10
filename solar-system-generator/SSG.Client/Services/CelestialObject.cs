@@ -16,7 +16,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     public const float DEFAULT_MASS = Constants.EarthMass;
     public const float DEFAULT_RADIUS = Constants.EarthRadius;
     public const float DEFAULT_ORBITAL_RADIUS = Constants.OneAU;
-    public const float DEFAULT_ORBITAL_VELOCITY = Constants.OneAU;
+    public const float DEFAULT_ORBITAL_VELOCITY = Constants.EarthAngularVelocity;
     public const float DEFAULT_INCLINATION = 0;
     public const float DEFAULT_PHASE_ANGLE = 0;
 
@@ -139,7 +139,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// The 'vertical tilt' of the object's orbital plane with respect to its parent's orbital plane.  
     ///
     /// Describes a right-handed angle in degrees with respect to the negative Y axis. (i.e. a positive angle will mean
-    /// other the object's plane will be above the parent's plane at a PhaseAngle of zero, while a negative angle will
+    /// the object's plane will be above the parent's plane at a PhaseAngle of zero, while a negative angle will
     /// indicate an object below the parent's plane at a PhaseAngle of zero.  
     /// 
     /// The angle will be clamped to [-90, 90] degrees.
@@ -186,6 +186,27 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// The primary color used to render the object's orbit
     /// </summary>
     public string? OrbitalColor { get; set; } = "white";
+
+    /// <summary>
+    /// This is the inner radius of the object's ring system as a ratio of the object's radius
+    /// </summary>
+    public float RingInnerRadius { get; set; }
+
+    /// <summary>
+    /// This is the width of the object's ring system as a ratio of the object's radius
+    /// </summary>
+    public float RingWidth { get; set; }
+
+    /// <summary>
+    /// This is the thickness as a ratio of the ring's width
+    /// </summary>
+    public float RingDensity { get; set; }
+
+    /// <summary>
+    /// The primary color used to render the object's ring system
+    /// </summary>
+    public string? RingColor { get; set; }
+
 
 #if CELESTIAL_MECHANICS_ARE_TOO_COMPLICATED
     public float DistanceTo(CelestialObject other)

@@ -132,6 +132,9 @@
                                 <MudTreeViewItemToggleButton @bind-Expanded="@context.IsExpanded"
                                     Visible="@context.HasChild" />
                                 <MudIcon Icon="@(ObjectIcon(context))" Class="ml-0 mr-2" Color="@Color.Default" />
+                                <MudIconButton Icon="@Icons.Material.Filled.RemoveRedEye" Variant="Variant.Filled"
+                                    Color="@(Settings.LookAt == context.Name ? Color.Secondary : Color.Primary)" Size="Size.Small" Style="height: fit-content"
+                                    Title="Look At" OnClick="@(() => LookAt(context))" />
                                 <MudText>@context.Name</MudText>
                                 <div class="flex-grow-1"></div>
                                 <MudIconButton Icon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
@@ -201,6 +204,26 @@
                     <td>
                         <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectColor" Label="Color"
                             Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingInnerRadius"
+                            Label="Ring Inner Radius" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingWidth"
+                            Label="Ring Width" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingColor"
+                            Label="Ring Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    </td>
+                    <td>
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingDensity"
+                            Label="Ring Density" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
                     </td>
                 </tr>
             </table>

@@ -41,12 +41,12 @@ public partial class SystemDisplay : IDisposable
         ToggleSettingsMenu();
     }
 
-    
+
     private async void DownloadScreenshotHandler(object? sender, EventArgs args)
     {
         Settings.DownloadImage = true;
         await UpdateSettingsAsync();
-        Settings.DownloadImage = true;
+        Settings.DownloadImage = false;
     }
 
     private CelestialObject? m_SelectedObject;
@@ -559,6 +559,120 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
+    public string EditRingInnerRadius
+    {
+        get
+        {
+            return SelectedObject == null || Utils.FloatEQ(SelectedObject.RingInnerRadius, 0) ? ""
+                : $"{SelectedObject.RingInnerRadius:N4}";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            float floatValue = SelectedObject.RingInnerRadius;
+
+            try
+            {
+                floatValue = (float)(Utils.SafeDouble(value) ?? 0);
+            }
+            catch { }
+
+            if (Utils.FloatEQ(SelectedObject.RingInnerRadius, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.RingInnerRadius = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
+    public string EditRingWidth
+    {
+        get
+        {
+            return SelectedObject == null || Utils.FloatEQ(SelectedObject.RingWidth, 0) ? ""
+                : $"{SelectedObject.RingWidth:N4}";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            float floatValue = SelectedObject.RingWidth;
+
+            try
+            {
+                floatValue = (float)(Utils.SafeDouble(value) ?? 0);
+            }
+            catch { }
+
+            if (Utils.FloatEQ(SelectedObject.RingWidth, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.RingWidth = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
+    public string EditRingDensity
+    {
+        get
+        {
+            return SelectedObject == null || Utils.FloatEQ(SelectedObject.RingDensity, 0) ? ""
+                : $"{SelectedObject.RingDensity:N4}";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            float floatValue = SelectedObject.RingDensity;
+
+            try
+            {
+                floatValue = (float)(Utils.SafeDouble(value) ?? 0);
+            }
+            catch { }
+
+            if (Utils.FloatEQ(SelectedObject.RingDensity, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.RingDensity = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
+    public string EditRingColor
+    {
+        get
+        {
+            return SelectedObject?.RingColor ?? "";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            if (SelectedObject.RingColor == value)
+            {
+                return;
+            }
+            SelectedObject.RingColor = value;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+
     private async Task NewSystem()
     {
         await Task.CompletedTask;
@@ -686,6 +800,16 @@ public partial class SystemDisplay : IDisposable
 
         await UpdateSystem();
         StateHasChanged();
+    }
+
+    public void LookAt(CelestialObject context)
+    {
+        if(Settings.LookAt == context.Name) {
+            Settings.LookAt = null;
+        } else {
+            Settings.LookAt = context.Name;
+        }
+        UpdateSettings();
     }
 
     public async Task ResetZoom()

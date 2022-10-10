@@ -19,6 +19,12 @@ export class CelestialObject {
     ObjectColor: string = null!;
     OrbitalColor: string = null!;
 
+    RingInnerRadius?: number;
+    RingWidth?: number;
+    RingDensity?: number;
+    RingColor?: string;
+
+
     Obj3D?: THREE.Object3D;
 
     constructor(partialObj: Partial<CelestialObject>) {
