@@ -23,8 +23,11 @@ To deploy:
   - run `python3 -m http.server`
   - View the site at `http://localhost:8080`
 
+Ver 0.3 Release:
+- Perigee settings - center the orbit on the correct focus
+- display current sim time
 
-Newly Completed:
+Ver 0.2 Release:
 - Get orbiter working
 - System Backgrounds
 - Allow time to run backwards
@@ -38,12 +41,10 @@ Newly Completed:
 
 TODOS:
 Addl object settings:
-- Perigee settings - center the orbit on the correct focus
 - "Comet" setting - allow for very large orbits that don't trigger the camera auto-zoom
 - Planet textures
 
 Time mgmt:
-- display current sim time
 
 General:
 - Help icons everywhere

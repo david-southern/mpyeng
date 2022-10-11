@@ -361,6 +361,45 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
+    public string EditOrbitalPerigee
+    {
+        get
+        {
+            return $"{Constants.AsAU(SelectedObject?.OrbitalPerigee ?? 0)} AU";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            value = value.ToLower();
+            if (value.Contains("au"))
+            {
+                value = value.Replace("au", "");
+            }
+
+            float floatValue = SelectedObject.OrbitalPerigee;
+
+            try
+            {
+                floatValue = Convert.ToSingle(value);
+                floatValue = Constants.OfAU(floatValue);
+            }
+            catch { }
+
+
+            if (Utils.FloatEQ(SelectedObject.OrbitalPerigee, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.OrbitalPerigee = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
+    
+
     public string EditOrbitalVelocity
     {
         get

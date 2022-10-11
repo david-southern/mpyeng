@@ -8,7 +8,7 @@
 @inject IJSRuntime JS
 @inject IDialogService DialogService
 
-<PageTitle>Solar System Generator v0.2</PageTitle>
+<PageTitle>Solar System Generator v0.3</PageTitle>
 
 <MudPopover Open="@(FileMenuOpen)" AnchorOrigin="@(Origin.TopRight)" TransformOrigin="@(Origin.TopRight)"
     Class="px-4 pt-4">
@@ -90,7 +90,7 @@
             @* <MudSlider @bind-Value="Settings.BackgroundImage.Brightness" T="float" Min="0f" Step="1f" Max="100f"
                 Color="Color.Info">
                 Brighten: @(Settings.BackgroundImage.Brightness)
-            </MudSlider> *@
+                </MudSlider> *@
             <MudSlider @bind-Value="Settings.BackgroundImage.Blur" T="float" Min="0f" Step="1f" Max="100f"
                 Color="Color.Info">
                 Blur: @(Settings.BackgroundImage.Blur)
@@ -115,7 +115,9 @@
 <MudGrid>
     <MudItem xs="9">
         <MudPaper Elevation="2" Class="pa-2">
-            <div id="ssgCanvas" style="width: 100%; height: calc(100vh - 90px);"></div>
+            <div id="ssgCanvas" style="width: 100%; height: calc(100vh - 90px);">
+                <div id="systemTime" class="system-time"></div>
+            </div>
         </MudPaper>
     </MudItem>
     <MudItem xs="3">
@@ -133,8 +135,9 @@
                                     Visible="@context.HasChild" />
                                 <MudIcon Icon="@(ObjectIcon(context))" Class="ml-0 mr-2" Color="@Color.Default" />
                                 <MudIconButton Icon="@Icons.Material.Filled.RemoveRedEye" Variant="Variant.Filled"
-                                    Color="@(Settings.LookAt == context.Name ? Color.Secondary : Color.Primary)" Size="Size.Small" Style="height: fit-content"
-                                    Title="Look At" OnClick="@(() => LookAt(context))" />
+                                    Color="@(Settings.LookAt == context.Name ? Color.Secondary : Color.Primary)"
+                                    Size="Size.Small" Style="height: fit-content" Title="Look At"
+                                    OnClick="@(() => LookAt(context))" />
                                 <MudText>@context.Name</MudText>
                                 <div class="flex-grow-1"></div>
                                 <MudIconButton Icon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
@@ -155,78 +158,52 @@
                     </ItemTemplate> *@
             </MudTreeView>
 
-            <table>
-                <tr>
-                    <td colspan="2">
-                        <MudStack Row="true">
-                            <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name"
-                                Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                            <MudCheckBox Disabled="@(SelectedObject == null)" @bind-Checked="@EditIsStar"
-                                Label="Is Star?"></MudCheckBox>
-                        </MudStack>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMajorAxis"
-                            Label="SemiMajor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis"
-                            Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalVelocity"
-                            Label="Orbital Period" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditPhaseAngle"
-                            Label="Orbit Phase" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalInclination"
-                            Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalColor"
-                            Label="Orbit Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectRadius" Label="Radius"
-                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectColor" Label="Color"
-                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingInnerRadius"
-                            Label="Ring Inner Radius" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingWidth"
-                            Label="Ring Width" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingColor"
-                            Label="Ring Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                    <td>
-                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingDensity"
-                            Label="Ring Density" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    </td>
-                </tr>
-            </table>
+            <MudStack Spacing="1">
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditName" Label="Name"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudCheckBox Disabled="@(SelectedObject == null)" @bind-Checked="@EditIsStar" Label="Is Star?">
+                    </MudCheckBox>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMajorAxis"
+                        Label="SemiMajor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis"
+                        Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalPerigee"
+                        Label="Perigee" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalVelocity"
+                        Label="Orbital Period" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditPhaseAngle" Label="Orbit Phase"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalInclination"
+                        Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalColor"
+                        Label="Orbit Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectRadius" Label="Radius"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectColor" Label="Color"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingInnerRadius"
+                        Label="Ring Inner Radius" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingWidth" Label="Ring Width"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingColor" Label="Ring Color"
+                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditRingDensity"
+                        Label="Ring Density" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+            </MudStack>
         </MudStack>
     </MudItem>
 </MudGrid>

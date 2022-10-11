@@ -11,6 +11,7 @@ export class CelestialObject {
     ChildObjects: CelestialObject[] = [];
     OrbitalSemiMajorAxis: number = 0;
     OrbitalSemiMinorAxis: number = 0;
+    OrbitalPerigee: number = 0;
     OrbitalVelocity: number = 0;
     InitialOrbitalAngle: number = 0;
     ObjectRadius: number = 0;

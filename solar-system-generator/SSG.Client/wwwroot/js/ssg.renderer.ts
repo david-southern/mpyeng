@@ -72,6 +72,7 @@ export class SSGRenderer {
     // private ssgSettings: SSGSettings = null!;
 
     private canvasElement: HTMLElement = null!;
+    private systemTimeElement: HTMLElement = null!;
 
     private canvasWidth: number = null!;
     private canvasHeight: number = null!;
@@ -92,6 +93,7 @@ export class SSGRenderer {
     private lastBGUrl?: string;
     private lastBGSettings?: string;
     private lookAtTarget?: THREE.Group;
+
 
     private solarSystem: CelestialObject = null!;
     private actualStartTime?: number;
@@ -115,15 +117,19 @@ export class SSGRenderer {
         this.getNextAnimationFrame();
     }
 
-    public initialize(canvasDivId: string) {
-        const checkCanvas = document.getElementById(canvasDivId);
+    private safeGetElement(elementId: string): HTMLElement {
+        const checkElement = document.getElementById(elementId);
 
-        if (!checkCanvas) {
-            console.error(`SSG Canvas Div Id '${canvasDivId}' did not select any DOM element`);
-            return;
+        if (!checkElement) {
+            throw new Error(`SSG element Id '${elementId}' did not select any DOM element`);
         }
 
-        this.canvasElement = checkCanvas;
+        return checkElement;
+    }
+
+    public initialize(canvasDivId: string) {
+        this.canvasElement = this.safeGetElement(canvasDivId);
+        this.systemTimeElement = this.safeGetElement("systemTime");
 
         this.canvasWidth = this.canvasElement.offsetWidth;
         this.canvasHeight = this.canvasElement.offsetHeight;
@@ -354,49 +360,52 @@ export class SSGRenderer {
     }
 
     private nextTimeDiags = 0;
+
     private updateAnimation(actualMillis: number) {
         let showDiags = false;
 
-        if (SettingsManager.CurrentSettings.Animate) {
-            const actualTime = actualMillis / 1000;
+        const actualTime = actualMillis / 1000;
 
-            if (this.actualStartTime === undefined) {
-                this.actualStartTime = actualTime;
-            }
+        if (this.actualStartTime === undefined) {
+            this.actualStartTime = actualTime;
+        }
 
-            if (this.lastActualTime === undefined) {
-                this.lastActualTime = actualTime;
-            }
-
-            if (this.simTime === undefined) {
-                this.simTime = 0;
-            }
-
-            let speedScale = 1;
-
-            if (SettingsManager.CurrentSettings.AnimationSpeed != 0) {
-                speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
-            }
-
-            const actualSimTime = (actualTime - this.actualStartTime)
-            let actualElapsedSeconds = actualTime - this.lastActualTime;
+        if (this.lastActualTime === undefined) {
             this.lastActualTime = actualTime;
-            let simElapsedSeconds = actualElapsedSeconds * speedScale;
-            this.simTime += simElapsedSeconds;
+        }
 
-            if (Date.now() > this.nextTimeDiags) {
-                showDiags = true;
-                let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
-                diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
-                diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
-                diagsString += `, Frame: Actual: ${Utils.humanTime(actualElapsedSeconds)}, Sim: ${Utils.humanTime(simElapsedSeconds)}`;
-                Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
-                this.nextTimeDiags = Date.now() + 1000;
-            }
+        if (this.simTime === undefined) {
+            this.simTime = 0;
+        }
 
-            for (const nextOrbiter of this.orbiters) {
-                nextOrbiter.updatePosition(simElapsedSeconds);
-            }
+        let speedScale = 0;
+
+        if (Utils.FloatNE(SettingsManager.CurrentSettings.AnimationSpeed, 0)) {
+            speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
+        }
+
+        const actualSimTime = (actualTime - this.actualStartTime)
+        let actualElapsedSeconds = actualTime - this.lastActualTime;
+        this.lastActualTime = actualTime;
+        let simElapsedSeconds = actualElapsedSeconds * speedScale;
+        this.simTime += simElapsedSeconds;
+
+        if (this.systemTimeElement) {
+            this.systemTimeElement.innerText = 'System Time: ' + Utils.humanTime(this.simTime);
+        }
+
+        if (Date.now() > this.nextTimeDiags) {
+            showDiags = true;
+            let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
+            diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
+            diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
+            diagsString += `, Frame: Actual: ${Utils.humanTime(actualElapsedSeconds)}, Sim: ${Utils.humanTime(simElapsedSeconds)}`;
+            Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
+            this.nextTimeDiags = Date.now() + 1000;
+        }
+
+        for (const nextOrbiter of this.orbiters) {
+            nextOrbiter.updatePosition(simElapsedSeconds);
         }
 
         if (this.lookAtTarget) {
@@ -496,6 +505,7 @@ export class SSGRenderer {
 
         const majorAxis = rootObject.OrbitalSemiMajorAxis / CoordsScale;
         const minorAxis = rootObject.OrbitalSemiMinorAxis / CoordsScale;
+        const perigee = rootObject.OrbitalPerigee / CoordsScale;
 
         let objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
@@ -594,6 +604,10 @@ export class SSGRenderer {
         });
 
         sceneGroup.add(objectGroup);
+
+        if (perigee != 0) {
+            sceneGroup.position.x = perigee;
+        }
 
         if (rootObject.PhaseAngle != 0) {
             sceneGroup.rotation.order = "ZYX";
