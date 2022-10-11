@@ -5,7 +5,6 @@ Building/Development:
 * Debug in the Chrome devtools
 
 To deploy:
-
 - Create the release package:
 - `dotnet publish -c Release`
 - This step can take up to 10 minutes to complete
@@ -14,9 +13,11 @@ To deploy:
     - `<base href="/" />`
   - to this:
     - `<base href="/ssg-demo/" />`
+- Remove the /images/hires folder, so users don't have to download those files
 
 - git add, commit, and push
 - View the site at: `https://david-southern.github.io/ssg-demo/`
+- it can take a few minutes for Github to publish the site after the push
 
 - To test a release package:
   - Go to the root of the ssg-demo repo
