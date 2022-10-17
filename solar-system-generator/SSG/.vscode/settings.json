@@ -1,0 +1,15 @@
+{
+    "files.exclude": {
+        "dist": true
+    },
+    "cSpell.words": [
+        "absarc",
+        "Ceti",
+        "desaturate",
+        "franke",
+        "Humanizr",
+        "premade",
+        "truetype",
+        "Wackmobile"
+    ]
+}

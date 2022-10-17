@@ -1,0 +1,51 @@
+$app-bg-color: #333333;
+$system-bg-color: #333355;
+$system-time-color: green;
+$page-border-width: 17px;
+
+html {
+    box-sizing: border-box;
+}
+
+*,
+*:before,
+*:after {
+    box-sizing: inherit;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: $app-bg-color;
+}
+
+#page-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#system-canvas {
+    position: relative;
+    background-color: $system-bg-color;
+    width: calc(100vw - $page-border-width);
+    height: calc(100vh - $page-border-width);
+
+}
+
+#system-time {
+    position: absolute;
+    top: 11px;
+    left: 11px;
+    color: $system-time-color;
+    border: solid 1px $system-time-color;
+}
+
+@font-face {
+    font-family: 'MyFont';
+    src: url('../fonts/Consolas.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+}
