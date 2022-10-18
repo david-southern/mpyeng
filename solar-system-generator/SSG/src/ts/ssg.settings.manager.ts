@@ -1,14 +1,14 @@
-﻿import { SSGSettings, EmptySettings } from './ssg.settings';
+﻿import { SSGOldSettings, EmptySettings } from './ssg.zzz.settings';
 
-type SettingsCB = (settings: SSGSettings) => void;
+type SettingsCB = (settings: SSGOldSettings) => void;
 
 class SettingsManagerImpl {
-    public CurrentSettings: SSGSettings = EmptySettings;
-    public PrevSettings: SSGSettings = EmptySettings;;
+    public CurrentSettings: SSGOldSettings = EmptySettings;
+    public PrevSettings: SSGOldSettings = EmptySettings;;
 
     private settingsCallbacks: SettingsCB[] = [];
 
-    public publishSettings(newSettings: SSGSettings) {
+    public publishSettings(newSettings: SSGOldSettings) {
         this.PrevSettings = this.CurrentSettings;
         this.CurrentSettings = newSettings;
 

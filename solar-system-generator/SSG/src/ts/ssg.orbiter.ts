@@ -1,5 +1,6 @@
 ﻿import * as THREE from 'three';
-import { Utils } from './ssg.utils';
+import { Utils } from './utils';
+import { THREEUtils } from './utils.three';
 
 export class Orbiter {
     constructor(
@@ -19,6 +20,6 @@ export class Orbiter {
 
         const objectPosition = new THREE.Vector2();
         this.orbitCurve.getPointAt(this.currentAngle / 360, objectPosition);
-        Utils.setPosition(this.threeObject, objectPosition.x, objectPosition.y, 0);
+        THREEUtils.setPosition(this.threeObject, objectPosition.x, objectPosition.y, 0);
     }
 }

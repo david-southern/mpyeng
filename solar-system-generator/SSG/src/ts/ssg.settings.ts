@@ -1,71 +1,76 @@
+import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import * as THREE from 'three';
-import { BackgroundImageData, BackgroundImages } from './ssg.settings.backgrounds';
-import { Utils } from './ssg.utils';
+import { DefaultBackgroundImage } from './ssg.settings.backgrounds';
+import { Utils } from './utils';
 
 export const GRID_TYPE_RECTANGULAR = 'Rectangular';
 export const GRID_TYPE_POLAR = 'Polar';
 export const GRID_TYPE_NONE = 'None';
 
 export class SSGSettings {
-    public AmbientLightColor = "#404040";
-    public AmbientLightIntensity = 1;
-
-    public OrbitalColor = "#00ffff";
-
-    public IncludeDirectionalLight = false;
-    public DirectionalLightColor = "#000000";
-    public DirectionalLightIntensity = 0;
-    public DirectionalLightPosition = new THREE.Vector3(0, 0, 0);
-
-    public FieldOfViewDegrees = 10;
-
-    public ViewAngleXDegrees = -80;
-    public ViewAngleYDegrees = 0;
-    public ViewAngleZDegrees = 0;
-
-    public Animate = true;
-    public AnimationSpeed = 0;
-
-    public MaxAnimationSpeedScale = 10e8;
-
-    public get AnimationTimeScale(): number {
-        const clampedSpeed = Utils.clamp(this.AnimationSpeed, -1, 1);
-
-        // Use a quadratic easing function, but allow the sign of the clampedSpeed through
-        return clampedSpeed * Math.abs(clampedSpeed) * this.MaxAnimationSpeedScale;
+    private static _GlobalSettings = new SSGSettings();
+    public static get GlobalSettings() {
+        return SSGSettings._GlobalSettings;
     }
 
-    // A human-readable representation of the AnimationTimeScale
-    public get AnimationTimeScaleHuman(): string {
-        return Utils.FloatEQ(this.AnimationTimeScale, 0) ? "paused" : `${Utils.humanTime(this.AnimationTimeScale)} per second`;
+    // Make the constructor private to signal that SSGRxSettings is a singleton
+    private constructor() {
     }
 
-    public GridType = GRID_TYPE_POLAR;
-    public GridSizeFactor = 1.1;
-    public GridMajorDivisions = 4;
-    public GridMajorColor = '#004000';
-    public GridMinorDivisions = 36;
-    public GridMinorColor = '#003000';
+    public AmbientLightColorSubject = new BehaviorSubject("#404040");
+    public AmbientLightIntensity = new BehaviorSubject(1);
 
-    public PlanetScale = 1500;
-    public StarScale = 50;
+    public OrbitalColor = new BehaviorSubject("#00ffff");
 
-    public Zoom = 1;
+    public IncludeDirectionalLight = new BehaviorSubject(false);
+    public DirectionalLightColor = new BehaviorSubject("#000000");
+    public DirectionalLightIntensity = new BehaviorSubject(0);
+    public DirectionalLightPosition = new BehaviorSubject(new THREE.Vector3(0, 0, 0));
 
-    public ResetOrbitControls = false;
-    public DownloadImage = false;
-    public LookAt?: string;
+    public FieldOfViewDegrees = new BehaviorSubject(10);
 
-    public BackgroundImage?: BackgroundImageData;
+    public ViewAngleXDegrees = new BehaviorSubject(-80);
+    public ViewAngleYDegrees = new BehaviorSubject(0);
+    public ViewAngleZDegrees = new BehaviorSubject(0);
 
-    constructor(partialObj: Partial<SSGSettings>) {
+    public Animate = new BehaviorSubject(true);
+    public AnimationSpeed = new BehaviorSubject(0.00003);
+
+    public MaxAnimationSpeedScale = new BehaviorSubject(10e8);
+
+    public AnimationTimeScale$ = combineLatest([this.AnimationSpeed, this.MaxAnimationSpeedScale]).pipe(
+        map(([animSpeed, maxSpeedScale]) => {
+            const clampedSpeed = Utils.clamp(animSpeed, -1, 1);
+            // Use a quadratic easing function, but allow the sign of the clampedSpeed through
+            return clampedSpeed * Math.abs(clampedSpeed) * maxSpeedScale;
+        })
+    );
+
+    public AnimationTimeScaleHuman$ = this.AnimationTimeScale$.pipe(
+        map(timeScale => Utils.FloatEQ(timeScale, 0) ? "paused" : `${Utils.humanTime(timeScale)} per second`)
+    );
+
+    public GridType = new BehaviorSubject(GRID_TYPE_POLAR);
+    public GridSizeFactor = new BehaviorSubject(1.1);
+    public GridMajorDivisions = new BehaviorSubject(4);
+    public GridMajorColor = new BehaviorSubject('#004000');
+    public GridMinorDivisions = new BehaviorSubject(36);
+    public GridMinorColor = new BehaviorSubject('#003000');
+
+    public PlanetScale = new BehaviorSubject(1500);
+    public StarScale = new BehaviorSubject(50);
+
+    public Zoom = new BehaviorSubject(1);
+
+    public ResetOrbitControls = new BehaviorSubject(false);
+    public DownloadImage = new BehaviorSubject(false);
+    public LookAt = new BehaviorSubject<string | undefined>(undefined);
+
+    public BackgroundImage = new BehaviorSubject(DefaultBackgroundImage);
+
+    updateFromJson(partialObj?: Partial<SSGSettings>) {
         if (partialObj) {
             Object.assign(this, partialObj);
         }
     }
-};
-
-// Export this so I don't have to null=check things everywhere
-export const EmptySettings = new SSGSettings({
-    BackgroundImage: BackgroundImages[4]
-});
+}
