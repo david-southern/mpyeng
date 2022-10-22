@@ -1,0 +1,16 @@
+*.log
+*.gz
+
+logs
+tmp
+
+# Dependency directory
+node_modules
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Ignore built ts files
+dist/**/*
+cache/**/*

@@ -1,11 +1,11 @@
-import _ from 'lodash';
-import { combineLatest, ReplaySubject, Subject, takeUntil } from 'rxjs';
-import * as THREE from 'three';
-import { CelestialObject } from './celestial-object';
-import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from './ssg.settings';
-import { SimTimeManager } from './ssg.simtime.manager';
-import { Utils } from './utils';
-import { THREEUtils } from './utils.three';
+import _ from "lodash";
+import { combineLatest, ReplaySubject, Subject, takeUntil } from "rxjs";
+import * as THREE from "three";
+import { CelestialObject } from "./celestial-object";
+import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./ssg.settings";
+import { SimTimeManager } from "./ssg.simtime.manager";
+import { Utils } from "./utils";
+import { THREEUtils } from "./utils.three";
 
 export class SSGSceneManager {
     private static _Instance = new SSGSceneManager();
@@ -18,10 +18,10 @@ export class SSGSceneManager {
     // Make the constructor private to signal that SSGRxSettings is a singleton
     private constructor() {
         this.systemScene = new THREE.Scene();
-        this.systemScene.name = 'SSG-root';
+        this.systemScene.name = "SSG-root";
 
         this.gridScene = new THREE.Scene();
-        this.systemScene.name = 'Grid-root';
+        this.systemScene.name = "Grid-root";
 
         this.ambientLight = new THREE.AmbientLight();
         this.systemScene.add(this.ambientLight);
@@ -86,7 +86,7 @@ export class SSGSceneManager {
         }
         finally {
             if (sceneUpdated) {
-                this.SceneUpdated$.next(true);
+                this.SceneUpdated$.next(this.systemScene);
             }
         }
     }
@@ -103,7 +103,7 @@ export class SSGSceneManager {
         }
 
         this.gridContent = new THREE.Group();
-        this.gridContent.name = 'SSG-system-grid';
+        this.gridContent.name = "SSG-system-grid";
 
         const boundingBox = new THREE.Box3();
         boundingBox.setFromObject(this.systemScene);

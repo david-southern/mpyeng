@@ -1,6 +1,7 @@
 {
     "files.exclude": {
-        "dist": true
+        "dist": true,
+        "cache": true
     },
     "cSpell.words": [
         "absarc",

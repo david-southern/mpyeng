@@ -1,21 +1,22 @@
 {
   "name": "ssg.webpack",
+  "private": "true",
   "version": "0.4.1",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "build": "webpack",
-    "deploy": "webpack",
+    "lint": "eslint --cache --cache-location cache\\ .",
+    "lint-fix": "eslint --cache --cache-location cache\\ . --fix",
+    "deploy": "npm run lint && webpack",
     "start": "rimraf dist && webpack serve --open"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@types/lodash": "^4.14.186",
     "@types/three": "^0.144.0",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
     "css-loader": "^6.7.1",
     "csv-loader": "^3.0.5",
+    "eslint": "^8.26.0",
     "handlebars": "^4.7.7",
     "html-loader": "^4.2.0",
     "html-webpack-plugin": "^5.5.0",
