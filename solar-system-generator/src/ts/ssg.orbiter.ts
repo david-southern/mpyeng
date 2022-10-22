@@ -1,6 +1,6 @@
-﻿import * as THREE from 'three';
-import { Utils } from './utils';
-import { THREEUtils } from './utils.three';
+﻿import * as THREE from "three";
+import { Utils } from "./utils";
+import { THREEUtils } from "./utils.three";
 
 export class Orbiter {
     constructor(

@@ -1,15 +1,15 @@
-﻿import { BehaviorSubject } from 'rxjs';
-import * as THREE from 'three';
-import { Utils } from './utils';
+﻿import { BehaviorSubject } from "rxjs";
+import * as THREE from "three";
+import { Utils } from "./utils";
 
-export const COLOR_NONE = 'none';
+export const COLOR_NONE = "none";
 
 export class CelestialObject {
     ParentObject?: CelestialObject;
     ParentName?: string;
     ChildObjects: CelestialObject[] = [];
-    ChildDepth: number = 0;
-    SystemOrder: number = 0;
+    ChildDepth = 0;
+    SystemOrder = 0;
 
     public Name$ = new BehaviorSubject(COLOR_NONE);
     public get Name() {

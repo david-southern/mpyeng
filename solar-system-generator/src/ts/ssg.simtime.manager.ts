@@ -1,24 +1,24 @@
-﻿import _ from 'lodash';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+﻿import _ from "lodash";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import blackBackground from '../images/black.png';
+import blackBackground from "../images/black.png";
 
-import * as PP from 'postprocessing';
+import * as PP from "postprocessing";
 
-import { CelestialObject } from './celestial-object';
+import { CelestialObject } from "./celestial-object";
 // import { OrbitControls } from './OrbitControls';
-import { Logger, SSGSystemFilter } from './ssg.logger';
-import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from './ssg.zzz.settings';
-import { Utils } from './utils';
-import { Orbiter } from './ssg.orbiter';
-import { SettingsManager } from './ssg.settings.manager';
-import { GlobalSettings, SSGSettings } from './ssg.settings';
-import { firstValueFrom, Subject } from 'rxjs';
+import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
+import { Utils } from "./utils";
+import { Orbiter } from "./ssg.orbiter";
+import { SettingsManager } from "./ssg.settings.manager";
+import { GlobalSettings, SSGSettings } from "./ssg.settings";
+import { firstValueFrom, Subject } from "rxjs";
 
 const DEFAULT_FOV = 70;
 const DEFAULT_ASPECT = 1.61;
-const DEFAULT_ORBITAL_COLOR = '#999999';
+const DEFAULT_ORBITAL_COLOR = "#999999";
 
 export class SSGSimTimeManager {
     private static _Instance = new SSGSimTimeManager();
@@ -33,25 +33,25 @@ export class SSGSimTimeManager {
     private constructor() {
     }
 
-    private actualStartTime: number = 0;
-    private lastActualTime: number = 0;
+    private actualStartTime = 0;
+    private lastActualTime = 0;
 
-    private _actualTime: number = 0;
+    private _actualTime = 0;
     public get ActualTime() {
         return this._actualTime;
     }
 
-    private _actualElapsedSeconds: number = 0;
+    private _actualElapsedSeconds = 0;
     public get LastFrameActualElapsedSeconds() {
         return this._actualElapsedSeconds;
     }
 
-    private _simTime: number = 0;
+    private _simTime = 0;
     public get SimTime() {
         return this._simTime;
     }
 
-    private _simElapsedSeconds: number = 0;
+    private _simElapsedSeconds = 0;
     public get LastFrameSimElapsedSeconds() {
         return this._simElapsedSeconds;
     }

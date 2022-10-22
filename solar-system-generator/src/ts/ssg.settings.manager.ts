@@ -1,10 +1,10 @@
-﻿import { SSGOldSettings, EmptySettings } from './ssg.zzz.settings';
+﻿import { SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
 
 type SettingsCB = (settings: SSGOldSettings) => void;
 
 class SettingsManagerImpl {
     public CurrentSettings: SSGOldSettings = EmptySettings;
-    public PrevSettings: SSGOldSettings = EmptySettings;;
+    public PrevSettings: SSGOldSettings = EmptySettings;
 
     private settingsCallbacks: SettingsCB[] = [];
 
@@ -25,7 +25,7 @@ class SettingsManagerImpl {
 
     public clearSettingsSubscriptions = () => {
         this.settingsCallbacks = [];
-    }
-};
+    };
+}
 
 export const SettingsManager = new SettingsManagerImpl();

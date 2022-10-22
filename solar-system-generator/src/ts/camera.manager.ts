@@ -1,12 +1,12 @@
-﻿import _ from 'lodash';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+﻿import _ from "lodash";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import { CanvasManager } from './canvas.manager';
-import { SceneManager } from './scene.manager';
-import { GlobalSettings } from './ssg.settings';
-import { SimTimeManager } from './ssg.simtime.manager';
-import { THREEUtils } from './utils.three';
+import { CanvasManager } from "./canvas.manager";
+import { SceneManager } from "./scene.manager";
+import { GlobalSettings } from "./ssg.settings";
+import { SimTimeManager } from "./ssg.simtime.manager";
+import { THREEUtils } from "./utils.three";
 
 const DEFAULT_FOV = 30;
 const DEFAULT_ASPECT = 1.61;

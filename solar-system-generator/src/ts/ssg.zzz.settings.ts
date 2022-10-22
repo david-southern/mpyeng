@@ -1,10 +1,10 @@
-import * as THREE from 'three';
-import { BackgroundImageData, BackgroundImages } from './ssg.settings.backgrounds';
-import { Utils } from './utils';
+import * as THREE from "three";
+import { BackgroundImageData, BackgroundImages } from "./ssg.settings.backgrounds";
+import { Utils } from "./utils";
 
-export const GRID_TYPE_RECTANGULAR = 'Rectangular';
-export const GRID_TYPE_POLAR = 'Polar';
-export const GRID_TYPE_NONE = 'None';
+export const GRID_TYPE_RECTANGULAR = "Rectangular";
+export const GRID_TYPE_POLAR = "Polar";
+export const GRID_TYPE_NONE = "None";
 
 export class SSGOldSettings {
     public AmbientLightColor = "#404040";
@@ -43,9 +43,9 @@ export class SSGOldSettings {
     public GridType = GRID_TYPE_POLAR;
     public GridSizeFactor = 1.1;
     public GridMajorDivisions = 4;
-    public GridMajorColor = '#004000';
+    public GridMajorColor = "#004000";
     public GridMinorDivisions = 36;
-    public GridMinorColor = '#003000';
+    public GridMinorColor = "#003000";
 
     public PlanetScale = 1500;
     public StarScale = 50;
@@ -63,7 +63,7 @@ export class SSGOldSettings {
             Object.assign(this, partialObj);
         }
     }
-};
+}
 
 // Export this so I don't have to null=check things everywhere
 export const EmptySettings = new SSGOldSettings({

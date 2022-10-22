@@ -9,13 +9,13 @@ export enum SSGSystemFilter {
 }
 
 const shortSource = new Map<string, string>([
-    [SSGSystemFilter[SSGSystemFilter.Initialization], 'Init'],
-    [SSGSystemFilter[SSGSystemFilter.RenderSettings], 'RS'],
-    [SSGSystemFilter[SSGSystemFilter.RenderDiagnostics], 'RD'],
-    [SSGSystemFilter[SSGSystemFilter.ExportDiagnostics], 'Exp'],
-    [SSGSystemFilter[SSGSystemFilter.ModelBuilding], 'MB'],
-    [SSGSystemFilter[SSGSystemFilter.TimingDiagnostics], 'TD'],
-    [SSGSystemFilter[SSGSystemFilter.Always], 'All'],
+    [SSGSystemFilter[SSGSystemFilter.Initialization], "Init"],
+    [SSGSystemFilter[SSGSystemFilter.RenderSettings], "RS"],
+    [SSGSystemFilter[SSGSystemFilter.RenderDiagnostics], "RD"],
+    [SSGSystemFilter[SSGSystemFilter.ExportDiagnostics], "Exp"],
+    [SSGSystemFilter[SSGSystemFilter.ModelBuilding], "MB"],
+    [SSGSystemFilter[SSGSystemFilter.TimingDiagnostics], "TD"],
+    [SSGSystemFilter[SSGSystemFilter.Always], "All"],
 ]);
 
 class LoggerImpl {
@@ -31,7 +31,7 @@ class LoggerImpl {
         // this.filterSystem(SSGSystemFilter.TimingDiagnostics, false);
     }
 
-    public filterSystem(system: SSGSystemFilter, allow: boolean = false) {
+    public filterSystem(system: SSGSystemFilter, allow = false) {
         this.filteredSystems.set(system, !allow);
     }
 

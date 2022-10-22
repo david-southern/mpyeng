@@ -144,7 +144,7 @@ export const Sol = () => {
         ObjectColor: "red"
     });
 
-    const beltColor = '#ffffff'; // '#ffffff'
+    const beltColor = "#ffffff";
     const beltStart = 5; // 7.7;
     const beltWidth = 9.3; // 6.3;
     const beltCount = 27;

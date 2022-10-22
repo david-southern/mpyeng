@@ -1,19 +1,19 @@
-﻿import _ from 'lodash';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+﻿import _ from "lodash";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import * as PP from 'postprocessing';
+import * as PP from "postprocessing";
 
-import { Logger, SSGSystemFilter } from './ssg.logger';
-import { Utils } from './utils';
-import { SimTimeManager, SSGSimTimeManager } from './ssg.simtime.manager';
-import { SSGSettings } from './ssg.settings';
-import { DefaultBackgroundImage } from './ssg.settings.backgrounds';
-import { firstValueFrom } from 'rxjs';
-import { THREEUtils } from './utils.three';
-import { CanvasManager } from './canvas.manager';
-import { CameraManager } from './camera.manager';
-import { SceneManager } from './scene.manager';
+import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { Utils } from "./utils";
+import { SimTimeManager, SSGSimTimeManager } from "./ssg.simtime.manager";
+import { SSGSettings } from "./ssg.settings";
+import { DefaultBackgroundImage } from "./ssg.settings.backgrounds";
+import { firstValueFrom } from "rxjs";
+import { THREEUtils } from "./utils.three";
+import { CanvasManager } from "./canvas.manager";
+import { CameraManager } from "./camera.manager";
+import { SceneManager } from "./scene.manager";
 
 const DEFAULT_FOV = 30;
 const DEFAULT_ASPECT = 1.61;

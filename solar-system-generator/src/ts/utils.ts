@@ -1,5 +1,5 @@
 ﻿// cSpell: ignore centur
-import * as THREE from 'three';
+import * as THREE from "three";
 
 export class Utils {
     public static ClampDegrees(angle: number): number {
@@ -47,7 +47,7 @@ export class Utils {
         }
 
         // Yes, I know about Humanizr, but they don't have this format...
-        let scaleFactors: ScaleFactor[] = [
+        const scaleFactors: ScaleFactor[] = [
             { factor: 60, unit: "minute" },
             { factor: 60, unit: "hour" },
             { factor: 24, unit: "day" },
@@ -56,7 +56,7 @@ export class Utils {
             { factor: 10, unit: "centur", singularSuffix: "y", pluralSuffix: "ies" }
         ];
 
-        let sign = totalSeconds < 0 ? "-" : "";
+        const sign = totalSeconds < 0 ? "-" : "";
         let retTime = Math.abs(totalSeconds);
         let retUnit = "second";
         let singularSuffix = "";
@@ -71,7 +71,7 @@ export class Utils {
                 return true;
             }
             return false;
-        }
+        };
 
         for (const nextFactor of scaleFactors) {
             if (!checkScale(nextFactor)) {
@@ -90,9 +90,9 @@ export class Utils {
 
     public static async DownloadFileFromBlob(fileName: string, blob: Blob) {
         const url = URL.createObjectURL(blob);
-        const anchorElement = document.createElement('a');
+        const anchorElement = document.createElement("a");
         anchorElement.href = url;
-        anchorElement.download = fileName ?? '';
+        anchorElement.download = fileName ?? "";
         anchorElement.click();
         anchorElement.remove();
         URL.revokeObjectURL(url);
@@ -103,7 +103,7 @@ export class Utils {
      * both the same Infinite or Nan value.
      */
     private static SimpleFloatEQ(value1: number, value2: number): boolean {
-        if (typeof value1 !== 'number' || typeof value2 !== 'number') {
+        if (typeof value1 !== "number" || typeof value2 !== "number") {
             return false;
         }
 

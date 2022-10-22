@@ -1,24 +1,24 @@
-﻿import _ from 'lodash';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+﻿import _ from "lodash";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import blackBackground from '../images/black.png';
+import blackBackground from "../images/black.png";
 
-import * as PP from 'postprocessing';
+import * as PP from "postprocessing";
 
-import { CelestialObject } from './celestial-object';
+import { CelestialObject } from "./celestial-object";
 // import { OrbitControls } from './OrbitControls';
-import { Logger, SSGSystemFilter } from './ssg.logger';
-import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from './ssg.zzz.settings';
-import { Utils } from './utils';
-import { Orbiter } from './ssg.orbiter';
-import { SettingsManager } from './ssg.settings.manager';
-import { Constants } from './ssg.constants';
-import { THREEUtils } from './utils.three';
+import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
+import { Utils } from "./utils";
+import { Orbiter } from "./ssg.orbiter";
+import { SettingsManager } from "./ssg.settings.manager";
+import { Constants } from "./ssg.constants";
+import { THREEUtils } from "./utils.three";
 
 const DEFAULT_FOV = 70;
 const DEFAULT_ASPECT = 1.61;
-const DEFAULT_ORBITAL_COLOR = '#999999';
+const DEFAULT_ORBITAL_COLOR = "#999999";
 
 // I modeled all the planetary data in actual units, but those numbers are huge, and hard to track while debugging.
 // Scale everything down to 'smallish' numbers internally.
@@ -60,7 +60,7 @@ export class SSGOldRenderer {
     constructor() {
         this.systemScene = new THREE.Scene();
         this.gridScene = new THREE.Scene();
-        this.systemScene.name = 'SSG-root';
+        this.systemScene.name = "SSG-root";
         this.ambientLight = new THREE.AmbientLight();
         this.systemScene.add(this.ambientLight);
         this.directionalLight = new THREE.DirectionalLight();
@@ -95,9 +95,9 @@ export class SSGOldRenderer {
         this.canvasHeight = this.canvasElement.offsetHeight;
         this.canvasAspect = this.canvasWidth / this.canvasHeight;
 
-        var rect = this.canvasElement.getBoundingClientRect();
+        const rect = this.canvasElement.getBoundingClientRect();
 
-        Logger.info(SSGSystemFilter.Initialization, `Initializing SSG render with:`);
+        Logger.info(SSGSystemFilter.Initialization, "Initializing SSG render with:");
         Logger.info(SSGSystemFilter.Initialization, `    window @(${rect.left}, ${rect.top}), size: (${this.canvasWidth} x ${this.canvasHeight}), aspect: ${this.canvasAspect}`);
 
         this.camera.aspect = this.canvasAspect;
@@ -169,7 +169,7 @@ export class SSGOldRenderer {
             this.camera.updateProjectionMatrix();
 
             if (settings.BackgroundImage && settings.BackgroundImage.URL) {
-                if (settings.BackgroundImage.URL.startsWith('#')) {
+                if (settings.BackgroundImage.URL.startsWith("#")) {
                     this.gridScene.background = new THREE.Color(settings.BackgroundImage.URL);
                     return;
                 }
@@ -187,7 +187,7 @@ export class SSGOldRenderer {
                 this.backgroundAdjustEffect.brightness = settings.BackgroundImage.Brightness ?? 0;
                 this.backgroundAdjustEffect.contrast = settings.BackgroundImage.Contrast ?? 0;
             }
-        })
+        });
 
         Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: Settings: ", newSettings);
 
@@ -211,7 +211,7 @@ export class SSGOldRenderer {
         this.orbiters = [];
         this.systemGroup = this.buildSolarSystem(this.solarSystem);
         this.gridGroup = new THREE.Group();
-        this.gridGroup.name = 'SSG-system-grid';
+        this.gridGroup.name = "SSG-system-grid";
 
         SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
             while (this.gridGroup.children.length > 0) {
@@ -263,13 +263,13 @@ export class SSGOldRenderer {
         this.systemScene.add(this.systemGroup);
         this.gridScene.add(this.gridGroup);
 
-        Logger.info(SSGSystemFilter.ModelBuilding, `Ready to fix camera to scene`);
+        Logger.info(SSGSystemFilter.ModelBuilding, "Ready to fix camera to scene");
 
         // We need all the changes to the scene pushed before fitting the camera, so publish here
-        SettingsManager.publishSettings(newSettings)
+        SettingsManager.publishSettings(newSettings);
 
         if (newSettings.ResetOrbitControls) {
-            console.log("Resetting orbital controls!")
+            console.log("Resetting orbital controls!");
             this.orbitControls.reset();
             newSettings.ResetOrbitControls = false;
         }
@@ -288,15 +288,15 @@ export class SSGOldRenderer {
         });
 
         // And publish once more to get the zoom updated
-        SettingsManager.publishSettings(newSettings)
+        SettingsManager.publishSettings(newSettings);
 
-        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG System: `, this.systemGroup);
-        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Scene: `, this.systemScene);
-        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Grid: `, this.gridGroup);
-        Logger.info(SSGSystemFilter.RenderDiagnostics, `SSG Camera: `, this.camera);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG System: ", this.systemGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG Scene: ", this.systemScene);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG Grid: ", this.gridGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG Camera: ", this.camera);
 
         if (Logger.wouldLog(SSGSystemFilter.ExportDiagnostics)) {
-            Logger.info(SSGSystemFilter.ExportDiagnostics, 'Scene.JSON export: ', JSON.stringify(this.systemScene.toJSON()));
+            Logger.info(SSGSystemFilter.ExportDiagnostics, "Scene.JSON export: ", JSON.stringify(this.systemScene.toJSON()));
         }
     }
 
@@ -306,7 +306,7 @@ export class SSGOldRenderer {
         Logger.info(SSGSystemFilter.RenderSettings, "updateSettings: Settings: ", newSettings);
 
         if (newSettings.ResetOrbitControls) {
-            console.log("Resetting orbital controls!")
+            console.log("Resetting orbital controls!");
             this.orbitControls.reset();
             newSettings.ResetOrbitControls = false;
         }
@@ -343,14 +343,14 @@ export class SSGOldRenderer {
             speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
         }
 
-        const actualSimTime = (actualTime - this.actualStartTime)
-        let actualElapsedSeconds = actualTime - this.lastActualTime;
+        const actualSimTime = (actualTime - this.actualStartTime);
+        const actualElapsedSeconds = actualTime - this.lastActualTime;
         this.lastActualTime = actualTime;
-        let simElapsedSeconds = actualElapsedSeconds * speedScale;
+        const simElapsedSeconds = actualElapsedSeconds * speedScale;
         this.simTime += simElapsedSeconds;
 
         if (this.systemTimeElement) {
-            this.systemTimeElement.innerText = 'System Time: ' + Utils.HumanTime(this.simTime);
+            this.systemTimeElement.innerText = "System Time: " + Utils.HumanTime(this.simTime);
         }
 
         if (Date.now() > this.nextTimeDiags) {
@@ -396,7 +396,7 @@ export class SSGOldRenderer {
             SettingsManager.CurrentSettings.DownloadImage = false;
             const imgData = this.renderer.domElement.toBlob((imageBlob) => {
                 if (imageBlob) {
-                    Utils.DownloadFileFromBlob('system-image.png', imageBlob);
+                    Utils.DownloadFileFromBlob("system-image.png", imageBlob);
                 }
             });
         }
@@ -426,7 +426,7 @@ export class SSGOldRenderer {
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = this.camera.fov * (Math.PI / 180);
 
-        let ySize = Math.max(size.y, size.x / this.canvasAspect);
+        const ySize = Math.max(size.y, size.x / this.canvasAspect);
 
         let cameraYDistance = Math.abs(ySize / 2 / Math.tan(fov / 2));
         cameraYDistance *= offset; // zoom out a little so that objects don't fill the screen
@@ -453,12 +453,12 @@ export class SSGOldRenderer {
                 this.lookAtTarget.getWorldPosition(lookAtVec);
             }
             this.orbitControls.target = lookAtVec;
-            const lookAtName = this.lookAtTarget?.name ?? 'center';
+            const lookAtName = this.lookAtTarget?.name ?? "center";
             Logger.info(SSGSystemFilter.Always, `Look at: ${lookAtName} (${THREEUtils.DumpVec(this.orbitControls.target)})`);
 
             this.orbitControls.update();
         }
-    };
+    }
 
     private buildSolarSystem(rootObject: CelestialObject): THREE.Group {
         const sceneGroup = new THREE.Group();
@@ -468,13 +468,13 @@ export class SSGOldRenderer {
         const minorAxis = rootObject.OrbitalSemiMinorAxis / CoordsScale;
         const perigee = rootObject.OrbitalPerigee / CoordsScale;
 
-        let objectGroup = new THREE.Group();
+        const objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
         if (majorAxis > 0) {
             const orbitCurve = THREEUtils.BuildOrbitalEllipse(0, 0, majorAxis, minorAxis);
 
-            if (rootObject.OrbitColor !== 'none') {
+            if (rootObject.OrbitColor !== "none") {
                 const orbitObject = THREEUtils.BuildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitColor ?? DEFAULT_ORBITAL_COLOR);
                 orbitObject.name = `${rootObject.Name}-orbit-geom`;
                 sceneGroup.add(orbitObject);
@@ -515,9 +515,9 @@ export class SSGOldRenderer {
                 const ringWidth = rootObject.RingWidth ?? 0.5;
                 const ringThickness = 0.001;
                 const ringDensity = Math.max(Math.min(rootObject.RingDensity ?? 0.001, 1), 0);
-                const ringColor = rootObject.RingColor ?? 'none';
+                const ringColor = rootObject.RingColor ?? "none";
 
-                if (ringInnerRadius > 0 && ringColor != 'none' && rootObject.ParentObject) {
+                if (ringInnerRadius > 0 && ringColor != "none" && rootObject.ParentObject) {
                     // If the parent object is a planet, make it cast shadows so the rings look correct.
                     if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D) {
                         (rootObject.ParentObject.Obj3D as any).castShadow = true; //default is false
@@ -549,7 +549,7 @@ export class SSGOldRenderer {
                     const ringGeometry = new THREE.ExtrudeGeometry(outerRing, extrudeSettings);
                     // const ringMaterial = THREEUtils.planetMaterial(ringColor)
                     const ringMaterial = this.ringMaterialTextured(ringColor, ringDensity);
-                    const edgeMaterial = new THREE.MeshLambertMaterial({ color: '#000000' });
+                    const edgeMaterial = new THREE.MeshLambertMaterial({ color: "#000000" });
 
                     const ringMesh = new THREE.Mesh(ringGeometry, [ringMaterial, edgeMaterial]);
                     ringMesh.receiveShadow = true;
@@ -587,7 +587,7 @@ export class SSGOldRenderer {
         return sceneGroup;
     }
 
-    private ringMaterialTextured(ringColor: string, density: number = 0.1, chunkSize: number = 5) {
+    private ringMaterialTextured(ringColor: string, density = 0.1, chunkSize = 5) {
         const width = 512;
         const height = 512;
 

@@ -1,19 +1,19 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
-import blackBackground from '../images/black.png';
+import blackBackground from "../images/black.png";
 
-import milkyWay1 from '../images/milky-way-1.jpg';
-import milkyWay2 from '../images/milky-way-2.jpg';
-import nebulaCarinaNorth from '../images/nebula-carina-north.jpg';
-import nebulaCarinaPillar from '../images/nebula-carina-pillar.jpg';
-import nebulaFlamingStar from '../images/nebula-flaming-star.jpg';
-import nebulaHorseFlame from '../images/nebula-horse-flame.jpg';
-import nebulaM42 from '../images/nebula-m42-gleason.jpg';
-import nebulaMgc6751 from '../images/nebula-ngc6751.jpg';
-import starsDeepField from '../images/stars-hubble-deep-field.jpg';
-import starsM34 from '../images/stars-m34-franke.jpg';
-import starsM46 from '../images/stars-m46-m47.jpg';
-import starsM67 from '../images/stars-m67.jpg';
+import milkyWay1 from "../images/milky-way-1.jpg";
+import milkyWay2 from "../images/milky-way-2.jpg";
+import nebulaCarinaNorth from "../images/nebula-carina-north.jpg";
+import nebulaCarinaPillar from "../images/nebula-carina-pillar.jpg";
+import nebulaFlamingStar from "../images/nebula-flaming-star.jpg";
+import nebulaHorseFlame from "../images/nebula-horse-flame.jpg";
+import nebulaM42 from "../images/nebula-m42-gleason.jpg";
+import nebulaMgc6751 from "../images/nebula-ngc6751.jpg";
+import starsDeepField from "../images/stars-hubble-deep-field.jpg";
+import starsM34 from "../images/stars-m34-franke.jpg";
+import starsM46 from "../images/stars-m46-m47.jpg";
+import starsM67 from "../images/stars-m67.jpg";
 
 export class BackgroundImageData {
     constructor(public Description: string, public URL: any, public Brightness?: number, public Contrast?: number) {

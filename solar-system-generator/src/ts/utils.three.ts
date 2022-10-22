@@ -1,7 +1,7 @@
-﻿import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { Logger, SSGSystemFilter } from './ssg.logger';
-import { Utils } from './utils';
+﻿import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { Utils } from "./utils";
 
 export class THREEUtils {
     public static DumpVec(vec: THREE.Vector2 | THREE.Vector3): string {
@@ -9,7 +9,7 @@ export class THREEUtils {
     }
 
     public static SetPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number) {
-        if (typeof x === 'number') {
+        if (typeof x === "number") {
             object3d.position.x = x;
             object3d.position.y = y ?? 0;
             object3d.position.z = z ?? 0;
@@ -64,7 +64,7 @@ export class THREEUtils {
         const starGroup = new THREE.Group();
 
         const pointLight = new THREE.PointLight(color, 1);
-        starGroup.add(pointLight)
+        starGroup.add(pointLight);
 
         const geometry = new THREE.SphereGeometry(radius, 32, 16);
         const sphere = new THREE.Mesh(geometry, THREEUtils.StarMaterial(color));
@@ -127,7 +127,7 @@ export class THREEUtils {
 
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: aspect ratio: ${aspectRatio}, FOV: ${camera.fov}`);
 
-        let ySize = Math.max(size.y, size.x / aspectRatio);
+        const ySize = Math.max(size.y, size.x / aspectRatio);
 
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: target Y Size: ${ySize}`);
 

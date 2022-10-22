@@ -1,11 +1,11 @@
-import * as _ from 'lodash';
-import { CelestialObject } from './celestial-object';
-import { Sol } from './solar-system';
-import { Logger, SSGSystemFilter } from './ssg.logger';
-import { SSGRenderer } from './ssg.renderer';
-import GUI from 'lil-gui';
+import * as _ from "lodash";
+import { CelestialObject } from "./celestial-object";
+import { Sol } from "./solar-system";
+import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { SSGRenderer } from "./ssg.renderer";
+import GUI from "lil-gui";
 
-import { GlobalSettings, SSGSettings } from './ssg.settings';
+import { GlobalSettings, SSGSettings } from "./ssg.settings";
 
 export const Renderer = new SSGRenderer();
 
@@ -28,5 +28,5 @@ const controller = new Controller();
 
 const gui = new GUI();
 
-gui.add(GlobalSettings, 'AnimationSpeed', -1, 1, 0.0001);
-gui.add(controller, 'pauseAnimation');
+gui.add(GlobalSettings, "AnimationSpeed", -1, 1, 0.0001);
+gui.add(controller, "pauseAnimation");

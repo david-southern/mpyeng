@@ -1,12 +1,12 @@
-import { BehaviorSubject, combineLatest, map } from 'rxjs';
-import * as THREE from 'three';
-import { CelestialObject } from './celestial-object';
-import { DefaultBackgroundImage } from './ssg.settings.backgrounds';
-import { Utils } from './utils';
+import { BehaviorSubject, combineLatest, map } from "rxjs";
+import * as THREE from "three";
+import { CelestialObject } from "./celestial-object";
+import { DefaultBackgroundImage } from "./ssg.settings.backgrounds";
+import { Utils } from "./utils";
 
-export const GRID_TYPE_RECTANGULAR = 'Rectangular';
-export const GRID_TYPE_POLAR = 'Polar';
-export const GRID_TYPE_NONE = 'None';
+export const GRID_TYPE_RECTANGULAR = "Rectangular";
+export const GRID_TYPE_POLAR = "Polar";
+export const GRID_TYPE_NONE = "None";
 
 export class SSGSettings {
     private static _Instance = new SSGSettings();
@@ -153,7 +153,7 @@ export class SSGSettings {
         this.GridMajorDivisions$.next(value);
     }
 
-    public GridMajorColor$ = new BehaviorSubject('#004000');
+    public GridMajorColor$ = new BehaviorSubject("#004000");
     public get GridMajorColor() {
         return this.GridMajorColor$.value;
     } public set GridMajorColor(value) {
@@ -167,7 +167,7 @@ export class SSGSettings {
         this.GridMinorDivisions$.next(value);
     }
 
-    public GridMinorColor$ = new BehaviorSubject('#003000');
+    public GridMinorColor$ = new BehaviorSubject("#003000");
     public get GridMinorColor() {
         return this.GridMinorColor$.value;
     } public set GridMinorColor(value) {
