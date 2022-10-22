@@ -15,10 +15,6 @@ import starsM34 from '../images/stars-m34-franke.jpg';
 import starsM46 from '../images/stars-m46-m47.jpg';
 import starsM67 from '../images/stars-m67.jpg';
 
-export const GRID_TYPE_RECTANGULAR = 'Rectangular';
-export const GRID_TYPE_POLAR = 'Polar';
-export const GRID_TYPE_NONE = 'None';
-
 export class BackgroundImageData {
     constructor(public Description: string, public URL: any, public Brightness?: number, public Contrast?: number) {
     }

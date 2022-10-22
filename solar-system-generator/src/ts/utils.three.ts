@@ -81,7 +81,7 @@ export class THREEUtils {
         return starGroup;
     }
 
-    public static BuildGrid(size: number, divisions: number, centerColor: string, lineColor: string) {
+    public static ZZZBuildGrid(size: number, divisions: number, centerColor: string, lineColor: string) {
         const gridHelper = new THREE.GridHelper(size, divisions, centerColor, lineColor);
         gridHelper.rotation.x = Utils.DegreesToRadians(90);
         gridHelper.renderOrder = -1;
@@ -89,7 +89,7 @@ export class THREEUtils {
         return gridHelper;
     }
 
-    public static BuildPolarGrid(radius: number, sectors: number, rings: number, divisions: number,
+    public static ZZZBuildPolarGrid(radius: number, sectors: number, rings: number, divisions: number,
         color1: string, color2: string) {
 
         const gridHelper = new THREE.PolarGridHelper(radius, sectors, rings, divisions, color1, color2);

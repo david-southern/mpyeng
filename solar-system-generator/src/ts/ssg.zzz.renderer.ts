@@ -231,12 +231,12 @@ export class SSGOldRenderer {
             let gridMesh;
 
             if (settings.GridType == GRID_TYPE_RECTANGULAR) {
-                gridMesh = THREEUtils.BuildGrid(gridSize, settings.GridMajorDivisions,
+                gridMesh = THREEUtils.ZZZBuildGrid(gridSize, settings.GridMajorDivisions,
                     settings.GridMajorColor, settings.GridMinorColor);
             }
 
             if (settings.GridType == GRID_TYPE_POLAR) {
-                gridMesh = THREEUtils.BuildPolarGrid(gridSize / 2,
+                gridMesh = THREEUtils.ZZZBuildPolarGrid(gridSize / 2,
                     settings.GridMinorDivisions, settings.GridMajorDivisions, 64,
                     settings.GridMajorColor, settings.GridMinorColor);
             }

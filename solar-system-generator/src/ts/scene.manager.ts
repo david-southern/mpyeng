@@ -1,16 +1,19 @@
 import _ from 'lodash';
-import { Subject } from 'rxjs';
+import { combineLatest, ReplaySubject, Subject, takeUntil } from 'rxjs';
 import * as THREE from 'three';
 import { CelestialObject } from './celestial-object';
-import { GlobalSettings } from './ssg.settings';
-import { GRID_TYPE_NONE } from './ssg.settings.backgrounds';
+import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from './ssg.settings';
 import { SimTimeManager } from './ssg.simtime.manager';
+import { Utils } from './utils';
+import { THREEUtils } from './utils.three';
 
 export class SSGSceneManager {
     private static _Instance = new SSGSceneManager();
     public static get Instance() {
         return SSGSceneManager._Instance;
     }
+
+    public SceneUpdated$ = new ReplaySubject<THREE.Scene>(1);
 
     // Make the constructor private to signal that SSGRxSettings is a singleton
     private constructor() {
@@ -26,13 +29,34 @@ export class SSGSceneManager {
         this.directionalLight = new THREE.DirectionalLight();
         this.systemScene.add(this.directionalLight);
 
-        GlobalSettings.SystemRoot$.subscribe(rootObject => this.RenderSystem(rootObject));
+        GlobalSettings.SystemRoot$.pipe(takeUntil(this.unsubscribe))
+            .subscribe(rootObject => this.RenderSystem(rootObject));
 
-        GlobalSettings.GridType$.subscribe(gridType => this.RenderGrid(gridType));
+        combineLatest([
+            this.SceneUpdated$, GlobalSettings.GridType$, GlobalSettings.GridSizeFactor$,
+            GlobalSettings.GridMajorDivisions$, GlobalSettings.GridMinorDivisions$,
+            GlobalSettings.GridMajorColor$, GlobalSettings.GridMinorColor$
+        ]).pipe(takeUntil(this.unsubscribe))
+            .subscribe(([
+                sceneUpdated, gridType, gridSizeFactor,
+                majorDivisions, minorDivisions,
+                majorColor, minorColor
+            ]) => {
+                this.RenderGrid(sceneUpdated, gridType, gridSizeFactor,
+                    majorDivisions, minorDivisions,
+                    majorColor, minorColor);
+            });
     }
 
+    public Destroy() {
+        this.unsubscribe.next();
+        this.unsubscribe.complete();
+    }
+
+    private unsubscribe = new Subject<void>();
+
     private systemScene: THREE.Scene;
-    public get SystemScene() { 
+    public get SystemScene() {
         return this.systemScene;
     }
     private systemContent?: THREE.Group;
@@ -47,22 +71,33 @@ export class SSGSceneManager {
     private directionalLight: THREE.DirectionalLight;
 
     private RenderSystem(rootObject?: CelestialObject) {
-        if (this.systemContent) {
-            this.systemContent.removeFromParent();
-            this.systemContent = undefined;
-        }
+        let sceneUpdated = false;
 
-        if (!rootObject) {
-            return;
-        }
+        try {
+            if (this.systemContent) {
+                this.systemContent.removeFromParent();
+                this.systemContent = undefined;
+                sceneUpdated = true;
+            }
 
+            if (!rootObject) {
+                return;
+            }
+        }
+        finally {
+            if (sceneUpdated) {
+                this.SceneUpdated$.next(true);
+            }
+        }
     }
 
-    private RenderGrid(gridType?: string) {
+    private RenderGrid(sceneUpdated: THREE.Scene, gridType: string, gridSizeFactor: number,
+        majorDivisions: number, minorDivisions: number, majorColor: string, minorColor: string) {
         if (this.gridContent) {
             this.gridContent.removeFromParent();
             this.gridContent = undefined;
-        }                    7 -nuij mkop
+        }
+
         if (!gridType || gridType == GRID_TYPE_NONE) {
             return;
         }
@@ -70,37 +105,35 @@ export class SSGSceneManager {
         this.gridContent = new THREE.Group();
         this.gridContent.name = 'SSG-system-grid';
 
+        const boundingBox = new THREE.Box3();
+        boundingBox.setFromObject(this.systemScene);
 
-            const boundingBox = new THREE.Box3();
-            boundingBox.setFromObject(this.systemGroup);
+        const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y)
+            * GlobalSettings.GridSizeFactor;
 
-            const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y)
-                * settings.GridSizeFactor;
+        let gridMesh;
 
-            let gridMesh;
+        if (gridType == GRID_TYPE_RECTANGULAR) {
+            const gridHelper = new THREE.GridHelper(gridSize, GlobalSettings.GridMajorDivisions,
+                GlobalSettings.GridMajorColor, GlobalSettings.GridMinorColor);
+            gridHelper.rotation.x = Utils.DegreesToRadians(90);
+            gridHelper.renderOrder = -1;
+        }
 
-            if (settings.GridType == GRID_TYPE_RECTANGULAR) {
-                gridMesh = THREEUtils.BuildGrid(gridSize, settings.GridMajorDivisions,
-                    settings.GridMajorColor, settings.GridMinorColor);
-            }
+        if (gridType == GRID_TYPE_POLAR) {
+            const gridHelper = new THREE.PolarGridHelper(gridSize / 2,
+                GlobalSettings.GridMinorDivisions, GlobalSettings.GridMajorDivisions, 64,
+                GlobalSettings.GridMajorColor, GlobalSettings.GridMinorColor);
+            gridHelper.rotation.x = Utils.DegreesToRadians(90);
+            gridHelper.renderOrder = -1;
+        }
 
-            if (settings.GridType == GRID_TYPE_POLAR) {
-                gridMesh = THREEUtils.BuildPolarGrid(gridSize / 2,
-                    settings.GridMinorDivisions, settings.GridMajorDivisions, 64,
-                    settings.GridMajorColor, settings.GridMinorColor);
-            }
-
-            if (gridMesh) {
-                this.gridGroup.add(gridMesh);
-            }
-        });
-
-
-
+        if (gridMesh) {
+            this.gridContent.add(gridMesh);
+        }
     }
 
-    public UpdateScene()
-    {
+    public UpdateScene() {
     }
 
     public FindObject(targetName?: string) {
