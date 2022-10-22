@@ -13,59 +13,60 @@ import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings,
 import { Utils } from './utils';
 import { Orbiter } from './ssg.orbiter';
 import { SettingsManager } from './ssg.settings.manager';
-import { SSGSettings } from './ssg.settings';
-import { firstValueFrom } from 'rxjs';
+import { GlobalSettings, SSGSettings } from './ssg.settings';
+import { firstValueFrom, Subject } from 'rxjs';
 
 const DEFAULT_FOV = 70;
 const DEFAULT_ASPECT = 1.61;
 const DEFAULT_ORBITAL_COLOR = '#999999';
 
 export class SSGSimTimeManager {
-    private static _SimTimeManager = new SSGSimTimeManager();
-    public static get SimTimeManager() {
-        return SSGSimTimeManager._SimTimeManager;
+    private static _Instance = new SSGSimTimeManager();
+    public static get Instance() {
+        return SSGSimTimeManager._Instance;
     }
+
+    private TickSubject = new Subject<number>();
+    public Tick$ = this.TickSubject.asObservable();
 
     // Make the constructor private to signal that SSGSimTimeManager is a singleton
     private constructor() {
     }
 
-    private settings: SSGSettings = SSGSettings.GlobalSettings;
+    private actualStartTime: number = 0;
+    private lastActualTime: number = 0;
 
-    private actualStartTime: number = null!;
-    private lastActualTime: number = null!;
-    private _actualTime: number = null!;
+    private _actualTime: number = 0;
     public get ActualTime() {
         return this._actualTime;
     }
 
-    private _actualElapsedSeconds: number = null!;
+    private _actualElapsedSeconds: number = 0;
     public get LastFrameActualElapsedSeconds() {
         return this._actualElapsedSeconds;
     }
 
-    private _simTime: number = null!;
+    private _simTime: number = 0;
     public get SimTime() {
         return this._simTime;
     }
 
-    private _simElapsedSeconds: number = null!;
+    private _simElapsedSeconds: number = 0;
     public get LastFrameSimElapsedSeconds() {
         return this._simElapsedSeconds;
     }
 
-    private showTimeDiags = false;
-    private nextTimeDiags = 0;
+    private ANIMATION_DIAGS_FREQ_MS = 5000;
+    private SHOW_DIAGS = false;
+    private nextDiags = 0;
 
     public async UpdateSimTime(actualMillis: number) {
         this._actualTime = actualMillis / 1000;
 
-        this.checkInitialization();
-
         let speedScale = 0;
 
-        if (Utils.FloatNE(this.settings.AnimationSpeed.value, 0)) {
-            speedScale = await firstValueFrom(this.settings.AnimationTimeScale$);
+        if (Utils.FloatNE(GlobalSettings.AnimationSpeed, 0)) {
+            speedScale = await firstValueFrom(GlobalSettings.AnimationTimeScale$);
         }
 
         const actualSimTime = (this._actualTime - this.actualStartTime);
@@ -74,27 +75,18 @@ export class SSGSimTimeManager {
         this._simElapsedSeconds = this._actualElapsedSeconds * speedScale;
         this._simTime += this._simElapsedSeconds;
 
-        if (this.showTimeDiags && Date.now() > this.nextTimeDiags) {
-            let diagsString = `Anim: SpeedScale: ${speedScale}`;
-            diagsString += ` (${await firstValueFrom(this.settings.AnimationTimeScaleHuman$)})`;
-            diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this._simTime)}`;
-            diagsString += `, Frame: Actual: ${Utils.humanTime(this._actualElapsedSeconds)}, Sim: ${Utils.humanTime(this._simElapsedSeconds)}`;
-            Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
-            this.nextTimeDiags = Date.now() + 1000;
-        }
-    }
-
-    private checkInitialization() {
-        if (this.actualStartTime === undefined) {
-            this.actualStartTime = this._actualTime;
+        if (this.SHOW_DIAGS && Date.now() > this.nextDiags) {
+            const diagScale = await firstValueFrom(GlobalSettings.AnimationTimeScaleHuman$);
+            Logger.info(SSGSystemFilter.TimingDiagnostics, `SimTimeMgr: Time Scale: ${diagScale}`);
+            Logger.info(SSGSystemFilter.TimingDiagnostics, `  Clock: Actual: ${Utils.HumanTime(this._actualTime)}`);
+            Logger.info(SSGSystemFilter.TimingDiagnostics, `            Sim: ${Utils.HumanTime(this._simTime)}`);
+            Logger.info(SSGSystemFilter.TimingDiagnostics, `  Frame: Actual: ${Utils.HumanTime(this._actualElapsedSeconds)}`);
+            Logger.info(SSGSystemFilter.TimingDiagnostics, `            Sim: ${Utils.HumanTime(this._simElapsedSeconds)}`);
+            this.nextDiags = Date.now() + this.ANIMATION_DIAGS_FREQ_MS;
         }
 
-        if (this.lastActualTime === undefined) {
-            this.lastActualTime = this._actualTime;
-        }
-
-        if (this._simTime === undefined) {
-            this._simTime = 0;
-        }
+        this.TickSubject.next(actualMillis);
     }
 }
+
+export const SimTimeManager = SSGSimTimeManager.Instance;

@@ -1,47 +1,134 @@
-﻿import * as THREE from 'three';
+﻿import { BehaviorSubject } from 'rxjs';
+import * as THREE from 'three';
 import { Utils } from './utils';
 
-export class CelestialObject {
-    Name?: string;
+export const COLOR_NONE = 'none';
 
+export class CelestialObject {
     ParentObject?: CelestialObject;
     ParentName?: string;
     ChildObjects: CelestialObject[] = [];
     ChildDepth: number = 0;
     SystemOrder: number = 0;
 
-    IsSelected: boolean = false;
-
-    IsStar: boolean = false;
-    OrbitalSemiMajorAxis: number = 0;
-    OrbitalSemiMinorAxis: number = 0;
-    OrbitalPerigee: number = 0;
-    OrbitalVelocity: number = 0;
-    InitialOrbitalAngle: number = 0;
-    ObjectRadius: number = 0;
-    ObjectColor: string = null!;
-    OrbitColor: string = null!;
-
-    private m_OrbitalInclination: number = 0;
-    get OrbitalInclination(): number {
-        return this.m_OrbitalInclination;
-    }
-    set OrbitalInclination(value: number) {
-        this.m_OrbitalInclination = Utils.clamp(value, -90, 90);
+    public Name$ = new BehaviorSubject(COLOR_NONE);
+    public get Name() {
+        return this.Name$.value;
+    } public set Name(value) {
+        this.Name$.next(value);
     }
 
-    private m_PhaseAngle: number = 0;
-    get PhaseAngle(): number {
-        return this.m_PhaseAngle;
-    }
-    set PhaseAngle(value: number) {
-        this.m_PhaseAngle = Utils.clampDegrees(value);
+    public IsSelected$ = new BehaviorSubject(false);
+    public get IsSelected() {
+        return this.IsSelected$.value;
+    } public set IsSelected(value) {
+        this.IsSelected$.next(value);
     }
 
-    RingInnerRadius?: number;
-    RingWidth?: number;
-    RingDensity?: number;
-    RingColor?: string;
+    public IsStar$ = new BehaviorSubject(false);
+    public get IsStar() {
+        return this.IsStar$.value;
+    } public set IsStar(value) {
+        this.IsStar$.next(value);
+    }
+
+    public OrbitalSemiMajorAxis$ = new BehaviorSubject(0);
+    public get OrbitalSemiMajorAxis() {
+        return this.OrbitalSemiMajorAxis$.value;
+    } public set OrbitalSemiMajorAxis(value) {
+        this.OrbitalSemiMajorAxis$.next(value);
+    }
+
+    public OrbitalSemiMinorAxis$ = new BehaviorSubject(0);
+    public get OrbitalSemiMinorAxis() {
+        return this.OrbitalSemiMinorAxis$.value;
+    } public set OrbitalSemiMinorAxis(value) {
+        this.OrbitalSemiMinorAxis$.next(value);
+    }
+
+    public OrbitalPerigee$ = new BehaviorSubject(0);
+    public get OrbitalPerigee() {
+        return this.OrbitalPerigee$.value;
+    } public set OrbitalPerigee(value) {
+        this.OrbitalPerigee$.next(value);
+    }
+
+    public OrbitalVelocity$ = new BehaviorSubject(0);
+    public get OrbitalVelocity() {
+        return this.OrbitalVelocity$.value;
+    } public set OrbitalVelocity(value) {
+        this.OrbitalVelocity$.next(value);
+    }
+
+    public InitialOrbitalAngle$ = new BehaviorSubject(0);
+    public get InitialOrbitalAngle() {
+        return this.InitialOrbitalAngle$.value;
+    } public set InitialOrbitalAngle(value) {
+        this.InitialOrbitalAngle$.next(value);
+    }
+
+    public ObjectRadius$ = new BehaviorSubject(0);
+    public get ObjectRadius() {
+        return this.ObjectRadius$.value;
+    } public set ObjectRadius(value) {
+        this.ObjectRadius$.next(value);
+    }
+
+    public ObjectColor$ = new BehaviorSubject(COLOR_NONE);
+    public get ObjectColor() {
+        return this.ObjectColor$.value;
+    } public set ObjectColor(value) {
+        this.ObjectColor$.next(value);
+    }
+
+    public OrbitColor$ = new BehaviorSubject(COLOR_NONE);
+    public get OrbitColor() {
+        return this.OrbitColor$.value;
+    } public set OrbitColor(value) {
+        this.OrbitColor$.next(value);
+    }
+
+    public OrbitalInclination$ = new BehaviorSubject(0);
+    public get OrbitalInclination() {
+        return this.OrbitalInclination$.value;
+    } public set OrbitalInclination(value) {
+        this.OrbitalInclination$.next(Utils.Clamp(value, -90, 90));
+    }
+
+    public PhaseAngle$ = new BehaviorSubject(0);
+    public get PhaseAngle() {
+        return this.PhaseAngle$.value;
+    } public set PhaseAngle(value) {
+        this.PhaseAngle$.next(Utils.ClampDegrees(value));
+    }
+
+    public RingInnerRadius$ = new BehaviorSubject(0);
+    public get RingInnerRadius() {
+        return this.RingInnerRadius$.value;
+    } public set RingInnerRadius(value) {
+        this.RingInnerRadius$.next(value);
+    }
+
+    public RingWidth$ = new BehaviorSubject(0);
+    public get RingWidth() {
+        return this.RingWidth$.value;
+    } public set RingWidth(value) {
+        this.RingWidth$.next(value);
+    }
+
+    public RingDensity$ = new BehaviorSubject(0);
+    public get RingDensity() {
+        return this.RingDensity$.value;
+    } public set RingDensity(value) {
+        this.RingDensity$.next(value);
+    }
+
+    public RingColor$ = new BehaviorSubject(COLOR_NONE);
+    public get RingColor() {
+        return this.RingColor$.value;
+    } public set RingColor(value) {
+        this.RingColor$.next(value);
+    }
 
     Obj3D?: THREE.Object3D;
 

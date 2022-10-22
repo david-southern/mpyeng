@@ -204,7 +204,7 @@ export class SSGOldRenderer {
                 this.systemScene.add(this.directionalLight);
                 this.directionalLight.color = new THREE.Color(settings.DirectionalLightColor);
                 this.directionalLight.intensity = settings.DirectionalLightIntensity;
-                THREEUtils.setPosition(this.directionalLight, settings.DirectionalLightPosition);
+                THREEUtils.SetPosition(this.directionalLight, settings.DirectionalLightPosition);
             }
         });
 
@@ -231,12 +231,12 @@ export class SSGOldRenderer {
             let gridMesh;
 
             if (settings.GridType == GRID_TYPE_RECTANGULAR) {
-                gridMesh = THREEUtils.buildGrid(gridSize, settings.GridMajorDivisions,
+                gridMesh = THREEUtils.BuildGrid(gridSize, settings.GridMajorDivisions,
                     settings.GridMajorColor, settings.GridMinorColor);
             }
 
             if (settings.GridType == GRID_TYPE_POLAR) {
-                gridMesh = THREEUtils.buildPolarGrid(gridSize / 2,
+                gridMesh = THREEUtils.BuildPolarGrid(gridSize / 2,
                     settings.GridMinorDivisions, settings.GridMajorDivisions, 64,
                     settings.GridMajorColor, settings.GridMinorColor);
             }
@@ -251,13 +251,13 @@ export class SSGOldRenderer {
             // understand 3D math well enough to get the rotation I want in one go, but separate rotations seem to work well
             // enough.
 
-            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 0, 1), Utils.degreesToRadians(settings.ViewAngleZDegrees));
-            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), Utils.degreesToRadians(settings.ViewAngleYDegrees));
-            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(1, 0, 0), Utils.degreesToRadians(settings.ViewAngleXDegrees));
+            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 0, 1), Utils.DegreesToRadians(settings.ViewAngleZDegrees));
+            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), Utils.DegreesToRadians(settings.ViewAngleYDegrees));
+            this.gridGroup.setRotationFromAxisAngle(new THREE.Vector3(1, 0, 0), Utils.DegreesToRadians(settings.ViewAngleXDegrees));
 
-            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 0, 1), Utils.degreesToRadians(settings.ViewAngleZDegrees));
-            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), Utils.degreesToRadians(settings.ViewAngleYDegrees));
-            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(1, 0, 0), Utils.degreesToRadians(settings.ViewAngleXDegrees));
+            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 0, 1), Utils.DegreesToRadians(settings.ViewAngleZDegrees));
+            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), Utils.DegreesToRadians(settings.ViewAngleYDegrees));
+            this.systemGroup.setRotationFromAxisAngle(new THREE.Vector3(1, 0, 0), Utils.DegreesToRadians(settings.ViewAngleXDegrees));
         });
 
         this.systemScene.add(this.systemGroup);
@@ -350,15 +350,15 @@ export class SSGOldRenderer {
         this.simTime += simElapsedSeconds;
 
         if (this.systemTimeElement) {
-            this.systemTimeElement.innerText = 'System Time: ' + Utils.humanTime(this.simTime);
+            this.systemTimeElement.innerText = 'System Time: ' + Utils.HumanTime(this.simTime);
         }
 
         if (Date.now() > this.nextTimeDiags) {
             showDiags = true;
             let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
             diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
-            diagsString += `, Clock: Actual: ${Utils.humanTime(actualSimTime)}, Sim: ${Utils.humanTime(this.simTime)}`;
-            diagsString += `, Frame: Actual: ${Utils.humanTime(actualElapsedSeconds)}, Sim: ${Utils.humanTime(simElapsedSeconds)}`;
+            diagsString += `, Clock: Actual: ${Utils.HumanTime(actualSimTime)}, Sim: ${Utils.HumanTime(this.simTime)}`;
+            diagsString += `, Frame: Actual: ${Utils.HumanTime(actualElapsedSeconds)}, Sim: ${Utils.HumanTime(simElapsedSeconds)}`;
             Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
             this.nextTimeDiags = Date.now() + 1000;
         }
@@ -396,7 +396,7 @@ export class SSGOldRenderer {
             SettingsManager.CurrentSettings.DownloadImage = false;
             const imgData = this.renderer.domElement.toBlob((imageBlob) => {
                 if (imageBlob) {
-                    Utils.downloadFileFromBlob('system-image.png', imageBlob);
+                    Utils.DownloadFileFromBlob('system-image.png', imageBlob);
                 }
             });
         }
@@ -472,10 +472,10 @@ export class SSGOldRenderer {
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
         if (majorAxis > 0) {
-            const orbitCurve = THREEUtils.buildOrbitalEllipse(0, 0, majorAxis, minorAxis);
+            const orbitCurve = THREEUtils.BuildOrbitalEllipse(0, 0, majorAxis, minorAxis);
 
             if (rootObject.OrbitColor !== 'none') {
-                const orbitObject = THREEUtils.buildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitColor ?? DEFAULT_ORBITAL_COLOR);
+                const orbitObject = THREEUtils.BuildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitColor ?? DEFAULT_ORBITAL_COLOR);
                 orbitObject.name = `${rootObject.Name}-orbit-geom`;
                 sceneGroup.add(orbitObject);
             }
@@ -503,10 +503,10 @@ export class SSGOldRenderer {
 
                 if (rootObject.IsStar) {
                     planetaryRadius *= settings.StarScale;
-                    rootObject.Obj3D = THREEUtils.buildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
+                    rootObject.Obj3D = THREEUtils.BuildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 } else {
                     planetaryRadius *= settings.PlanetScale;
-                    rootObject.Obj3D = THREEUtils.buildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
+                    rootObject.Obj3D = THREEUtils.BuildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 }
 
                 Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
@@ -553,7 +553,7 @@ export class SSGOldRenderer {
 
                     const ringMesh = new THREE.Mesh(ringGeometry, [ringMaterial, edgeMaterial]);
                     ringMesh.receiveShadow = true;
-                    THREEUtils.setPosition(ringMesh, 0, 0, -ringGeomThickness / 2);
+                    THREEUtils.SetPosition(ringMesh, 0, 0, -ringGeomThickness / 2);
 
                     rootObject.Obj3D = ringMesh;
                 }
@@ -572,11 +572,11 @@ export class SSGOldRenderer {
 
         if (rootObject.PhaseAngle != 0) {
             sceneGroup.rotation.order = "ZYX";
-            sceneGroup.rotation.z = Utils.degreesToRadians(rootObject.PhaseAngle);
+            sceneGroup.rotation.z = Utils.DegreesToRadians(rootObject.PhaseAngle);
         }
 
         if (rootObject.OrbitalInclination != 0) {
-            sceneGroup.rotation.y = Utils.degreesToRadians(rootObject.OrbitalInclination);
+            sceneGroup.rotation.y = Utils.DegreesToRadians(rootObject.OrbitalInclination);
         }
 
         for (const childObj of rootObject.ChildObjects) {

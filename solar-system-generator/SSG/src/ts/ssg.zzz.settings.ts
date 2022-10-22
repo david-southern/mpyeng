@@ -29,7 +29,7 @@ export class SSGOldSettings {
     public MaxAnimationSpeedScale = 10e8;
 
     public get AnimationTimeScale(): number {
-        const clampedSpeed = Utils.clamp(this.AnimationSpeed, -1, 1);
+        const clampedSpeed = Utils.Clamp(this.AnimationSpeed, -1, 1);
 
         // Use a quadratic easing function, but allow the sign of the clampedSpeed through
         return clampedSpeed * Math.abs(clampedSpeed) * this.MaxAnimationSpeedScale;
@@ -37,7 +37,7 @@ export class SSGOldSettings {
 
     // A human-readable representation of the AnimationTimeScale
     public get AnimationTimeScaleHuman(): string {
-        return Utils.FloatEQ(this.AnimationTimeScale, 0) ? "paused" : `${Utils.humanTime(this.AnimationTimeScale)} per second`;
+        return Utils.FloatEQ(this.AnimationTimeScale, 0) ? "paused" : `${Utils.HumanTime(this.AnimationTimeScale)} per second`;
     }
 
     public GridType = GRID_TYPE_POLAR;

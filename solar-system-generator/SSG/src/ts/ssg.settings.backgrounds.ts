@@ -4,7 +4,7 @@ import blackBackground from '../images/black.png';
 
 import milkyWay1 from '../images/milky-way-1.jpg';
 import milkyWay2 from '../images/milky-way-2.jpg';
-import nebulaCarniaNorth from '../images/nebula-carina-north.jpg';
+import nebulaCarinaNorth from '../images/nebula-carina-north.jpg';
 import nebulaCarinaPillar from '../images/nebula-carina-pillar.jpg';
 import nebulaFlamingStar from '../images/nebula-flaming-star.jpg';
 import nebulaHorseFlame from '../images/nebula-horse-flame.jpg';
@@ -29,7 +29,7 @@ export const BackgroundImages: BackgroundImageData[] = [
     new BackgroundImageData("Milky Way 1", milkyWay1),
     new BackgroundImageData("Milky Way 2", milkyWay2),
     new BackgroundImageData("Nebula 1 - Carina", nebulaCarinaPillar),
-    new BackgroundImageData("Nebula 2 - Carina/Clombari", nebulaCarniaNorth),
+    new BackgroundImageData("Nebula 2 - Carina/Clombari", nebulaCarinaNorth),
     new BackgroundImageData("Nebula 3 - Horse & Flame", nebulaHorseFlame),
     new BackgroundImageData("Nebula 4 - Flaming Star", nebulaFlamingStar),
     new BackgroundImageData("Nebula 5 - M42", nebulaM42),

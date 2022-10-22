@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 export class Utils {
-    public static clampDegrees(angle: number): number {
+    public static ClampDegrees(angle: number): number {
         let retval = angle % 360;
         if (retval < 0) {
             retval += 360;
@@ -10,16 +10,26 @@ export class Utils {
         return retval;
     }
 
-    public static clamp(value: number, min: number, max: number): number {
+    public static Clamp(value: number, min: number, max: number): number {
         return Math.min(Math.max(value, min), max);
     }
 
-    public static degreesToRadians(degrees: number) {
+    public static DegreesToRadians(degrees: number) {
         return (degrees / 180) * Math.PI;
     }
 
-    public static radiansToDegrees(radians: number) {
+    public static RadiansToDegrees(radians: number) {
         return (radians / Math.PI) * 180;
+    }
+
+    public static SafeGetElement(elementId: string): HTMLElement {
+        const checkElement = document.getElementById(elementId);
+
+        if (!checkElement) {
+            throw new Error(`SSG element Id '${elementId}' did not select any DOM element`);
+        }
+
+        return checkElement;
     }
 
     /**
@@ -28,7 +38,7 @@ export class Utils {
      * @param totalSeconds 
      * @returns 
      */
-    public static humanTime(totalSeconds: number): string {
+    public static HumanTime(totalSeconds: number): string {
         class ScaleFactor {
             public factor: number = null!;
             public unit: string = null!;
@@ -72,13 +82,13 @@ export class Utils {
         return `${retTime.toFixed(3)} ${retUnit}${(Utils.FloatEQ(retTime, 1, 0.0005)) ? singularSuffix : pluralSuffix}`;
     }
 
-    public static async downloadFileFromStream(fileName: string, contentStreamReference: any) {
+    public static async DownloadFileFromStream(fileName: string, contentStreamReference: any) {
         const arrayBuffer = await contentStreamReference.arrayBuffer();
         const blob = new Blob([arrayBuffer]);
-        Utils.downloadFileFromBlob(fileName, arrayBuffer);
+        Utils.DownloadFileFromBlob(fileName, arrayBuffer);
     }
 
-    public static async downloadFileFromBlob(fileName: string, blob: Blob) {
+    public static async DownloadFileFromBlob(fileName: string, blob: Blob) {
         const url = URL.createObjectURL(blob);
         const anchorElement = document.createElement('a');
         anchorElement.href = url;
