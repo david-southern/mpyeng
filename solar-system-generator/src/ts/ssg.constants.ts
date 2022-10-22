@@ -1,6 +1,4 @@
-﻿import * as THREE from "three";
-
-export class Constants {
+﻿export class Constants {
     public static OneAU = 1.496e11;
     public static SolarRadius = 6.960e8;
     public static EarthRadius = 6.378e6;

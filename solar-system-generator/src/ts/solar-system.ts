@@ -18,7 +18,7 @@ export const SpeedTest = () => {
         ObjectColor: "#770000"
     });
 
-    const S1 = new CelestialObject({
+    new CelestialObject({
         Name: "One Day",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(8), OrbitalSemiMinorAxis: Constants.OfAU(8),
@@ -42,7 +42,7 @@ export const Wack = () => {
         IsStar: true
     });
 
-    const P1 = new CelestialObject({
+    new CelestialObject({
         Name: "Vanilla Circle",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(8), OrbitalSemiMinorAxis: Constants.OfAU(8),
@@ -52,7 +52,7 @@ export const Wack = () => {
         PhaseAngle: 0
     });
 
-    const P2 = new CelestialObject({
+    new CelestialObject({
         Name: "Vanilla Ellipse",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(8), OrbitalSemiMinorAxis: Constants.OfAU(5),
@@ -62,7 +62,7 @@ export const Wack = () => {
         PhaseAngle: 180
     });
 
-    const P3 = new CelestialObject({
+    new CelestialObject({
         Name: "Phased",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(15), OrbitalSemiMinorAxis: Constants.OfAU(11),
@@ -72,7 +72,7 @@ export const Wack = () => {
         PhaseAngle: 30
     });
 
-    const P4 = new CelestialObject({
+    new CelestialObject({
         Name: "Phased-Inclined",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(19), OrbitalSemiMinorAxis: Constants.OfAU(13),
@@ -98,7 +98,7 @@ export const Sol = () => {
         IsStar: true
     });
 
-    const Mercury = new CelestialObject({
+    new CelestialObject({
         Name: "Mercury",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.387), OrbitalSemiMinorAxis: Constants.OfAU(0.379),
@@ -107,7 +107,7 @@ export const Sol = () => {
         ObjectColor: "gray"
     });
 
-    const Venus = new CelestialObject({
+    new CelestialObject({
         Name: "Venus",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.723), OrbitalSemiMinorAxis: Constants.OfAU(0.723),
@@ -126,7 +126,7 @@ export const Sol = () => {
         ObjectColor: "blue"
     });
 
-    const Luna = new CelestialObject({
+    new CelestialObject({
         Name: "Luna",
         ParentObject: Earth,
         OrbitalSemiMajorAxis: 384_000_000, OrbitalSemiMinorAxis: 384_000_000,
@@ -135,7 +135,7 @@ export const Sol = () => {
         ObjectColor: "WhiteSmoke"
     });
 
-    const Mars = new CelestialObject({
+    new CelestialObject({
         Name: "Mars",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(1.524), OrbitalSemiMinorAxis: Constants.OfAU(1.517),
@@ -155,7 +155,7 @@ export const Sol = () => {
         const beltProgress = belt / beltCount;
         const beltDensity = Math.pow(Math.sin(beltProgress * Math.PI), 3) * beltMaxDensity;
 
-        const AsteroidsIn = new CelestialObject({
+        new CelestialObject({
             Name: `Asteroid Belt ${belt}`,
             ParentObject: retval,
             OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0, OrbitalVelocity: 0, OrbitalInclination: 0, ObjectRadius: 0,
@@ -166,7 +166,7 @@ export const Sol = () => {
         });
     }
 
-    const Jupiter = new CelestialObject({
+    new CelestialObject({
         Name: "Jupiter",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(5.2), OrbitalSemiMinorAxis: Constants.OfAU(5.198),
@@ -187,7 +187,7 @@ export const Sol = () => {
     });
 
     // Ring layout ref: https://www.britannica.com/place/Saturn-planet/The-ring-system
-    const SaturnRingsC = new CelestialObject({
+    new CelestialObject({
         Name: "C-Ring",
         ParentObject: Saturn,
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0, OrbitalVelocity: 0, OrbitalInclination: -13.0, ObjectRadius: 0,
@@ -197,7 +197,7 @@ export const Sol = () => {
         RingColor: "#ffffff"
     });
 
-    const SaturnRingsB = new CelestialObject({
+    new CelestialObject({
         Name: "B-Ring",
         ParentObject: Saturn,
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0, OrbitalVelocity: 0, OrbitalInclination: -13.0, ObjectRadius: 0,
@@ -207,7 +207,7 @@ export const Sol = () => {
         RingColor: "#ffffff"
     });
 
-    const SaturnRingsA = new CelestialObject({
+    new CelestialObject({
         Name: "A-Ring",
         ParentObject: Saturn,
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0, OrbitalVelocity: 0, OrbitalInclination: -13.0, ObjectRadius: 0,
@@ -217,7 +217,7 @@ export const Sol = () => {
         RingColor: "#ffffff"
     });
 
-    const Uranus = new CelestialObject({
+    new CelestialObject({
         Name: "Uranus",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(19.164), OrbitalSemiMinorAxis: Constants.OfAU(19.143),
@@ -226,7 +226,7 @@ export const Sol = () => {
         ObjectColor: "Turquoise"
     });
 
-    const Neptune = new CelestialObject({
+    new CelestialObject({
         Name: "Neptune",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(30.180), OrbitalSemiMinorAxis: Constants.OfAU(30.179),
@@ -235,7 +235,7 @@ export const Sol = () => {
         ObjectColor: "BlueViolet"
     });
 
-    const Pluto = new CelestialObject({
+    new CelestialObject({
         Name: "Pluto",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(39.481), OrbitalSemiMinorAxis: Constants.OfAU(38.288),
@@ -257,7 +257,7 @@ export const CetiAlpha = () => {
         IsStar: true
     });
 
-    const CA1 = new CelestialObject({
+    new CelestialObject({
         Name: "CA I",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.43), OrbitalSemiMinorAxis: Constants.OfAU(0.5),
@@ -267,7 +267,7 @@ export const CetiAlpha = () => {
         PhaseAngle: -27
     });
 
-    const CA2 = new CelestialObject({
+    new CelestialObject({
         Name: "CA II",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.523), OrbitalSemiMinorAxis: Constants.OfAU(0.523),
@@ -277,7 +277,7 @@ export const CetiAlpha = () => {
         PhaseAngle: 37,
     });
 
-    const CA3 = new CelestialObject({
+    new CelestialObject({
         Name: "CA III",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.613), OrbitalSemiMinorAxis: Constants.OfAU(0.535),
@@ -286,7 +286,7 @@ export const CetiAlpha = () => {
         ObjectColor: "gray"
     });
 
-    const CA4 = new CelestialObject({
+    new CelestialObject({
         Name: "CA IV",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(0.723), OrbitalSemiMinorAxis: Constants.OfAU(0.723),
@@ -295,7 +295,7 @@ export const CetiAlpha = () => {
         ObjectColor: "#202070"
     });
 
-    const CA5 = new CelestialObject({
+    new CelestialObject({
         Name: "CA V",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(1.0), OrbitalSemiMinorAxis: Constants.OfAU(0.999),
@@ -304,7 +304,7 @@ export const CetiAlpha = () => {
         ObjectColor: "blue"
     });
 
-    const CA6 = new CelestialObject({
+    new CelestialObject({
         Name: "CA VI",
         ParentObject: retval,
         OrbitalSemiMajorAxis: Constants.OfAU(5.0), OrbitalSemiMinorAxis: Constants.OfAU(3),

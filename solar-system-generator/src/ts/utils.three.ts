@@ -122,7 +122,6 @@ export class THREEUtils {
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(center)}, size: ${THREEUtils.DumpVec(size)}`);
 
         // get the max side of the bounding box (fits to width OR height as needed )
-        const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
 
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: aspect ratio: ${aspectRatio}, FOV: ${camera.fov}`);

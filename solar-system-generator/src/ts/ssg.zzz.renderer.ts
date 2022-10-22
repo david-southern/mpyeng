@@ -1,4 +1,6 @@
-﻿import _ from "lodash";
+﻿/* eslint-disable */
+
+import _ from "lodash";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
@@ -9,7 +11,7 @@ import * as PP from "postprocessing";
 import { CelestialObject } from "./celestial-object";
 // import { OrbitControls } from './OrbitControls';
 import { Logger, SSGSystemFilter } from "./ssg.logger";
-import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings } from "./ssg.zzz.settings";
 import { Utils } from "./utils";
 import { Orbiter } from "./ssg.orbiter";
 import { SettingsManager } from "./ssg.settings.manager";
@@ -394,7 +396,7 @@ export class SSGOldRenderer {
 
         if (SettingsManager.CurrentSettings.DownloadImage) {
             SettingsManager.CurrentSettings.DownloadImage = false;
-            const imgData = this.renderer.domElement.toBlob((imageBlob) => {
+            this.renderer.domElement.toBlob((imageBlob) => {
                 if (imageBlob) {
                     Utils.DownloadFileFromBlob("system-image.png", imageBlob);
                 }
@@ -423,7 +425,6 @@ export class SSGOldRenderer {
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(center)}, size: ${THREEUtils.DumpVec(size)}`);
 
         // get the max side of the bounding box (fits to width OR height as needed )
-        const maxDim = Math.max(size.x, size.y, size.z);
         const fov = this.camera.fov * (Math.PI / 180);
 
         const ySize = Math.max(size.y, size.x / this.canvasAspect);
@@ -520,6 +521,7 @@ export class SSGOldRenderer {
                 if (ringInnerRadius > 0 && ringColor != "none" && rootObject.ParentObject) {
                     // If the parent object is a planet, make it cast shadows so the rings look correct.
                     if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (rootObject.ParentObject.Obj3D as any).castShadow = true; //default is false
                     }
 
@@ -587,7 +589,7 @@ export class SSGOldRenderer {
         return sceneGroup;
     }
 
-    private ringMaterialTextured(ringColor: string, density = 0.1, chunkSize = 5) {
+    private ringMaterialTextured(ringColor: string, density = 0.1) {
         const width = 512;
         const height = 512;
 

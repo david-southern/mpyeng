@@ -14,8 +14,8 @@ export class SSGSettings {
         return SSGSettings._Instance;
     }
 
-    // Make the constructor private to signal that SSGRxSettings is a singleton
     private constructor() {
+        // Make the constructor private to signal that SSGRxSettings is a singleton
     }
 
     public SystemRoot = new BehaviorSubject<CelestialObject | undefined>(undefined);

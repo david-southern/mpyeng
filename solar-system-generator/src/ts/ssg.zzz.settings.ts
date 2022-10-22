@@ -58,7 +58,7 @@ export class SSGOldSettings {
 
     public BackgroundImage?: BackgroundImageData;
 
-    constructor(partialObj: Partial<SSGOldSettings>) {
+    constructor(partialObj?: Partial<SSGOldSettings>) {
         if (partialObj) {
             Object.assign(this, partialObj);
         }

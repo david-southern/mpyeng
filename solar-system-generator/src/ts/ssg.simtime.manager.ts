@@ -1,24 +1,7 @@
-﻿import _ from "lodash";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-
-import blackBackground from "../images/black.png";
-
-import * as PP from "postprocessing";
-
-import { CelestialObject } from "./celestial-object";
-// import { OrbitControls } from './OrbitControls';
-import { Logger, SSGSystemFilter } from "./ssg.logger";
-import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
+﻿import { Logger, SSGSystemFilter } from "./ssg.logger";
 import { Utils } from "./utils";
-import { Orbiter } from "./ssg.orbiter";
-import { SettingsManager } from "./ssg.settings.manager";
-import { GlobalSettings, SSGSettings } from "./ssg.settings";
+import { GlobalSettings } from "./ssg.settings";
 import { firstValueFrom, Subject } from "rxjs";
-
-const DEFAULT_FOV = 70;
-const DEFAULT_ASPECT = 1.61;
-const DEFAULT_ORBITAL_COLOR = "#999999";
 
 export class SSGSimTimeManager {
     private static _Instance = new SSGSimTimeManager();
@@ -29,8 +12,8 @@ export class SSGSimTimeManager {
     private TickSubject = new Subject<number>();
     public Tick$ = this.TickSubject.asObservable();
 
-    // Make the constructor private to signal that SSGSimTimeManager is a singleton
     private constructor() {
+    // Make the constructor private to signal that SSGSimTimeManager is a singleton
     }
 
     private actualStartTime = 0;
@@ -69,7 +52,6 @@ export class SSGSimTimeManager {
             speedScale = await firstValueFrom(GlobalSettings.AnimationTimeScale$);
         }
 
-        const actualSimTime = (this._actualTime - this.actualStartTime);
         this._actualElapsedSeconds = this._actualTime - this.lastActualTime;
         this.lastActualTime = this._actualTime;
         this._simElapsedSeconds = this._actualElapsedSeconds * speedScale;

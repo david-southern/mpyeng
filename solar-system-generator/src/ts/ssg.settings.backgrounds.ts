@@ -1,5 +1,3 @@
-import * as THREE from "three";
-
 import blackBackground from "../images/black.png";
 
 import milkyWay1 from "../images/milky-way-1.jpg";
@@ -16,7 +14,7 @@ import starsM46 from "../images/stars-m46-m47.jpg";
 import starsM67 from "../images/stars-m67.jpg";
 
 export class BackgroundImageData {
-    constructor(public Description: string, public URL: any, public Brightness?: number, public Contrast?: number) {
+    constructor(public Description: string, public URL: string, public Brightness?: number, public Contrast?: number) {
     }
 }
 

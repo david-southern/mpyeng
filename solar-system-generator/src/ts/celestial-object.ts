@@ -132,7 +132,7 @@ export class CelestialObject {
 
     Obj3D?: THREE.Object3D;
 
-    constructor(partialObj: Partial<CelestialObject>) {
+    constructor(partialObj?: Partial<CelestialObject>) {
         if (partialObj) {
             Object.assign(this, partialObj);
             this.ChildObjects = [];

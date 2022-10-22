@@ -39,14 +39,14 @@ class LoggerImpl {
         return system == SSGSystemFilter.Always || !this.filteredSystems.get(system);
     }
 
-    public info(system: SSGSystemFilter, message: string, ...args: any[]) {
+    public info(system: SSGSystemFilter, message: string, ...args: unknown[]) {
         if (this.wouldLog(system)) {
             const source = shortSource.get(SSGSystemFilter[system]) ?? SSGSystemFilter[system];
             console.log(`${source}: ${message}`, ...args);
         }
     }
 
-    public error(system: SSGSystemFilter, message: string, ...args: any[]) {
+    public error(system: SSGSystemFilter, message: string, ...args: unknown[]) {
         const source = shortSource.get(SSGSystemFilter[system]) ?? SSGSystemFilter[system];
         console.error(`${source}: ${message}`, ...args);
     }

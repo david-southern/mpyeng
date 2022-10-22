@@ -1,11 +1,8 @@
-import _ from "lodash";
 import { combineLatest, ReplaySubject, Subject, takeUntil } from "rxjs";
 import * as THREE from "three";
 import { CelestialObject } from "./celestial-object";
 import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./ssg.settings";
-import { SimTimeManager } from "./ssg.simtime.manager";
 import { Utils } from "./utils";
-import { THREEUtils } from "./utils.three";
 
 export class SSGSceneManager {
     private static _Instance = new SSGSceneManager();
@@ -108,32 +105,33 @@ export class SSGSceneManager {
         const boundingBox = new THREE.Box3();
         boundingBox.setFromObject(this.systemScene);
 
-        const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y)
-            * GlobalSettings.GridSizeFactor;
+        const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x,
+            boundingBox.max.y - boundingBox.min.y) * gridSizeFactor;
 
-        let gridMesh;
+        let gridMesh: THREE.GridHelper | THREE.PolarGridHelper | undefined;
 
         if (gridType == GRID_TYPE_RECTANGULAR) {
-            const gridHelper = new THREE.GridHelper(gridSize, GlobalSettings.GridMajorDivisions,
-                GlobalSettings.GridMajorColor, GlobalSettings.GridMinorColor);
-            gridHelper.rotation.x = Utils.DegreesToRadians(90);
-            gridHelper.renderOrder = -1;
+            gridMesh = new THREE.GridHelper(gridSize, majorDivisions,
+                majorColor, minorColor);
+            gridMesh.rotation.x = Utils.DegreesToRadians(90);
+            gridMesh.renderOrder = -1;
         }
 
         if (gridType == GRID_TYPE_POLAR) {
-            const gridHelper = new THREE.PolarGridHelper(gridSize / 2,
-                GlobalSettings.GridMinorDivisions, GlobalSettings.GridMajorDivisions, 64,
-                GlobalSettings.GridMajorColor, GlobalSettings.GridMinorColor);
-            gridHelper.rotation.x = Utils.DegreesToRadians(90);
-            gridHelper.renderOrder = -1;
+            gridMesh = new THREE.PolarGridHelper(gridSize / 2,
+                minorDivisions, majorDivisions, 64,
+                majorColor, minorColor);
+            gridMesh.rotation.x = Utils.DegreesToRadians(90);
+            gridMesh.renderOrder = -1;
         }
 
         if (gridMesh) {
-            this.gridContent.add(gridMesh);
+            this.gridContent.add(gridMesh as THREE.Object3D);
         }
     }
 
     public UpdateScene() {
+        throw new Error("Not implemented");
     }
 
     public FindObject(targetName?: string) {

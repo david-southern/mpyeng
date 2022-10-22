@@ -1,11 +1,10 @@
-import * as _ from "lodash";
 import { CelestialObject } from "./celestial-object";
 import { Sol } from "./solar-system";
 import { Logger, SSGSystemFilter } from "./ssg.logger";
 import { SSGRenderer } from "./ssg.renderer";
 import GUI from "lil-gui";
 
-import { GlobalSettings, SSGSettings } from "./ssg.settings";
+import { GlobalSettings } from "./ssg.settings";
 
 export const Renderer = new SSGRenderer();
 

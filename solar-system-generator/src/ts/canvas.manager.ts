@@ -1,19 +1,6 @@
-﻿import _ from "lodash";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-
-import * as PP from "postprocessing";
-
-import { Logger, SSGSystemFilter } from "./ssg.logger";
+﻿import { Logger, SSGSystemFilter } from "./ssg.logger";
 import { Utils } from "./utils";
-import { SimTimeManager, SSGSimTimeManager } from "./ssg.simtime.manager";
-import { GlobalSettings, SSGSettings } from "./ssg.settings";
-import { DefaultBackgroundImage } from "./ssg.settings.backgrounds";
-import { firstValueFrom } from "rxjs";
-import { THREEUtils } from "./utils.three";
-
-const DEFAULT_FOV = 30;
-const DEFAULT_ASPECT = 1.61;
+import { SimTimeManager } from "./ssg.simtime.manager";
 
 export class SSGCanvasManager {
     public static readonly CanvasDivID = "system-canvas";

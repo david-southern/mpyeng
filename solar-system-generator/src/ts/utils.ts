@@ -1,5 +1,4 @@
 ﻿// cSpell: ignore centur
-import * as THREE from "three";
 
 export class Utils {
     public static ClampDegrees(angle: number): number {
@@ -79,20 +78,18 @@ export class Utils {
             }
         }
 
-        return `${retTime.toFixed(3)} ${retUnit}${(Utils.FloatEQ(retTime, 1, 0.0005)) ? singularSuffix : pluralSuffix}`;
+        return `${sign}${retTime.toFixed(3)} ${retUnit}${(Utils.FloatEQ(retTime, 1, 0.0005)) ? singularSuffix : pluralSuffix}`;
     }
 
-    public static async DownloadFileFromStream(fileName: string, contentStreamReference: any) {
-        const arrayBuffer = await contentStreamReference.arrayBuffer();
-        const blob = new Blob([arrayBuffer]);
-        Utils.DownloadFileFromBlob(fileName, arrayBuffer);
+    public static DownloadFromFileInput(fileName: string, htmlFileInput: File) {
+        Utils.DownloadFileFromBlob(fileName, htmlFileInput);
     }
 
-    public static async DownloadFileFromBlob(fileName: string, blob: Blob) {
+    public static DownloadFileFromBlob(fileName: string, blob: Blob) {
         const url = URL.createObjectURL(blob);
         const anchorElement = document.createElement("a");
         anchorElement.href = url;
-        anchorElement.download = fileName ?? "";
+        anchorElement.download = fileName;
         anchorElement.click();
         anchorElement.remove();
         URL.revokeObjectURL(url);

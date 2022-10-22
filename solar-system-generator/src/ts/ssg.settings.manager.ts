@@ -18,9 +18,7 @@ class SettingsManagerImpl {
     }
 
     public subscribeSettings = (settingsCB: SettingsCB) => {
-        if (settingsCB) {
-            this.settingsCallbacks.push(settingsCB);
-        }
+        this.settingsCallbacks.push(settingsCB);
     };
 
     public clearSettingsSubscriptions = () => {
