@@ -9,7 +9,8 @@ export const EmptySystem = () => new CelestialObject({
     IsStar: true
 });
 
-export const SpeedTest = () => {
+export const SpeedTest = () =>
+{
     const retval = new CelestialObject({
         Name: "SpeedTest",
         IsStar: true,
@@ -31,7 +32,8 @@ export const SpeedTest = () => {
     return retval;
 };
 
-export const Wack = () => {
+export const Wack = () =>
+{
     const retval = new CelestialObject({
         Name: "Wackmobile",
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0,
@@ -88,7 +90,8 @@ export const Wack = () => {
 // Planetary Fact Sheet:
 // https://nssdc.gsfc.nasa.gov/planetary/factsheet/
 
-export const Sol = () => {
+export const Sol = () =>
+{
     const retval = new CelestialObject({
         Name: "Sol",
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0,
@@ -151,7 +154,8 @@ export const Sol = () => {
     const beltWidthPer = beltWidth / beltCount;
     const beltMaxDensity = 0.3;
 
-    for (let belt = 0; belt < beltCount; belt++) {
+    for (let belt = 0; belt < beltCount; belt++)
+    {
         const beltProgress = belt / beltCount;
         const beltDensity = Math.pow(Math.sin(beltProgress * Math.PI), 3) * beltMaxDensity;
 
@@ -247,7 +251,8 @@ export const Sol = () => {
     return retval;
 };
 
-export const CetiAlpha = () => {
+export const CetiAlpha = () =>
+{
     const retval = new CelestialObject({
         Name: "Ceti Alpha",
         OrbitalSemiMajorAxis: 0, OrbitalSemiMinorAxis: 0,

@@ -4,16 +4,19 @@ import { CelestialObject } from "./celestial-object";
 import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./ssg.settings";
 import { Utils } from "./utils";
 
-export class SSGSceneManager {
+export class SSGSceneManager
+{
     private static _Instance = new SSGSceneManager();
-    public static get Instance() {
+    public static get Instance()
+    {
         return SSGSceneManager._Instance;
     }
 
     public SceneUpdated$ = new ReplaySubject<THREE.Scene>(1);
 
     // Make the constructor private to signal that SSGRxSettings is a singleton
-    private constructor() {
+    private constructor()
+    {
         this.systemScene = new THREE.Scene();
         this.systemScene.name = "SSG-root";
 
@@ -38,14 +41,16 @@ export class SSGSceneManager {
                 sceneUpdated, gridType, gridSizeFactor,
                 majorDivisions, minorDivisions,
                 majorColor, minorColor
-            ]) => {
+            ]) =>
+            {
                 this.RenderGrid(sceneUpdated, gridType, gridSizeFactor,
                     majorDivisions, minorDivisions,
                     majorColor, minorColor);
             });
     }
 
-    public Destroy() {
+    public Destroy()
+    {
         this.unsubscribe.next();
         this.unsubscribe.complete();
     }
@@ -53,13 +58,15 @@ export class SSGSceneManager {
     private unsubscribe = new Subject<void>();
 
     private systemScene: THREE.Scene;
-    public get SystemScene() {
+    public get SystemScene()
+    {
         return this.systemScene;
     }
     private systemContent?: THREE.Group;
 
     private gridScene: THREE.Scene;
-    public get GridScene() {
+    public get GridScene()
+    {
         return this.gridScene;
     }
     private gridContent?: THREE.Group;
@@ -67,35 +74,44 @@ export class SSGSceneManager {
     private ambientLight: THREE.AmbientLight;
     private directionalLight: THREE.DirectionalLight;
 
-    private RenderSystem(rootObject?: CelestialObject) {
+    private RenderSystem(rootObject?: CelestialObject)
+    {
         let sceneUpdated = false;
 
-        try {
-            if (this.systemContent) {
+        try
+        {
+            if (this.systemContent)
+            {
                 this.systemContent.removeFromParent();
                 this.systemContent = undefined;
                 sceneUpdated = true;
             }
 
-            if (!rootObject) {
+            if (!rootObject)
+            {
                 return;
             }
         }
-        finally {
-            if (sceneUpdated) {
+        finally
+        {
+            if (sceneUpdated)
+            {
                 this.SceneUpdated$.next(this.systemScene);
             }
         }
     }
 
     private RenderGrid(sceneUpdated: THREE.Scene, gridType: string, gridSizeFactor: number,
-        majorDivisions: number, minorDivisions: number, majorColor: string, minorColor: string) {
-        if (this.gridContent) {
+        majorDivisions: number, minorDivisions: number, majorColor: string, minorColor: string)
+    {
+        if (this.gridContent)
+        {
             this.gridContent.removeFromParent();
             this.gridContent = undefined;
         }
 
-        if (!gridType || gridType == GRID_TYPE_NONE) {
+        if (!gridType || gridType == GRID_TYPE_NONE)
+        {
             return;
         }
 
@@ -110,14 +126,16 @@ export class SSGSceneManager {
 
         let gridMesh: THREE.GridHelper | THREE.PolarGridHelper | undefined;
 
-        if (gridType == GRID_TYPE_RECTANGULAR) {
+        if (gridType == GRID_TYPE_RECTANGULAR)
+        {
             gridMesh = new THREE.GridHelper(gridSize, majorDivisions,
                 majorColor, minorColor);
             gridMesh.rotation.x = Utils.DegreesToRadians(90);
             gridMesh.renderOrder = -1;
         }
 
-        if (gridType == GRID_TYPE_POLAR) {
+        if (gridType == GRID_TYPE_POLAR)
+        {
             gridMesh = new THREE.PolarGridHelper(gridSize / 2,
                 minorDivisions, majorDivisions, 64,
                 majorColor, minorColor);
@@ -125,17 +143,21 @@ export class SSGSceneManager {
             gridMesh.renderOrder = -1;
         }
 
-        if (gridMesh) {
+        if (gridMesh)
+        {
             this.gridContent.add(gridMesh as THREE.Object3D);
         }
     }
 
-    public UpdateScene() {
+    public UpdateScene()
+    {
         throw new Error("Not implemented");
     }
 
-    public FindObject(targetName?: string) {
-        if (!targetName) {
+    public FindObject(targetName?: string)
+    {
+        if (!targetName)
+        {
             return undefined;
         }
         return this.systemScene.getObjectByName(targetName);

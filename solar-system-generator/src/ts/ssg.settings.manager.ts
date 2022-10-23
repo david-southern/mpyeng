@@ -2,26 +2,31 @@
 
 type SettingsCB = (settings: SSGOldSettings) => void;
 
-class SettingsManagerImpl {
+class SettingsManagerImpl
+{
     public CurrentSettings: SSGOldSettings = EmptySettings;
     public PrevSettings: SSGOldSettings = EmptySettings;
 
     private settingsCallbacks: SettingsCB[] = [];
 
-    public publishSettings(newSettings: SSGOldSettings) {
+    public publishSettings(newSettings: SSGOldSettings)
+    {
         this.PrevSettings = this.CurrentSettings;
         this.CurrentSettings = newSettings;
 
-        for (const nextCB of this.settingsCallbacks) {
+        for (const nextCB of this.settingsCallbacks)
+        {
             nextCB(newSettings);
         }
     }
 
-    public subscribeSettings = (settingsCB: SettingsCB) => {
+    public subscribeSettings = (settingsCB: SettingsCB) =>
+    {
         this.settingsCallbacks.push(settingsCB);
     };
 
-    public clearSettingsSubscriptions = () => {
+    public clearSettingsSubscriptions = () =>
+    {
         this.settingsCallbacks = [];
     };
 }

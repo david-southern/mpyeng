@@ -6,7 +6,8 @@ export const GRID_TYPE_RECTANGULAR = "Rectangular";
 export const GRID_TYPE_POLAR = "Polar";
 export const GRID_TYPE_NONE = "None";
 
-export class SSGOldSettings {
+export class SSGOldSettings
+{
     public AmbientLightColor = "#404040";
     public AmbientLightIntensity = 1;
 
@@ -28,7 +29,8 @@ export class SSGOldSettings {
 
     public MaxAnimationSpeedScale = 10e8;
 
-    public get AnimationTimeScale(): number {
+    public get AnimationTimeScale(): number
+    {
         const clampedSpeed = Utils.Clamp(this.AnimationSpeed, -1, 1);
 
         // Use a quadratic easing function, but allow the sign of the clampedSpeed through
@@ -36,7 +38,8 @@ export class SSGOldSettings {
     }
 
     // A human-readable representation of the AnimationTimeScale
-    public get AnimationTimeScaleHuman(): string {
+    public get AnimationTimeScaleHuman(): string
+    {
         return Utils.FloatEQ(this.AnimationTimeScale, 0) ? "paused" : `${Utils.HumanTime(this.AnimationTimeScale)} per second`;
     }
 
@@ -58,8 +61,10 @@ export class SSGOldSettings {
 
     public BackgroundImage?: BackgroundImageData;
 
-    constructor(partialObj?: Partial<SSGOldSettings>) {
-        if (partialObj) {
+    constructor(partialObj?: Partial<SSGOldSettings>)
+    {
+        if (partialObj)
+        {
             Object.assign(this, partialObj);
         }
     }

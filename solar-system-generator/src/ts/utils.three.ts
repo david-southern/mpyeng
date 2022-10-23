@@ -3,36 +3,45 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Logger, SSGSystemFilter } from "./ssg.logger";
 import { Utils } from "./utils";
 
-export class THREEUtils {
-    public static DumpVec(vec: THREE.Vector2 | THREE.Vector3): string {
+export class THREEUtils
+{
+    public static DumpVec(vec: THREE.Vector2 | THREE.Vector3): string
+    {
         return (vec instanceof THREE.Vector2) ? `(${vec.x}, ${vec.y})` : `(${vec.x}, ${vec.y}, ${vec.z})`;
     }
 
-    public static SetPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number) {
-        if (typeof x === "number") {
+    public static SetPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number)
+    {
+        if (typeof x === "number")
+        {
             object3d.position.x = x;
             object3d.position.y = y ?? 0;
             object3d.position.z = z ?? 0;
-        } else {
+        } else
+        {
             object3d.position.x = x.x;
             object3d.position.y = x.y;
             object3d.position.z = x.z;
         }
     }
-    public static PlanetMaterial(color: string) {
+    public static PlanetMaterial(color: string)
+    {
         return new THREE.MeshLambertMaterial({ color });
     }
 
-    public static StarMaterial(color: string) {
+    public static StarMaterial(color: string)
+    {
         return new THREE.MeshBasicMaterial({ color });
         // return new THREE.MeshLambertMaterial({ emissive: color });
     }
 
-    public static OrbitalMaterial(color: string) {
+    public static OrbitalMaterial(color: string)
+    {
         return new THREE.LineBasicMaterial({ color });
     }
 
-    public static BuildOrbitalEllipse(x: number, y: number, xRadius: number, yRadius: number): THREE.EllipseCurve {
+    public static BuildOrbitalEllipse(x: number, y: number, xRadius: number, yRadius: number): THREE.EllipseCurve
+    {
         const startAngle = 0;
         const endAngle = 2 * Math.PI;
         const clockwiseDirection = false;
@@ -40,7 +49,8 @@ export class THREEUtils {
         return new THREE.EllipseCurve(x, y, xRadius, yRadius, startAngle, endAngle, clockwiseDirection, 0);
     }
 
-    public static BuildOrbitalMesh(x: number, y: number, z: number, curve: THREE.EllipseCurve, color: string) {
+    public static BuildOrbitalMesh(x: number, y: number, z: number, curve: THREE.EllipseCurve, color: string)
+    {
         const points = curve.getPoints(250);
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
 
@@ -51,7 +61,8 @@ export class THREEUtils {
         return ellipse;
     }
 
-    public static BuildPlanet(x: number, y: number, z: number, radius: number, color: string) {
+    public static BuildPlanet(x: number, y: number, z: number, radius: number, color: string)
+    {
         const geometry = new THREE.SphereGeometry(radius, 32, 16);
         const sphere = new THREE.Mesh(geometry, THREEUtils.PlanetMaterial(color));
 
@@ -60,7 +71,8 @@ export class THREEUtils {
         return sphere;
     }
 
-    public static BuildStar(x: number, y: number, z: number, radius: number, color: string) {
+    public static BuildStar(x: number, y: number, z: number, radius: number, color: string)
+    {
         const starGroup = new THREE.Group();
 
         const pointLight = new THREE.PointLight(color, 1);
@@ -81,7 +93,8 @@ export class THREEUtils {
         return starGroup;
     }
 
-    public static ZZZBuildGrid(size: number, divisions: number, centerColor: string, lineColor: string) {
+    public static ZZZBuildGrid(size: number, divisions: number, centerColor: string, lineColor: string)
+    {
         const gridHelper = new THREE.GridHelper(size, divisions, centerColor, lineColor);
         gridHelper.rotation.x = Utils.DegreesToRadians(90);
         gridHelper.renderOrder = -1;
@@ -90,7 +103,8 @@ export class THREEUtils {
     }
 
     public static ZZZBuildPolarGrid(radius: number, sectors: number, rings: number, divisions: number,
-        color1: string, color2: string) {
+        color1: string, color2: string)
+    {
 
         const gridHelper = new THREE.PolarGridHelper(radius, sectors, rings, divisions, color1, color2);
         gridHelper.rotation.x = Utils.DegreesToRadians(90);
@@ -103,7 +117,8 @@ export class THREEUtils {
     public static FitCameraToObject(baseScene: THREE.Scene,
         camera: THREE.PerspectiveCamera,
         aspectRatio: number, orbitControls?: OrbitControls,
-        lookAtTarget?: THREE.Object3D) {
+        lookAtTarget?: THREE.Object3D)
+    {
         const offset = 1.25;
 
         const boundingBox = new THREE.Box3();
@@ -151,14 +166,16 @@ export class THREEUtils {
 
         Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: effective FOV: ${camera.getEffectiveFOV()}`);
 
-        if (orbitControls) {
+        if (orbitControls)
+        {
             // prevent camera from zooming out far enough to create far plane cutoff
             orbitControls.maxDistance = cameraToFarEdge * 2;
             orbitControls.saveState();
 
             // set camera to rotate around the target
             const lookAtVec = new THREE.Vector3(0, 0, 0);
-            if (lookAtTarget) {
+            if (lookAtTarget)
+            {
                 lookAtTarget.getWorldPosition(lookAtVec);
             }
             orbitControls.target = lookAtVec;

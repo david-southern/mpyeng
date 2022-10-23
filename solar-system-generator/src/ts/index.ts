@@ -9,7 +9,8 @@ import { GlobalSettings } from "./ssg.settings";
 export const Renderer = new SSGRenderer();
 
 
-function LoadPremade(system: CelestialObject) {
+function LoadPremade(system: CelestialObject)
+{
     Logger.info(SSGSystemFilter.Always, `Loading premade solar system: ${system.Name}`);
 }
 
@@ -17,8 +18,10 @@ LoadPremade(Sol());
 
 GlobalSettings.MaxAnimationSpeedScale = 10;
 
-class Controller {
-    public pauseAnimation() {
+class Controller
+{
+    public pauseAnimation()
+    {
         GlobalSettings.AnimationSpeed = 0;
     }
 }

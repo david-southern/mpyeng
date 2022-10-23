@@ -7,14 +7,16 @@ import { CanvasManager } from "./canvas.manager";
 import { CameraManager } from "./camera.manager";
 import { SceneManager } from "./scene.manager";
 
-export class SSGRenderer {
+export class SSGRenderer
+{
     private renderer: THREE.WebGLRenderer;
     private loader: THREE.TextureLoader;
     private composer: PP.EffectComposer;
     private textureEffect: PP.TextureEffect;
     private backgroundAdjustEffect: PP.BrightnessContrastEffect;
 
-    public constructor() {
+    public constructor()
+    {
         this.renderer = new THREE.WebGLRenderer({
             powerPreference: "high-performance",
             antialias: false,
@@ -66,14 +68,17 @@ export class SSGRenderer {
         this.getNextAnimationFrame();
     }
 
-    private getNextAnimationFrame() {
-        requestAnimationFrame((animationTime: DOMHighResTimeStamp) => {
+    private getNextAnimationFrame()
+    {
+        requestAnimationFrame((animationTime: DOMHighResTimeStamp) =>
+        {
             // We don't care that updateAnimation is async here
             void this.updateAnimation(animationTime);
         });
     }
 
-    private async updateAnimation(actualMillis: number) {
+    private async updateAnimation(actualMillis: number)
+    {
         await SimTimeManager.UpdateSimTime(actualMillis);
         CameraManager.UpdateCamera();
         SceneManager.UpdateScene();

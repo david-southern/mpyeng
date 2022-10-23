@@ -26,7 +26,8 @@ const DEFAULT_ORBITAL_COLOR = "#999999";
 // Scale everything down to 'smallish' numbers internally.
 const CoordsScale = Constants.OneAU;
 
-export class SSGOldRenderer {
+export class SSGOldRenderer
+{
     // private ssgSettings: SSGSettings = null!;
 
     private canvasElement: HTMLElement = null!;
@@ -59,7 +60,8 @@ export class SSGOldRenderer {
     private lastActualTime?: number;
     private simTime?: number;
 
-    constructor() {
+    constructor()
+    {
         this.systemScene = new THREE.Scene();
         this.gridScene = new THREE.Scene();
         this.systemScene.name = "SSG-root";
@@ -79,17 +81,20 @@ export class SSGOldRenderer {
         this.loader = new THREE.TextureLoader();
     }
 
-    private safeGetElement(elementId: string): HTMLElement {
+    private safeGetElement(elementId: string): HTMLElement
+    {
         const checkElement = document.getElementById(elementId);
 
-        if (!checkElement) {
+        if (!checkElement)
+        {
             throw new Error(`SSG element Id '${elementId}' did not select any DOM element`);
         }
 
         return checkElement;
     }
 
-    public initialize(canvasDivId: string, systemTimeDivId: string) {
+    public initialize(canvasDivId: string, systemTimeDivId: string)
+    {
         this.canvasElement = this.safeGetElement(canvasDivId);
         this.systemTimeElement = this.safeGetElement(systemTimeDivId);
 
@@ -149,7 +154,8 @@ export class SSGOldRenderer {
         this.getNextAnimationFrame();
     }
 
-    public render(solarSystem: CelestialObject, newSettings: SSGOldSettings) {
+    public render(solarSystem: CelestialObject, newSettings: SSGOldSettings)
+    {
         this.solarSystem = _.cloneDeep(solarSystem);
 
         Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: System: ", this.solarSystem);
@@ -158,29 +164,36 @@ export class SSGOldRenderer {
 
         this.actualStartTime = this.lastActualTime = this.simTime = undefined;
 
-        if (this.systemGroup) {
+        if (this.systemGroup)
+        {
             this.systemScene.remove(this.systemGroup);
         }
-        if (this.gridGroup) {
+        if (this.gridGroup)
+        {
             this.gridScene.remove(this.gridGroup);
         }
 
-        SettingsManager.subscribeSettings(async (settings: SSGOldSettings) => {
+        SettingsManager.subscribeSettings(async (settings: SSGOldSettings) =>
+        {
             this.lookAtTarget = undefined;
             this.camera.fov = settings.FieldOfViewDegrees;
             this.camera.updateProjectionMatrix();
 
-            if (settings.BackgroundImage && settings.BackgroundImage.URL) {
-                if (settings.BackgroundImage.URL.startsWith("#")) {
+            if (settings.BackgroundImage && settings.BackgroundImage.URL)
+            {
+                if (settings.BackgroundImage.URL.startsWith("#"))
+                {
                     this.gridScene.background = new THREE.Color(settings.BackgroundImage.URL);
                     return;
                 }
 
                 // this.gridScene.background = this.loader.load(settings.BackgroundImage.URL);
 
-                if (this.lastBGUrl != settings.BackgroundImage.URL) {
+                if (this.lastBGUrl != settings.BackgroundImage.URL)
+                {
                     this.lastBGUrl = settings.BackgroundImage.URL;
-                    this.loader.load(settings.BackgroundImage.URL, (texture) => {
+                    this.loader.load(settings.BackgroundImage.URL, (texture) =>
+                    {
                         Logger.info(SSGSystemFilter.RenderSettings, `SSG.render: Loaded background image: ${settings.BackgroundImage?.Description}`);
                         this.textureEffect.texture = texture;
                     });
@@ -193,16 +206,19 @@ export class SSGOldRenderer {
 
         Logger.info(SSGSystemFilter.RenderSettings, "SSG.render: Settings: ", newSettings);
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
             this.ambientLight.color = new THREE.Color(settings.AmbientLightColor);
         });
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
             // It is safe to remove a child that you don't have, but not safe to add a child twice.  Remove the
             // light here before adding it so that I don't have to track whether the light has been added or not.
             this.systemScene.remove(this.directionalLight);
 
-            if (settings.IncludeDirectionalLight) {
+            if (settings.IncludeDirectionalLight)
+            {
                 this.systemScene.add(this.directionalLight);
                 this.directionalLight.color = new THREE.Color(settings.DirectionalLightColor);
                 this.directionalLight.intensity = settings.DirectionalLightIntensity;
@@ -215,12 +231,15 @@ export class SSGOldRenderer {
         this.gridGroup = new THREE.Group();
         this.gridGroup.name = "SSG-system-grid";
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
-            while (this.gridGroup.children.length > 0) {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
+            while (this.gridGroup.children.length > 0)
+            {
                 this.gridGroup.remove(this.gridGroup.children[0]);
             }
 
-            if (!settings.GridType || settings.GridType === GRID_TYPE_NONE) {
+            if (!settings.GridType || settings.GridType === GRID_TYPE_NONE)
+            {
                 return;
             }
 
@@ -232,23 +251,27 @@ export class SSGOldRenderer {
 
             let gridMesh;
 
-            if (settings.GridType == GRID_TYPE_RECTANGULAR) {
+            if (settings.GridType == GRID_TYPE_RECTANGULAR)
+            {
                 gridMesh = THREEUtils.ZZZBuildGrid(gridSize, settings.GridMajorDivisions,
                     settings.GridMajorColor, settings.GridMinorColor);
             }
 
-            if (settings.GridType == GRID_TYPE_POLAR) {
+            if (settings.GridType == GRID_TYPE_POLAR)
+            {
                 gridMesh = THREEUtils.ZZZBuildPolarGrid(gridSize / 2,
                     settings.GridMinorDivisions, settings.GridMajorDivisions, 64,
                     settings.GridMajorColor, settings.GridMinorColor);
             }
 
-            if (gridMesh) {
+            if (gridMesh)
+            {
                 this.gridGroup.add(gridMesh);
             }
         });
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
             // It is easier to rotate the top-level sceneGroup than to try and reposition the camera. Unfortunately I don't
             // understand 3D math well enough to get the rotation I want in one go, but separate rotations seem to work well
             // enough.
@@ -270,7 +293,8 @@ export class SSGOldRenderer {
         // We need all the changes to the scene pushed before fitting the camera, so publish here
         SettingsManager.publishSettings(newSettings);
 
-        if (newSettings.ResetOrbitControls) {
+        if (newSettings.ResetOrbitControls)
+        {
             console.log("Resetting orbital controls!");
             this.orbitControls.reset();
             newSettings.ResetOrbitControls = false;
@@ -279,7 +303,8 @@ export class SSGOldRenderer {
         // Fit the camera before applying zoom, otherwise the camera will be fit to the zoomed scene, which is no good
         this.fitCameraToObject();
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
             this.gridGroup.scale.x = settings.Zoom;
             this.gridGroup.scale.y = settings.Zoom;
             this.gridGroup.scale.z = settings.Zoom;
@@ -297,17 +322,20 @@ export class SSGOldRenderer {
         Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG Grid: ", this.gridGroup);
         Logger.info(SSGSystemFilter.RenderDiagnostics, "SSG Camera: ", this.camera);
 
-        if (Logger.wouldLog(SSGSystemFilter.ExportDiagnostics)) {
+        if (Logger.wouldLog(SSGSystemFilter.ExportDiagnostics))
+        {
             Logger.info(SSGSystemFilter.ExportDiagnostics, "Scene.JSON export: ", JSON.stringify(this.systemScene.toJSON()));
         }
     }
 
-    public updateSettings(settingsJson: string) {
+    public updateSettings(settingsJson: string)
+    {
         const newSettings = new SSGOldSettings(JSON.parse(settingsJson));
 
         Logger.info(SSGSystemFilter.RenderSettings, "updateSettings: Settings: ", newSettings);
 
-        if (newSettings.ResetOrbitControls) {
+        if (newSettings.ResetOrbitControls)
+        {
             console.log("Resetting orbital controls!");
             this.orbitControls.reset();
             newSettings.ResetOrbitControls = false;
@@ -316,32 +344,38 @@ export class SSGOldRenderer {
         SettingsManager.publishSettings(newSettings);
     }
 
-    private getNextAnimationFrame() {
+    private getNextAnimationFrame()
+    {
         requestAnimationFrame((animationTime: DOMHighResTimeStamp) => { this.updateAnimation(animationTime); });
     }
 
     private nextTimeDiags = 0;
 
-    private updateAnimation(actualMillis: number) {
+    private updateAnimation(actualMillis: number)
+    {
         let showDiags = false;
 
         const actualTime = actualMillis / 1000;
 
-        if (this.actualStartTime === undefined) {
+        if (this.actualStartTime === undefined)
+        {
             this.actualStartTime = actualTime;
         }
 
-        if (this.lastActualTime === undefined) {
+        if (this.lastActualTime === undefined)
+        {
             this.lastActualTime = actualTime;
         }
 
-        if (this.simTime === undefined) {
+        if (this.simTime === undefined)
+        {
             this.simTime = 0;
         }
 
         let speedScale = 0;
 
-        if (Utils.FloatNE(SettingsManager.CurrentSettings.AnimationSpeed, 0)) {
+        if (Utils.FloatNE(SettingsManager.CurrentSettings.AnimationSpeed, 0))
+        {
             speedScale = SettingsManager.CurrentSettings.AnimationTimeScale;
         }
 
@@ -351,11 +385,13 @@ export class SSGOldRenderer {
         const simElapsedSeconds = actualElapsedSeconds * speedScale;
         this.simTime += simElapsedSeconds;
 
-        if (this.systemTimeElement) {
+        if (this.systemTimeElement)
+        {
             this.systemTimeElement.innerText = "System Time: " + Utils.HumanTime(this.simTime);
         }
 
-        if (Date.now() > this.nextTimeDiags) {
+        if (Date.now() > this.nextTimeDiags)
+        {
             showDiags = true;
             let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
             diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
@@ -365,14 +401,17 @@ export class SSGOldRenderer {
             this.nextTimeDiags = Date.now() + 1000;
         }
 
-        for (const nextOrbiter of this.orbiters) {
+        for (const nextOrbiter of this.orbiters)
+        {
             nextOrbiter.updatePosition(simElapsedSeconds);
         }
 
-        if (this.lookAtTarget) {
+        if (this.lookAtTarget)
+        {
             const lookAtVec = new THREE.Vector3();
             this.lookAtTarget.getWorldPosition(lookAtVec);
-            if (this.orbitControls) {
+            if (this.orbitControls)
+            {
                 // set camera to rotate around the target
                 this.orbitControls.target = lookAtVec;
                 this.orbitControls.update();
@@ -380,7 +419,8 @@ export class SSGOldRenderer {
             // this.camera.lookAt(lookAtVec);
             // this.camera.updateProjectionMatrix();
 
-            if (showDiags) {
+            if (showDiags)
+            {
                 Logger.info(SSGSystemFilter.Always, `Look At: ${THREEUtils.DumpVec(lookAtVec)}`);
             }
         }
@@ -394,10 +434,13 @@ export class SSGOldRenderer {
 
         this.composer.render();
 
-        if (SettingsManager.CurrentSettings.DownloadImage) {
+        if (SettingsManager.CurrentSettings.DownloadImage)
+        {
             SettingsManager.CurrentSettings.DownloadImage = false;
-            this.renderer.domElement.toBlob((imageBlob) => {
-                if (imageBlob) {
+            this.renderer.domElement.toBlob((imageBlob) =>
+            {
+                if (imageBlob)
+                {
                     Utils.DownloadFileFromBlob("system-image.png", imageBlob);
                 }
             });
@@ -406,7 +449,8 @@ export class SSGOldRenderer {
         this.getNextAnimationFrame();
     }
 
-    private fitCameraToObject() {
+    private fitCameraToObject()
+    {
         const offset = 1.05;
 
         const boundingBox = new THREE.Box3();
@@ -443,14 +487,16 @@ export class SSGOldRenderer {
         this.camera.far = cameraToFarEdge * 3;
         this.camera.updateProjectionMatrix();
 
-        if (this.orbitControls) {
+        if (this.orbitControls)
+        {
             // prevent camera from zooming out far enough to create far plane cutoff
             this.orbitControls.maxDistance = cameraToFarEdge * 2;
             this.orbitControls.saveState();
 
             // set camera to rotate around the target
             const lookAtVec = new THREE.Vector3(0, 0, 0);
-            if (this.lookAtTarget) {
+            if (this.lookAtTarget)
+            {
                 this.lookAtTarget.getWorldPosition(lookAtVec);
             }
             this.orbitControls.target = lookAtVec;
@@ -461,7 +507,8 @@ export class SSGOldRenderer {
         }
     }
 
-    private buildSolarSystem(rootObject: CelestialObject): THREE.Group {
+    private buildSolarSystem(rootObject: CelestialObject): THREE.Group
+    {
         const sceneGroup = new THREE.Group();
         sceneGroup.name = `${rootObject.Name}-root`;
 
@@ -472,55 +519,67 @@ export class SSGOldRenderer {
         const objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
-        if (majorAxis > 0) {
+        if (majorAxis > 0)
+        {
             const orbitCurve = THREEUtils.BuildOrbitalEllipse(0, 0, majorAxis, minorAxis);
 
-            if (rootObject.OrbitColor !== "none") {
+            if (rootObject.OrbitColor !== "none")
+            {
                 const orbitObject = THREEUtils.BuildOrbitalMesh(0, 0, 0, orbitCurve, rootObject.OrbitColor ?? DEFAULT_ORBITAL_COLOR);
                 orbitObject.name = `${rootObject.Name}-orbit-geom`;
                 sceneGroup.add(orbitObject);
             }
 
-            if (objectGroup) {
+            if (objectGroup)
+            {
                 const planetOrbiter = new Orbiter(objectGroup, orbitCurve, rootObject.InitialOrbitalAngle, rootObject.OrbitalVelocity);
                 planetOrbiter.updatePosition(0);
                 this.orbiters.push(planetOrbiter);
             }
         }
 
-        SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
-            if (rootObject.Name == settings.LookAt) {
+        SettingsManager.subscribeSettings((settings: SSGOldSettings) =>
+        {
+            if (rootObject.Name == settings.LookAt)
+            {
                 this.lookAtTarget = objectGroup;
                 Logger.info(SSGSystemFilter.RenderSettings, `Looking At '${settings.LookAt}'`);
             }
 
-            if (rootObject.Obj3D) {
+            if (rootObject.Obj3D)
+            {
                 objectGroup.remove(rootObject.Obj3D);
                 rootObject.Obj3D = undefined;
             }
 
-            if (rootObject.ObjectRadius > 0) {
+            if (rootObject.ObjectRadius > 0)
+            {
                 let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
 
-                if (rootObject.IsStar) {
+                if (rootObject.IsStar)
+                {
                     planetaryRadius *= settings.StarScale;
                     rootObject.Obj3D = THREEUtils.BuildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
-                } else {
+                } else
+                {
                     planetaryRadius *= settings.PlanetScale;
                     rootObject.Obj3D = THREEUtils.BuildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 }
 
                 Logger.info(SSGSystemFilter.ModelBuilding, `Building '${rootObject.Name}' with radius ${planetaryRadius} and orbit: ${majorAxis}/${minorAxis}`);
-            } else {
+            } else
+            {
                 const ringInnerRadius = rootObject.RingInnerRadius ?? 0;
                 const ringWidth = rootObject.RingWidth ?? 0.5;
                 const ringThickness = 0.001;
                 const ringDensity = Math.max(Math.min(rootObject.RingDensity ?? 0.001, 1), 0);
                 const ringColor = rootObject.RingColor ?? "none";
 
-                if (ringInnerRadius > 0 && ringColor != "none" && rootObject.ParentObject) {
+                if (ringInnerRadius > 0 && ringColor != "none" && rootObject.ParentObject)
+                {
                     // If the parent object is a planet, make it cast shadows so the rings look correct.
-                    if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D) {
+                    if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D)
+                    {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (rootObject.ParentObject.Obj3D as any).castShadow = true; //default is false
                     }
@@ -561,27 +620,32 @@ export class SSGOldRenderer {
                 }
             }
 
-            if (rootObject.Obj3D) {
+            if (rootObject.Obj3D)
+            {
                 objectGroup.add(rootObject.Obj3D);
             }
         });
 
         sceneGroup.add(objectGroup);
 
-        if (perigee != 0) {
+        if (perigee != 0)
+        {
             sceneGroup.position.x = perigee;
         }
 
-        if (rootObject.PhaseAngle != 0) {
+        if (rootObject.PhaseAngle != 0)
+        {
             sceneGroup.rotation.order = "ZYX";
             sceneGroup.rotation.z = Utils.DegreesToRadians(rootObject.PhaseAngle);
         }
 
-        if (rootObject.OrbitalInclination != 0) {
+        if (rootObject.OrbitalInclination != 0)
+        {
             sceneGroup.rotation.y = Utils.DegreesToRadians(rootObject.OrbitalInclination);
         }
 
-        for (const childObj of rootObject.ChildObjects) {
+        for (const childObj of rootObject.ChildObjects)
+        {
             const childGroup = this.buildSolarSystem(childObj);
             objectGroup.add(childGroup);
         }
@@ -589,7 +653,8 @@ export class SSGOldRenderer {
         return sceneGroup;
     }
 
-    private ringMaterialTextured(ringColor: string, density = 0.1) {
+    private ringMaterialTextured(ringColor: string, density = 0.1)
+    {
         const width = 512;
         const height = 512;
 
@@ -599,7 +664,8 @@ export class SSGOldRenderer {
 
         let stride = 0;
 
-        while (stride < byteSize) {
+        while (stride < byteSize)
+        {
             const c = (Math.random() < density) ? 255 : 0;
             data[stride++] = c;
             data[stride++] = c;

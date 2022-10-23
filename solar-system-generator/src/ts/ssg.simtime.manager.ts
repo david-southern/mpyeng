@@ -3,39 +3,46 @@ import { Utils } from "./utils";
 import { GlobalSettings } from "./ssg.settings";
 import { firstValueFrom, Subject } from "rxjs";
 
-export class SSGSimTimeManager {
+export class SSGSimTimeManager
+{
     private static _Instance = new SSGSimTimeManager();
-    public static get Instance() {
+    public static get Instance()
+    {
         return SSGSimTimeManager._Instance;
     }
 
     private TickSubject = new Subject<number>();
     public Tick$ = this.TickSubject.asObservable();
 
-    private constructor() {
-    // Make the constructor private to signal that SSGSimTimeManager is a singleton
+    private constructor()
+    {
+        // Make the constructor private to signal that SSGSimTimeManager is a singleton
     }
 
     private actualStartTime = 0;
     private lastActualTime = 0;
 
     private _actualTime = 0;
-    public get ActualTime() {
+    public get ActualTime()
+    {
         return this._actualTime;
     }
 
     private _actualElapsedSeconds = 0;
-    public get LastFrameActualElapsedSeconds() {
+    public get LastFrameActualElapsedSeconds()
+    {
         return this._actualElapsedSeconds;
     }
 
     private _simTime = 0;
-    public get SimTime() {
+    public get SimTime()
+    {
         return this._simTime;
     }
 
     private _simElapsedSeconds = 0;
-    public get LastFrameSimElapsedSeconds() {
+    public get LastFrameSimElapsedSeconds()
+    {
         return this._simElapsedSeconds;
     }
 
@@ -43,12 +50,14 @@ export class SSGSimTimeManager {
     private SHOW_DIAGS = false;
     private nextDiags = 0;
 
-    public async UpdateSimTime(actualMillis: number) {
+    public async UpdateSimTime(actualMillis: number)
+    {
         this._actualTime = actualMillis / 1000;
 
         let speedScale = 0;
 
-        if (Utils.FloatNE(GlobalSettings.AnimationSpeed, 0)) {
+        if (Utils.FloatNE(GlobalSettings.AnimationSpeed, 0))
+        {
             speedScale = await firstValueFrom(GlobalSettings.AnimationTimeScale$);
         }
 
@@ -57,7 +66,8 @@ export class SSGSimTimeManager {
         this._simElapsedSeconds = this._actualElapsedSeconds * speedScale;
         this._simTime += this._simElapsedSeconds;
 
-        if (this.SHOW_DIAGS && Date.now() > this.nextDiags) {
+        if (this.SHOW_DIAGS && Date.now() > this.nextDiags)
+        {
             const diagScale = await firstValueFrom(GlobalSettings.AnimationTimeScaleHuman$);
             Logger.info(SSGSystemFilter.TimingDiagnostics, `SimTimeMgr: Time Scale: ${diagScale}`);
             Logger.info(SSGSystemFilter.TimingDiagnostics, `  Clock: Actual: ${Utils.HumanTime(this._actualTime)}`);
