@@ -1,20 +1,19 @@
-import * as THREE from "three";
-import { BackgroundImageData, BackgroundImages } from "./settings.backgrounds";
-import { Utils } from "./utils";
+import * as THREE from 'three';
+import { BackgroundImageData, BackgroundImages } from './settings.backgrounds';
+import { Utils } from './utils';
 
-export const GRID_TYPE_RECTANGULAR = "Rectangular";
-export const GRID_TYPE_POLAR = "Polar";
-export const GRID_TYPE_NONE = "None";
+export const GRID_TYPE_RECTANGULAR = 'Rectangular';
+export const GRID_TYPE_POLAR = 'Polar';
+export const GRID_TYPE_NONE = 'None';
 
-export class SSGOldSettings
-{
-    public AmbientLightColor = "#404040";
+export class SSGOldSettings {
+    public AmbientLightColor = '#404040';
     public AmbientLightIntensity = 1;
 
-    public OrbitalColor = "#00ffff";
+    public OrbitalColor = '#00ffff';
 
     public IncludeDirectionalLight = false;
-    public DirectionalLightColor = "#000000";
+    public DirectionalLightColor = '#000000';
     public DirectionalLightIntensity = 0;
     public DirectionalLightPosition = new THREE.Vector3(0, 0, 0);
 
@@ -29,26 +28,28 @@ export class SSGOldSettings
 
     public MaxAnimationSpeedScale = 10e8;
 
-    public get AnimationTimeScale(): number
-    {
+    public get AnimationTimeScale(): number {
         const clampedSpeed = Utils.Clamp(this.AnimationSpeed, -1, 1);
 
         // Use a quadratic easing function, but allow the sign of the clampedSpeed through
-        return clampedSpeed * Math.abs(clampedSpeed) * this.MaxAnimationSpeedScale;
+        return (
+            clampedSpeed * Math.abs(clampedSpeed) * this.MaxAnimationSpeedScale
+        );
     }
 
     // A human-readable representation of the AnimationTimeScale
-    public get AnimationTimeScaleHuman(): string
-    {
-        return Utils.FloatEQ(this.AnimationTimeScale, 0) ? "paused" : `${Utils.HumanTime(this.AnimationTimeScale)} per second`;
+    public get AnimationTimeScaleHuman(): string {
+        return Utils.FloatEQ(this.AnimationTimeScale, 0)
+            ? 'paused'
+            : `${Utils.HumanTime(this.AnimationTimeScale)} per second`;
     }
 
     public GridType = GRID_TYPE_POLAR;
     public GridSizeFactor = 1.1;
     public GridMajorDivisions = 4;
-    public GridMajorColor = "#004000";
+    public GridMajorColor = '#004000';
     public GridMinorDivisions = 36;
-    public GridMinorColor = "#003000";
+    public GridMinorColor = '#003000';
 
     public PlanetScale = 1500;
     public StarScale = 50;
@@ -61,10 +62,8 @@ export class SSGOldSettings
 
     public BackgroundImage?: BackgroundImageData;
 
-    constructor(partialObj?: Partial<SSGOldSettings>)
-    {
-        if (partialObj)
-        {
+    constructor(partialObj?: Partial<SSGOldSettings>) {
+        if (partialObj) {
             Object.assign(this, partialObj);
         }
     }
@@ -72,5 +71,5 @@ export class SSGOldSettings
 
 // Export this so I don't have to null=check things everywhere
 export const EmptySettings = new SSGOldSettings({
-    BackgroundImage: BackgroundImages[4]
+    BackgroundImage: BackgroundImages[4],
 });

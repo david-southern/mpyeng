@@ -1,30 +1,27 @@
-export enum SSGSystemFilter
-{
+export enum SSGSystemFilter {
     Initialization,
     RenderSettings,
     RenderDiagnostics,
     ExportDiagnostics,
     ModelBuilding,
     TimingDiagnostics,
-    Always
+    Always,
 }
 
 const shortSource = new Map<string, string>([
-    [SSGSystemFilter[SSGSystemFilter.Initialization], "Init"],
-    [SSGSystemFilter[SSGSystemFilter.RenderSettings], "RS"],
-    [SSGSystemFilter[SSGSystemFilter.RenderDiagnostics], "RD"],
-    [SSGSystemFilter[SSGSystemFilter.ExportDiagnostics], "Exp"],
-    [SSGSystemFilter[SSGSystemFilter.ModelBuilding], "MB"],
-    [SSGSystemFilter[SSGSystemFilter.TimingDiagnostics], "TD"],
-    [SSGSystemFilter[SSGSystemFilter.Always], "All"],
+    [SSGSystemFilter[SSGSystemFilter.Initialization], 'Init'],
+    [SSGSystemFilter[SSGSystemFilter.RenderSettings], 'RS'],
+    [SSGSystemFilter[SSGSystemFilter.RenderDiagnostics], 'RD'],
+    [SSGSystemFilter[SSGSystemFilter.ExportDiagnostics], 'Exp'],
+    [SSGSystemFilter[SSGSystemFilter.ModelBuilding], 'MB'],
+    [SSGSystemFilter[SSGSystemFilter.TimingDiagnostics], 'TD'],
+    [SSGSystemFilter[SSGSystemFilter.Always], 'All'],
 ]);
 
-class LoggerImpl
-{
+class LoggerImpl {
     private filteredSystems = new Map<SSGSystemFilter, boolean>();
 
-    constructor()
-    {
+    constructor() {
         // this.filterSystem(SSGSystemFilter.RenderSettings, false);
 
         // this.filterSystem(SSGSystemFilter.Initialization, false);
@@ -34,28 +31,29 @@ class LoggerImpl
         // this.filterSystem(SSGSystemFilter.TimingDiagnostics, false);
     }
 
-    public filterSystem(system: SSGSystemFilter, allow = false)
-    {
+    public filterSystem(system: SSGSystemFilter, allow = false) {
         this.filteredSystems.set(system, !allow);
     }
 
-    public wouldLog(system: SSGSystemFilter): boolean
-    {
-        return system == SSGSystemFilter.Always || !this.filteredSystems.get(system);
+    public wouldLog(system: SSGSystemFilter): boolean {
+        return (
+            system == SSGSystemFilter.Always ||
+            !this.filteredSystems.get(system)
+        );
     }
 
-    public info(system: SSGSystemFilter, message: string, ...args: unknown[])
-    {
-        if (this.wouldLog(system))
-        {
-            const source = shortSource.get(SSGSystemFilter[system]) ?? SSGSystemFilter[system];
+    public info(system: SSGSystemFilter, message: string, ...args: unknown[]) {
+        if (this.wouldLog(system)) {
+            const source =
+                shortSource.get(SSGSystemFilter[system]) ??
+                SSGSystemFilter[system];
             console.log(`${source}: ${message}`, ...args);
         }
     }
 
-    public error(system: SSGSystemFilter, message: string, ...args: unknown[])
-    {
-        const source = shortSource.get(SSGSystemFilter[system]) ?? SSGSystemFilter[system];
+    public error(system: SSGSystemFilter, message: string, ...args: unknown[]) {
+        const source =
+            shortSource.get(SSGSystemFilter[system]) ?? SSGSystemFilter[system];
         console.error(`${source}: ${message}`, ...args);
     }
 }

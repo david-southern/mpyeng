@@ -1,27 +1,37 @@
-import { combineLatest, ReplaySubject, Subject, takeUntil } from "rxjs";
-import * as THREE from "three";
-import { CelestialObject } from "./celestial-object";
-import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./settings";
-import { Utils } from "./utils";
+import {
+    BehaviorSubject,
+    combineLatest,
+    ReplaySubject,
+    Subject,
+    takeUntil,
+} from 'rxjs';
+import * as THREE from 'three';
+import { CelestialObject } from './celestial-object';
+import { Logger, SSGSystemFilter } from './logger';
+import {
+    GlobalSettings,
+    GRID_TYPE_NONE,
+    GRID_TYPE_POLAR,
+    GRID_TYPE_RECTANGULAR,
+} from './settings';
+import { Utils } from './utils';
 
-export class SSGSceneManager
-{
+export class SSGSceneManager {
     private static _Instance = new SSGSceneManager();
-    public static get Instance()
-    {
+    public static get Instance() {
         return SSGSceneManager._Instance;
     }
 
-    public SceneUpdated$ = new ReplaySubject<THREE.Scene>(1);
+    public SceneUpdated$ = new BehaviorSubject<THREE.Scene>(new THREE.Scene());
 
     // Make the constructor private to signal that SSGRxSettings is a singleton
-    private constructor()
-    {
+    private constructor() {
+        Logger.info(SSGSystemFilter.ModelBuilding, 'Constructing SceneManager');
         this.systemScene = new THREE.Scene();
-        this.systemScene.name = "SSG-root";
+        this.systemScene.name = 'SSG-root';
 
         this.gridScene = new THREE.Scene();
-        this.systemScene.name = "Grid-root";
+        this.systemScene.name = 'Grid-root';
 
         this.ambientLight = new THREE.AmbientLight();
         this.systemScene.add(this.ambientLight);
@@ -29,28 +39,49 @@ export class SSGSceneManager
         this.directionalLight = new THREE.DirectionalLight();
         this.systemScene.add(this.directionalLight);
 
-        GlobalSettings.SystemRoot$.pipe(takeUntil(this.unsubscribe))
-            .subscribe(rootObject => this.RenderSystem(rootObject));
+        GlobalSettings.SystemRoot$.pipe(takeUntil(this.unsubscribe)).subscribe(
+            (rootObject) => this.RenderSystem(rootObject)
+        );
+
+        Logger.info(
+            SSGSystemFilter.ModelBuilding,
+            'Subscribing to Grid Updates'
+        );
 
         combineLatest([
-            this.SceneUpdated$, GlobalSettings.GridType$, GlobalSettings.GridSizeFactor$,
-            GlobalSettings.GridMajorDivisions$, GlobalSettings.GridMinorDivisions$,
-            GlobalSettings.GridMajorColor$, GlobalSettings.GridMinorColor$
-        ]).pipe(takeUntil(this.unsubscribe))
-            .subscribe(([
-                sceneUpdated, gridType, gridSizeFactor,
-                majorDivisions, minorDivisions,
-                majorColor, minorColor
-            ]) =>
-            {
-                this.RenderGrid(sceneUpdated, gridType, gridSizeFactor,
-                    majorDivisions, minorDivisions,
-                    majorColor, minorColor);
-            });
+            this.SceneUpdated$,
+            GlobalSettings.GridType$,
+            GlobalSettings.GridSizeFactor$,
+            GlobalSettings.GridMajorDivisions$,
+            GlobalSettings.GridMinorDivisions$,
+            GlobalSettings.GridMajorColor$,
+            GlobalSettings.GridMinorColor$,
+        ])
+            .pipe(takeUntil(this.unsubscribe))
+            .subscribe(
+                ([
+                    sceneUpdated,
+                    gridType,
+                    gridSizeFactor,
+                    majorDivisions,
+                    minorDivisions,
+                    majorColor,
+                    minorColor,
+                ]) => {
+                    this.RenderGrid(
+                        sceneUpdated,
+                        gridType,
+                        gridSizeFactor,
+                        majorDivisions,
+                        minorDivisions,
+                        majorColor,
+                        minorColor
+                    );
+                }
+            );
     }
 
-    public Destroy()
-    {
+    public Destroy() {
         this.unsubscribe.next();
         this.unsubscribe.complete();
     }
@@ -58,15 +89,13 @@ export class SSGSceneManager
     private unsubscribe = new Subject<void>();
 
     private systemScene: THREE.Scene;
-    public get SystemScene()
-    {
+    public get SystemScene() {
         return this.systemScene;
     }
     private systemContent?: THREE.Group;
 
     private gridScene: THREE.Scene;
-    public get GridScene()
-    {
+    public get GridScene() {
         return this.gridScene;
     }
     private gridContent?: THREE.Group;
@@ -74,90 +103,109 @@ export class SSGSceneManager
     private ambientLight: THREE.AmbientLight;
     private directionalLight: THREE.DirectionalLight;
 
-    private RenderSystem(rootObject?: CelestialObject)
-    {
+    private RenderSystem(rootObject?: CelestialObject) {
         let sceneUpdated = false;
 
-        try
-        {
-            if (this.systemContent)
-            {
+        try {
+            if (this.systemContent) {
                 this.systemContent.removeFromParent();
                 this.systemContent = undefined;
                 sceneUpdated = true;
             }
 
-            if (!rootObject)
-            {
+            if (!rootObject) {
                 return;
             }
-        }
-        finally
-        {
-            if (sceneUpdated)
-            {
+        } finally {
+            if (sceneUpdated) {
                 this.SceneUpdated$.next(this.systemScene);
             }
         }
     }
 
-    private RenderGrid(sceneUpdated: THREE.Scene, gridType: string, gridSizeFactor: number,
-        majorDivisions: number, minorDivisions: number, majorColor: string, minorColor: string)
-    {
-        if (this.gridContent)
-        {
+    private RenderGrid(
+        sceneUpdated: THREE.Scene,
+        gridType: string,
+        gridSizeFactor: number,
+        majorDivisions: number,
+        minorDivisions: number,
+        majorColor: string,
+        minorColor: string
+    ) {
+        Logger.info(
+            SSGSystemFilter.RenderDiagnostics,
+            `Starting RenderGrid - gridType: ${gridType}`
+        );
+        if (this.gridContent) {
             this.gridContent.removeFromParent();
             this.gridContent = undefined;
         }
 
-        if (!gridType || gridType == GRID_TYPE_NONE)
-        {
+        if (!gridType || gridType == GRID_TYPE_NONE) {
             return;
         }
 
         this.gridContent = new THREE.Group();
-        this.gridContent.name = "SSG-system-grid";
+        this.gridContent.name = 'SSG-system-grid';
 
         const boundingBox = new THREE.Box3();
         boundingBox.setFromObject(this.systemScene);
 
-        const gridSize = Math.max(boundingBox.max.x - boundingBox.min.x,
-            boundingBox.max.y - boundingBox.min.y) * gridSizeFactor;
+        const gridSize =
+            Math.max(
+                boundingBox.max.x - boundingBox.min.x,
+                boundingBox.max.y - boundingBox.min.y
+            ) * gridSizeFactor;
+
+        if (!Number.isFinite(gridSize) || gridSize < 0) {
+            return;
+        }
+
+        Logger.info(
+            SSGSystemFilter.RenderDiagnostics,
+            `Rendering ${gridType} grid with size ${gridSize}, factor: ${gridSizeFactor}`
+        );
 
         let gridMesh: THREE.GridHelper | THREE.PolarGridHelper | undefined;
 
-        if (gridType == GRID_TYPE_RECTANGULAR)
-        {
-            gridMesh = new THREE.GridHelper(gridSize, majorDivisions,
-                majorColor, minorColor);
+        if (gridType == GRID_TYPE_RECTANGULAR) {
+            gridMesh = new THREE.GridHelper(
+                gridSize,
+                majorDivisions,
+                majorColor,
+                minorColor
+            );
             gridMesh.rotation.x = Utils.DegreesToRadians(90);
             gridMesh.renderOrder = -1;
         }
 
-        if (gridType == GRID_TYPE_POLAR)
-        {
-            gridMesh = new THREE.PolarGridHelper(gridSize / 2,
-                minorDivisions, majorDivisions, 64,
-                majorColor, minorColor);
+        if (gridType == GRID_TYPE_POLAR) {
+            gridMesh = new THREE.PolarGridHelper(
+                gridSize / 2,
+                minorDivisions,
+                majorDivisions,
+                64,
+                majorColor,
+                minorColor
+            );
             gridMesh.rotation.x = Utils.DegreesToRadians(90);
             gridMesh.renderOrder = -1;
         }
 
-        if (gridMesh)
-        {
+        if (gridMesh) {
             this.gridContent.add(gridMesh as THREE.Object3D);
         }
     }
 
-    public UpdateScene()
-    {
-        throw new Error("Not implemented");
+    public UpdateScene() {
+        Logger.info(
+            SSGSystemFilter.RenderDiagnostics,
+            'SceneManager.UpdateScene: Not impd'
+        );
     }
 
-    public FindObject(targetName?: string)
-    {
-        if (!targetName)
-        {
+    public FindObject(targetName?: string) {
+        if (!targetName) {
             return undefined;
         }
         return this.systemScene.getObjectByName(targetName);
