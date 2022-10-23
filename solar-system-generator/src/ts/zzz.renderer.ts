@@ -10,12 +10,12 @@ import * as PP from "postprocessing";
 
 import { CelestialObject } from "./celestial-object";
 // import { OrbitControls } from './OrbitControls';
-import { Logger, SSGSystemFilter } from "./ssg.logger";
-import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings } from "./ssg.zzz.settings";
+import { Logger, SSGSystemFilter } from "./logger";
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings } from "./zzz.settings";
 import { Utils } from "./utils";
-import { Orbiter } from "./ssg.orbiter";
-import { SettingsManager } from "./ssg.settings.manager";
-import { Constants } from "./ssg.constants";
+import { Orbiter } from "./orbiter";
+import { SettingsManager } from "./zzz.settings.manager";
+import { Constants } from "./constants";
 import { THREEUtils } from "./utils.three";
 
 const DEFAULT_FOV = 70;

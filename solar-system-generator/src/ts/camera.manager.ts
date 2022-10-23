@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 import { CanvasManager } from "./canvas.manager";
 import { SceneManager } from "./scene.manager";
-import { GlobalSettings } from "./ssg.settings";
+import { GlobalSettings } from "./settings";
 import { THREEUtils } from "./utils.three";
 
 const DEFAULT_FOV = 30;

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { BackgroundImageData, BackgroundImages } from "./ssg.settings.backgrounds";
+import { BackgroundImageData, BackgroundImages } from "./settings.backgrounds";
 import { Utils } from "./utils";
 
 export const GRID_TYPE_RECTANGULAR = "Rectangular";

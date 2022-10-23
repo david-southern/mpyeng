@@ -1,4 +1,4 @@
-﻿import { SSGOldSettings, EmptySettings } from "./ssg.zzz.settings";
+﻿import { SSGOldSettings, EmptySettings } from "./zzz.settings";
 
 type SettingsCB = (settings: SSGOldSettings) => void;
 

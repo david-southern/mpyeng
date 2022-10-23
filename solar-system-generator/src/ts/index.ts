@@ -1,10 +1,10 @@
 import { CelestialObject } from "./celestial-object";
 import { Sol } from "./solar-system";
-import { Logger, SSGSystemFilter } from "./ssg.logger";
-import { SSGRenderer } from "./ssg.renderer";
+import { Logger, SSGSystemFilter } from "./logger";
+import { SSGRenderer } from "./renderer";
 import GUI from "lil-gui";
 
-import { GlobalSettings } from "./ssg.settings";
+import { GlobalSettings } from "./settings";
 
 export const Renderer = new SSGRenderer();
 

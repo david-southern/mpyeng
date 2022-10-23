@@ -1,6 +1,6 @@
-﻿import { Logger, SSGSystemFilter } from "./ssg.logger";
+﻿import { Logger, SSGSystemFilter } from "./logger";
 import { Utils } from "./utils";
-import { GlobalSettings } from "./ssg.settings";
+import { GlobalSettings } from "./settings";
 import { firstValueFrom, Subject } from "rxjs";
 
 export class SSGSimTimeManager

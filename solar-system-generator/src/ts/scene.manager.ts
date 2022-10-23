@@ -1,7 +1,7 @@
 import { combineLatest, ReplaySubject, Subject, takeUntil } from "rxjs";
 import * as THREE from "three";
 import { CelestialObject } from "./celestial-object";
-import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./ssg.settings";
+import { GlobalSettings, GRID_TYPE_NONE, GRID_TYPE_POLAR, GRID_TYPE_RECTANGULAR } from "./settings";
 import { Utils } from "./utils";
 
 export class SSGSceneManager

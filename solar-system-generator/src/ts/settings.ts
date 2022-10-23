@@ -1,7 +1,7 @@
 import { BehaviorSubject, combineLatest, map } from "rxjs";
 import * as THREE from "three";
 import { CelestialObject } from "./celestial-object";
-import { DefaultBackgroundImage } from "./ssg.settings.backgrounds";
+import { DefaultBackgroundImage } from "./settings.backgrounds";
 import { Utils } from "./utils";
 
 export const GRID_TYPE_RECTANGULAR = "Rectangular";

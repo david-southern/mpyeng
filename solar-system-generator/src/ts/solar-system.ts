@@ -1,5 +1,5 @@
 import { CelestialObject } from "./celestial-object";
-import { Constants } from "./ssg.constants";
+import { Constants } from "./constants";
 
 
 export const EmptySystem = () => new CelestialObject({

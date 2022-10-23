@@ -1,6 +1,6 @@
 ﻿import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { Logger, SSGSystemFilter } from "./ssg.logger";
+import { Logger, SSGSystemFilter } from "./logger";
 import { Utils } from "./utils";
 
 export class THREEUtils

@@ -1,8 +1,8 @@
 ﻿import * as THREE from "three";
 import * as PP from "postprocessing";
 
-import { SimTimeManager } from "./ssg.simtime.manager";
-import { DefaultBackgroundImage } from "./ssg.settings.backgrounds";
+import { SimTimeManager } from "./simtime.manager";
+import { DefaultBackgroundImage } from "./settings.backgrounds";
 import { CanvasManager } from "./canvas.manager";
 import { CameraManager } from "./camera.manager";
 import { SceneManager } from "./scene.manager";

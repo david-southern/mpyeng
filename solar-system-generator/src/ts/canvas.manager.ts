@@ -1,6 +1,6 @@
-﻿import { Logger, SSGSystemFilter } from "./ssg.logger";
+﻿import { Logger, SSGSystemFilter } from "./logger";
 import { Utils } from "./utils";
-import { SimTimeManager } from "./ssg.simtime.manager";
+import { SimTimeManager } from "./simtime.manager";
 
 export class SSGCanvasManager
 {
