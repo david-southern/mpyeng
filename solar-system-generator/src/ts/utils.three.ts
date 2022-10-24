@@ -5,17 +5,10 @@ import { Utils } from './utils';
 
 export class THREEUtils {
     public static DumpVec(vec: THREE.Vector2 | THREE.Vector3): string {
-        return vec instanceof THREE.Vector2
-            ? `(${vec.x}, ${vec.y})`
-            : `(${vec.x}, ${vec.y}, ${vec.z})`;
+        return vec instanceof THREE.Vector2 ? `(${vec.x}, ${vec.y})` : `(${vec.x}, ${vec.y}, ${vec.z})`;
     }
 
-    public static SetPosition(
-        object3d: THREE.Object3D,
-        x: number | THREE.Vector3,
-        y?: number,
-        z?: number
-    ) {
+    public static SetPosition(object3d: THREE.Object3D, x: number | THREE.Vector3, y?: number, z?: number) {
         if (typeof x === 'number') {
             object3d.position.x = x;
             object3d.position.y = y ?? 0;
@@ -26,144 +19,36 @@ export class THREEUtils {
             object3d.position.z = x.z;
         }
     }
-    public static PlanetMaterial(color: string) {
-        return new THREE.MeshLambertMaterial({ color });
-    }
 
-    public static StarMaterial(color: string) {
-        return new THREE.MeshBasicMaterial({ color });
-        // return new THREE.MeshLambertMaterial({ emissive: color });
-    }
+    public static RingMaterialTextured(ringColor: string, density = 0.1) {
+        const width = 512;
+        const height = 512;
 
-    public static OrbitalMaterial(color: string) {
-        return new THREE.LineBasicMaterial({ color });
-    }
+        const size = width * height;
+        const byteSize = size * 4;
+        const data = new Uint8Array(byteSize);
 
-    public static BuildOrbitalEllipse(
-        x: number,
-        y: number,
-        xRadius: number,
-        yRadius: number
-    ): THREE.EllipseCurve {
-        const startAngle = 0;
-        const endAngle = 2 * Math.PI;
-        const clockwiseDirection = false;
+        let stride = 0;
 
-        return new THREE.EllipseCurve(
-            x,
-            y,
-            xRadius,
-            yRadius,
-            startAngle,
-            endAngle,
-            clockwiseDirection,
-            0
-        );
-    }
+        while (stride < byteSize) {
+            const c = Math.random() < density ? 255 : 0;
+            data[stride++] = c;
+            data[stride++] = c;
+            data[stride++] = c;
+            data[stride++] = 255;
+        }
 
-    public static BuildOrbitalMesh(
-        x: number,
-        y: number,
-        z: number,
-        curve: THREE.EllipseCurve,
-        color: string
-    ) {
-        const points = curve.getPoints(250);
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const texture = new THREE.DataTexture(data, width, height);
+        texture.needsUpdate = true;
 
-        // Create the final object to add to the scene
-        const ellipse = new THREE.Line(
-            geometry,
-            THREEUtils.OrbitalMaterial(color)
-        );
-        THREEUtils.SetPosition(ellipse, x, y, z);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
 
-        return ellipse;
-    }
-
-    public static BuildPlanet(
-        x: number,
-        y: number,
-        z: number,
-        radius: number,
-        color: string
-    ) {
-        const geometry = new THREE.SphereGeometry(radius, 32, 16);
-        const sphere = new THREE.Mesh(
-            geometry,
-            THREEUtils.PlanetMaterial(color)
-        );
-
-        THREEUtils.SetPosition(sphere, x, y, z);
-
-        return sphere;
-    }
-
-    public static BuildStar(
-        x: number,
-        y: number,
-        z: number,
-        radius: number,
-        color: string
-    ) {
-        const starGroup = new THREE.Group();
-
-        const pointLight = new THREE.PointLight(color, 1);
-        starGroup.add(pointLight);
-
-        const geometry = new THREE.SphereGeometry(radius, 32, 16);
-        const sphere = new THREE.Mesh(geometry, THREEUtils.StarMaterial(color));
-        THREEUtils.SetPosition(sphere, x, y, z);
-
-        pointLight.castShadow = true;
-        pointLight.shadow.mapSize.width = 512; // default
-        pointLight.shadow.mapSize.height = 512; // default
-        pointLight.shadow.camera.near = 0.5; // default
-        pointLight.shadow.camera.far = 500; // default
-
-        starGroup.add(sphere);
-
-        return starGroup;
-    }
-
-    public static ZZZBuildGrid(
-        size: number,
-        divisions: number,
-        centerColor: string,
-        lineColor: string
-    ) {
-        const gridHelper = new THREE.GridHelper(
-            size,
-            divisions,
-            centerColor,
-            lineColor
-        );
-        gridHelper.rotation.x = Utils.DegreesToRadians(90);
-        gridHelper.renderOrder = -1;
-
-        return gridHelper;
-    }
-
-    public static ZZZBuildPolarGrid(
-        radius: number,
-        sectors: number,
-        rings: number,
-        divisions: number,
-        color1: string,
-        color2: string
-    ) {
-        const gridHelper = new THREE.PolarGridHelper(
-            radius,
-            sectors,
-            rings,
-            divisions,
-            color1,
-            color2
-        );
-        gridHelper.rotation.x = Utils.DegreesToRadians(90);
-        gridHelper.renderOrder = -1;
-
-        return gridHelper;
+        return new THREE.MeshLambertMaterial({
+            alphaMap: texture,
+            color: ringColor,
+            transparent: true,
+        });
     }
 
     public static FitCameraToObject(
@@ -182,9 +67,9 @@ export class THREEUtils {
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: Object boundingBox: min: ${THREEUtils.DumpVec(
-                boundingBox.min
-            )}, max: ${THREEUtils.DumpVec(boundingBox.max)}`
+            `fitCamera: Object boundingBox: min: ${THREEUtils.DumpVec(boundingBox.min)}, max: ${THREEUtils.DumpVec(
+                boundingBox.max
+            )}`
         );
 
         const center = new THREE.Vector3();
@@ -195,37 +80,24 @@ export class THREEUtils {
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(
-                center
-            )}, size: ${THREEUtils.DumpVec(size)}`
+            `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(center)}, size: ${THREEUtils.DumpVec(size)}`
         );
 
         // get the max side of the bounding box (fits to width OR height as needed )
         const fov = camera.fov * (Math.PI / 180);
 
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: aspect ratio: ${aspectRatio}, FOV: ${camera.fov}`
-        );
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: aspect ratio: ${aspectRatio}, FOV: ${camera.fov}`);
 
         const ySize = Math.max(size.y, size.x / aspectRatio);
 
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: target Y Size: ${ySize}`
-        );
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: target Y Size: ${ySize}`);
 
         let cameraYDistance = Math.abs(ySize / 2 / Math.tan(fov / 2));
 
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: camera Y: ${cameraYDistance}`);
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: camera Y: ${cameraYDistance}`
-        );
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: calc fov: ${Utils.RadiansToDegrees(
-                Math.atan(ySize / 2 / cameraYDistance)
-            )} deg`
+            `fitCamera: calc fov: ${Utils.RadiansToDegrees(Math.atan(ySize / 2 / cameraYDistance))} deg`
         );
 
         cameraYDistance *= offset; // zoom out a little so that objects don't fill the screen
@@ -234,24 +106,18 @@ export class THREEUtils {
         const cameraDistance = cameraYDistance + boundingBox.max.z;
 
         const minZ = boundingBox.min.z;
-        const cameraToFarEdge =
-            minZ < 0 ? -minZ + cameraDistance : cameraDistance - minZ;
+        const cameraToFarEdge = minZ < 0 ? -minZ + cameraDistance : cameraDistance - minZ;
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `New camera params: Z: ${cameraDistance}, FAR: ${
-                cameraToFarEdge * 3
-            }`
+            `New camera params: Z: ${cameraDistance}, FAR: ${cameraToFarEdge * 3}`
         );
 
         camera.position.z = cameraDistance;
         camera.far = cameraToFarEdge * 3;
         camera.updateProjectionMatrix();
 
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: effective FOV: ${camera.getEffectiveFOV()}`
-        );
+        Logger.info(SSGSystemFilter.RenderDiagnostics, `fitCamera: effective FOV: ${camera.getEffectiveFOV()}`);
 
         if (orbitControls) {
             // prevent camera from zooming out far enough to create far plane cutoff

@@ -1,5 +1,6 @@
 ﻿/* eslint-disable */
 
+/*
 import _ from 'lodash';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
@@ -11,12 +12,7 @@ import * as PP from 'postprocessing';
 import { CelestialObject } from './celestial-object';
 // import { OrbitControls } from './OrbitControls';
 import { Logger, SSGSystemFilter } from './logger';
-import {
-    GRID_TYPE_RECTANGULAR,
-    GRID_TYPE_NONE,
-    GRID_TYPE_POLAR,
-    SSGOldSettings,
-} from './zzz.settings';
+import { GRID_TYPE_RECTANGULAR, GRID_TYPE_NONE, GRID_TYPE_POLAR, SSGOldSettings } from './zzz.settings';
 import { Utils } from './utils';
 import { Orbiter } from './orbiter';
 import { SettingsManager } from './zzz.settings.manager';
@@ -26,10 +22,6 @@ import { THREEUtils } from './utils.three';
 const DEFAULT_FOV = 70;
 const DEFAULT_ASPECT = 1.61;
 const DEFAULT_ORBITAL_COLOR = '#999999';
-
-// I modeled all the planetary data in actual units, but those numbers are huge, and hard to track while debugging.
-// Scale everything down to 'smallish' numbers internally.
-const CoordsScale = Constants.OneAU;
 
 export class SSGOldRenderer {
     // private ssgSettings: SSGSettings = null!;
@@ -87,9 +79,7 @@ export class SSGOldRenderer {
         const checkElement = document.getElementById(elementId);
 
         if (!checkElement) {
-            throw new Error(
-                `SSG element Id '${elementId}' did not select any DOM element`
-            );
+            throw new Error(`SSG element Id '${elementId}' did not select any DOM element`);
         }
 
         return checkElement;
@@ -105,10 +95,7 @@ export class SSGOldRenderer {
 
         const rect = this.canvasElement.getBoundingClientRect();
 
-        Logger.info(
-            SSGSystemFilter.Initialization,
-            'Initializing SSG render with:'
-        );
+        Logger.info(SSGSystemFilter.Initialization, 'Initializing SSG render with:');
         Logger.info(
             SSGSystemFilter.Initialization,
             `    window @(${rect.left}, ${rect.top}), size: (${this.canvasWidth} x ${this.canvasHeight}), aspect: ${this.canvasAspect}`
@@ -127,24 +114,17 @@ export class SSGOldRenderer {
         this.textureEffect = new PP.TextureEffect({
             texture: defaultTexture,
         });
-        this.composer.addPass(
-            new PP.EffectPass(this.camera, this.textureEffect)
-        );
+        this.composer.addPass(new PP.EffectPass(this.camera, this.textureEffect));
 
         this.backgroundAdjustEffect = new PP.BrightnessContrastEffect();
-        this.composer.addPass(
-            new PP.EffectPass(this.camera, this.backgroundAdjustEffect)
-        );
+        this.composer.addPass(new PP.EffectPass(this.camera, this.backgroundAdjustEffect));
 
         const gridRenderPass = new PP.RenderPass(this.gridScene, this.camera);
         this.composer.addPass(gridRenderPass);
         gridRenderPass.clearPass.enabled = false;
         gridRenderPass.ignoreBackground = true;
         this.composer.addPass(new PP.ClearPass(false, true, false));
-        const sceneRenderPass = new PP.RenderPass(
-            this.systemScene,
-            this.camera
-        );
+        const sceneRenderPass = new PP.RenderPass(this.systemScene, this.camera);
         sceneRenderPass.clearPass.enabled = false;
         sceneRenderPass.ignoreBackground = true;
         this.composer.addPass(sceneRenderPass);
@@ -165,10 +145,7 @@ export class SSGOldRenderer {
         //     saturation: -1
         // })));
 
-        this.orbitControls = new OrbitControls(
-            this.camera,
-            this.renderer.domElement
-        );
+        this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.canvasElement.appendChild(this.renderer.domElement);
 
@@ -178,11 +155,7 @@ export class SSGOldRenderer {
     public render(solarSystem: CelestialObject, newSettings: SSGOldSettings) {
         this.solarSystem = _.cloneDeep(solarSystem);
 
-        Logger.info(
-            SSGSystemFilter.RenderSettings,
-            'SSG.render: System: ',
-            this.solarSystem
-        );
+        Logger.info(SSGSystemFilter.RenderSettings, 'SSG.render: System: ', this.solarSystem);
 
         SettingsManager.clearSettingsSubscriptions();
 
@@ -202,9 +175,7 @@ export class SSGOldRenderer {
 
             if (settings.BackgroundImage && settings.BackgroundImage.URL) {
                 if (settings.BackgroundImage.URL.startsWith('#')) {
-                    this.gridScene.background = new THREE.Color(
-                        settings.BackgroundImage.URL
-                    );
+                    this.gridScene.background = new THREE.Color(settings.BackgroundImage.URL);
                     return;
                 }
 
@@ -212,35 +183,24 @@ export class SSGOldRenderer {
 
                 if (this.lastBGUrl != settings.BackgroundImage.URL) {
                     this.lastBGUrl = settings.BackgroundImage.URL;
-                    this.loader.load(
-                        settings.BackgroundImage.URL,
-                        (texture) => {
-                            Logger.info(
-                                SSGSystemFilter.RenderSettings,
-                                `SSG.render: Loaded background image: ${settings.BackgroundImage?.Description}`
-                            );
-                            this.textureEffect.texture = texture;
-                        }
-                    );
+                    this.loader.load(settings.BackgroundImage.URL, (texture) => {
+                        Logger.info(
+                            SSGSystemFilter.RenderSettings,
+                            `SSG.render: Loaded background image: ${settings.BackgroundImage?.Description}`
+                        );
+                        this.textureEffect.texture = texture;
+                    });
                 }
 
-                this.backgroundAdjustEffect.brightness =
-                    settings.BackgroundImage.Brightness ?? 0;
-                this.backgroundAdjustEffect.contrast =
-                    settings.BackgroundImage.Contrast ?? 0;
+                this.backgroundAdjustEffect.brightness = settings.BackgroundImage.Brightness ?? 0;
+                this.backgroundAdjustEffect.contrast = settings.BackgroundImage.Contrast ?? 0;
             }
         });
 
-        Logger.info(
-            SSGSystemFilter.RenderSettings,
-            'SSG.render: Settings: ',
-            newSettings
-        );
+        Logger.info(SSGSystemFilter.RenderSettings, 'SSG.render: Settings: ', newSettings);
 
         SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
-            this.ambientLight.color = new THREE.Color(
-                settings.AmbientLightColor
-            );
+            this.ambientLight.color = new THREE.Color(settings.AmbientLightColor);
         });
 
         SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
@@ -250,15 +210,9 @@ export class SSGOldRenderer {
 
             if (settings.IncludeDirectionalLight) {
                 this.systemScene.add(this.directionalLight);
-                this.directionalLight.color = new THREE.Color(
-                    settings.DirectionalLightColor
-                );
-                this.directionalLight.intensity =
-                    settings.DirectionalLightIntensity;
-                THREEUtils.SetPosition(
-                    this.directionalLight,
-                    settings.DirectionalLightPosition
-                );
+                this.directionalLight.color = new THREE.Color(settings.DirectionalLightColor);
+                this.directionalLight.intensity = settings.DirectionalLightIntensity;
+                THREEUtils.SetPosition(this.directionalLight, settings.DirectionalLightPosition);
             }
         });
 
@@ -280,10 +234,8 @@ export class SSGOldRenderer {
             boundingBox.setFromObject(this.systemGroup);
 
             const gridSize =
-                Math.max(
-                    boundingBox.max.x - boundingBox.min.x,
-                    boundingBox.max.y - boundingBox.min.y
-                ) * settings.GridSizeFactor;
+                Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y) *
+                settings.GridSizeFactor;
 
             let gridMesh;
 
@@ -347,10 +299,7 @@ export class SSGOldRenderer {
         this.systemScene.add(this.systemGroup);
         this.gridScene.add(this.gridGroup);
 
-        Logger.info(
-            SSGSystemFilter.ModelBuilding,
-            'Ready to fix camera to scene'
-        );
+        Logger.info(SSGSystemFilter.ModelBuilding, 'Ready to fix camera to scene');
 
         // We need all the changes to the scene pushed before fitting the camera, so publish here
         SettingsManager.publishSettings(newSettings);
@@ -377,26 +326,10 @@ export class SSGOldRenderer {
         // And publish once more to get the zoom updated
         SettingsManager.publishSettings(newSettings);
 
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            'SSG System: ',
-            this.systemGroup
-        );
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            'SSG Scene: ',
-            this.systemScene
-        );
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            'SSG Grid: ',
-            this.gridGroup
-        );
-        Logger.info(
-            SSGSystemFilter.RenderDiagnostics,
-            'SSG Camera: ',
-            this.camera
-        );
+        Logger.info(SSGSystemFilter.RenderDiagnostics, 'SSG System: ', this.systemGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, 'SSG Scene: ', this.systemScene);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, 'SSG Grid: ', this.gridGroup);
+        Logger.info(SSGSystemFilter.RenderDiagnostics, 'SSG Camera: ', this.camera);
 
         if (Logger.wouldLog(SSGSystemFilter.ExportDiagnostics)) {
             Logger.info(
@@ -410,11 +343,7 @@ export class SSGOldRenderer {
     public updateSettings(settingsJson: string) {
         const newSettings = new SSGOldSettings(JSON.parse(settingsJson));
 
-        Logger.info(
-            SSGSystemFilter.RenderSettings,
-            'updateSettings: Settings: ',
-            newSettings
-        );
+        Logger.info(SSGSystemFilter.RenderSettings, 'updateSettings: Settings: ', newSettings);
 
         if (newSettings.ResetOrbitControls) {
             console.log('Resetting orbital controls!');
@@ -463,20 +392,17 @@ export class SSGOldRenderer {
         this.simTime += simElapsedSeconds;
 
         if (this.systemTimeElement) {
-            this.systemTimeElement.innerText =
-                'System Time: ' + Utils.HumanTime(this.simTime);
+            this.systemTimeElement.innerText = 'System Time: ' + Utils.HumanTime(this.simTime);
         }
 
         if (Date.now() > this.nextTimeDiags) {
             showDiags = true;
             let diagsString = `Anim: SpeedScale: ${SettingsManager.CurrentSettings.AnimationTimeScale}`;
             diagsString += ` (${SettingsManager.CurrentSettings.AnimationTimeScaleHuman})`;
-            diagsString += `, Clock: Actual: ${Utils.HumanTime(
-                actualSimTime
-            )}, Sim: ${Utils.HumanTime(this.simTime)}`;
-            diagsString += `, Frame: Actual: ${Utils.HumanTime(
-                actualElapsedSeconds
-            )}, Sim: ${Utils.HumanTime(simElapsedSeconds)}`;
+            diagsString += `, Clock: Actual: ${Utils.HumanTime(actualSimTime)}, Sim: ${Utils.HumanTime(this.simTime)}`;
+            diagsString += `, Frame: Actual: ${Utils.HumanTime(actualElapsedSeconds)}, Sim: ${Utils.HumanTime(
+                simElapsedSeconds
+            )}`;
             Logger.info(SSGSystemFilter.TimingDiagnostics, diagsString);
             this.nextTimeDiags = Date.now() + 1000;
         }
@@ -497,10 +423,7 @@ export class SSGOldRenderer {
             // this.camera.updateProjectionMatrix();
 
             if (showDiags) {
-                Logger.info(
-                    SSGSystemFilter.Always,
-                    `Look At: ${THREEUtils.DumpVec(lookAtVec)}`
-                );
+                Logger.info(SSGSystemFilter.Always, `Look At: ${THREEUtils.DumpVec(lookAtVec)}`);
             }
         }
 
@@ -535,9 +458,9 @@ export class SSGOldRenderer {
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: Object boundingBox: min: ${THREEUtils.DumpVec(
-                boundingBox.min
-            )}, max: ${THREEUtils.DumpVec(boundingBox.max)}`
+            `fitCamera: Object boundingBox: min: ${THREEUtils.DumpVec(boundingBox.min)}, max: ${THREEUtils.DumpVec(
+                boundingBox.max
+            )}`
         );
 
         const center = new THREE.Vector3();
@@ -548,9 +471,7 @@ export class SSGOldRenderer {
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(
-                center
-            )}, size: ${THREEUtils.DumpVec(size)}`
+            `fitCamera: Object boundingBox: center: ${THREEUtils.DumpVec(center)}, size: ${THREEUtils.DumpVec(size)}`
         );
 
         // get the max side of the bounding box (fits to width OR height as needed )
@@ -564,14 +485,11 @@ export class SSGOldRenderer {
         const cameraDistance = cameraYDistance;
 
         const minZ = boundingBox.min.z;
-        const cameraToFarEdge =
-            minZ < 0 ? -minZ + cameraDistance : cameraDistance - minZ;
+        const cameraToFarEdge = minZ < 0 ? -minZ + cameraDistance : cameraDistance - minZ;
 
         Logger.info(
             SSGSystemFilter.RenderDiagnostics,
-            `New camera params: Z: ${cameraDistance}, FAR: ${
-                cameraToFarEdge * 3
-            }`
+            `New camera params: Z: ${cameraDistance}, FAR: ${cameraToFarEdge * 3}`
         );
 
         this.camera.position.z = cameraDistance;
@@ -592,9 +510,7 @@ export class SSGOldRenderer {
             const lookAtName = this.lookAtTarget?.name ?? 'center';
             Logger.info(
                 SSGSystemFilter.Always,
-                `Look at: ${lookAtName} (${THREEUtils.DumpVec(
-                    this.orbitControls.target
-                )})`
+                `Look at: ${lookAtName} (${THREEUtils.DumpVec(this.orbitControls.target)})`
             );
 
             this.orbitControls.update();
@@ -605,20 +521,15 @@ export class SSGOldRenderer {
         const sceneGroup = new THREE.Group();
         sceneGroup.name = `${rootObject.Name}-root`;
 
-        const majorAxis = rootObject.OrbitalSemiMajorAxis / CoordsScale;
-        const minorAxis = rootObject.OrbitalSemiMinorAxis / CoordsScale;
-        const perigee = rootObject.OrbitalPerigee / CoordsScale;
+        const majorAxis = rootObject.OrbitalSemiMajorAxis / Constants.CoordsScale;
+        const minorAxis = rootObject.OrbitalSemiMinorAxis / Constants.CoordsScale;
+        const perigee = rootObject.OrbitalPerigee / Constants.CoordsScale;
 
         const objectGroup = new THREE.Group();
         objectGroup.name = `${rootObject.Name}-obj-geom`;
 
         if (majorAxis > 0) {
-            const orbitCurve = THREEUtils.BuildOrbitalEllipse(
-                0,
-                0,
-                majorAxis,
-                minorAxis
-            );
+            const orbitCurve = THREEUtils.ZZZBuildOrbitalEllipse(0, 0, majorAxis, minorAxis);
 
             if (rootObject.OrbitColor !== 'none') {
                 const orbitObject = THREEUtils.BuildOrbitalMesh(
@@ -647,10 +558,7 @@ export class SSGOldRenderer {
         SettingsManager.subscribeSettings((settings: SSGOldSettings) => {
             if (rootObject.Name == settings.LookAt) {
                 this.lookAtTarget = objectGroup;
-                Logger.info(
-                    SSGSystemFilter.RenderSettings,
-                    `Looking At '${settings.LookAt}'`
-                );
+                Logger.info(SSGSystemFilter.RenderSettings, `Looking At '${settings.LookAt}'`);
             }
 
             if (rootObject.Obj3D) {
@@ -659,26 +567,14 @@ export class SSGOldRenderer {
             }
 
             if (rootObject.ObjectRadius > 0) {
-                let planetaryRadius = rootObject.ObjectRadius / CoordsScale;
+                let planetaryRadius = rootObject.ObjectRadius / Constants.CoordsScale;
 
                 if (rootObject.IsStar) {
                     planetaryRadius *= settings.StarScale;
-                    rootObject.Obj3D = THREEUtils.BuildStar(
-                        0,
-                        0,
-                        0,
-                        planetaryRadius,
-                        rootObject.ObjectColor
-                    );
+                    rootObject.Obj3D = THREEUtils.BuildStar(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 } else {
                     planetaryRadius *= settings.PlanetScale;
-                    rootObject.Obj3D = THREEUtils.BuildPlanet(
-                        0,
-                        0,
-                        0,
-                        planetaryRadius,
-                        rootObject.ObjectColor
-                    );
+                    rootObject.Obj3D = THREEUtils.BuildPlanet(0, 0, 0, planetaryRadius, rootObject.ObjectColor);
                 }
 
                 Logger.info(
@@ -689,40 +585,24 @@ export class SSGOldRenderer {
                 const ringInnerRadius = rootObject.RingInnerRadius ?? 0;
                 const ringWidth = rootObject.RingWidth ?? 0.5;
                 const ringThickness = 0.001;
-                const ringDensity = Math.max(
-                    Math.min(rootObject.RingDensity ?? 0.001, 1),
-                    0
-                );
+                const ringDensity = Math.max(Math.min(rootObject.RingDensity ?? 0.001, 1), 0);
                 const ringColor = rootObject.RingColor ?? 'none';
 
-                if (
-                    ringInnerRadius > 0 &&
-                    ringColor != 'none' &&
-                    rootObject.ParentObject
-                ) {
+                if (ringInnerRadius > 0 && ringColor != 'none' && rootObject.ParentObject) {
                     // If the parent object is a planet, make it cast shadows so the rings look correct.
-                    if (
-                        rootObject.ParentObject &&
-                        !rootObject.ParentObject.IsStar &&
-                        rootObject.ParentObject.Obj3D
-                    ) {
+                    if (rootObject.ParentObject && !rootObject.ParentObject.IsStar && rootObject.ParentObject.Obj3D) {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (rootObject.ParentObject.Obj3D as any).castShadow =
-                            true; //default is false
+                        (rootObject.ParentObject.Obj3D as any).castShadow = true; //default is false
                     }
 
                     let planetaryRadius =
                         rootObject.ParentObject.ObjectRadius *
-                        (rootObject.ParentObject.IsStar
-                            ? settings.StarScale
-                            : settings.PlanetScale);
-                    planetaryRadius /= CoordsScale;
+                        (rootObject.ParentObject.IsStar ? settings.StarScale : settings.PlanetScale);
+                    planetaryRadius /= Constants.CoordsScale;
 
-                    const ringGeomInnerRadius =
-                        ringInnerRadius * planetaryRadius;
+                    const ringGeomInnerRadius = ringInnerRadius * planetaryRadius;
                     const ringGeomWidth = ringWidth * planetaryRadius;
-                    const ringGeomOuterRadius =
-                        ringGeomInnerRadius + ringGeomWidth;
+                    const ringGeomOuterRadius = ringGeomInnerRadius + ringGeomWidth;
                     const ringGeomThickness = ringGeomWidth * ringThickness;
 
                     Logger.info(
@@ -740,50 +620,22 @@ export class SSGOldRenderer {
                         bevelEnabled: false,
                     };
 
-                    const outerRing = new THREE.Shape().absarc(
-                        0,
-                        0,
-                        ringGeomOuterRadius,
-                        0,
-                        Math.PI * 2,
-                        false
-                    );
+                    const outerRing = new THREE.Shape().absarc(0, 0, ringGeomOuterRadius, 0, Math.PI * 2, false);
 
-                    const holePath = new THREE.Path().absarc(
-                        0,
-                        0,
-                        ringGeomInnerRadius,
-                        0,
-                        Math.PI * 2,
-                        true
-                    );
+                    const holePath = new THREE.Path().absarc(0, 0, ringGeomInnerRadius, 0, Math.PI * 2, true);
 
                     outerRing.holes.push(holePath);
 
-                    const ringGeometry = new THREE.ExtrudeGeometry(
-                        outerRing,
-                        extrudeSettings
-                    );
+                    const ringGeometry = new THREE.ExtrudeGeometry(outerRing, extrudeSettings);
                     // const ringMaterial = THREEUtils.planetMaterial(ringColor)
-                    const ringMaterial = this.ringMaterialTextured(
-                        ringColor,
-                        ringDensity
-                    );
+                    const ringMaterial = this.ringMaterialTextured(ringColor, ringDensity);
                     const edgeMaterial = new THREE.MeshLambertMaterial({
                         color: '#000000',
                     });
 
-                    const ringMesh = new THREE.Mesh(ringGeometry, [
-                        ringMaterial,
-                        edgeMaterial,
-                    ]);
+                    const ringMesh = new THREE.Mesh(ringGeometry, [ringMaterial, edgeMaterial]);
                     ringMesh.receiveShadow = true;
-                    THREEUtils.SetPosition(
-                        ringMesh,
-                        0,
-                        0,
-                        -ringGeomThickness / 2
-                    );
+                    THREEUtils.SetPosition(ringMesh, 0, 0, -ringGeomThickness / 2);
 
                     rootObject.Obj3D = ringMesh;
                 }
@@ -802,15 +654,11 @@ export class SSGOldRenderer {
 
         if (rootObject.PhaseAngle != 0) {
             sceneGroup.rotation.order = 'ZYX';
-            sceneGroup.rotation.z = Utils.DegreesToRadians(
-                rootObject.PhaseAngle
-            );
+            sceneGroup.rotation.z = Utils.DegreesToRadians(rootObject.PhaseAngle);
         }
 
         if (rootObject.OrbitalInclination != 0) {
-            sceneGroup.rotation.y = Utils.DegreesToRadians(
-                rootObject.OrbitalInclination
-            );
+            sceneGroup.rotation.y = Utils.DegreesToRadians(rootObject.OrbitalInclination);
         }
 
         for (const childObj of rootObject.ChildObjects) {
@@ -820,71 +668,5 @@ export class SSGOldRenderer {
 
         return sceneGroup;
     }
-
-    private ringMaterialTextured(ringColor: string, density = 0.1) {
-        const width = 512;
-        const height = 512;
-
-        const size = width * height;
-        const byteSize = size * 4;
-        const data = new Uint8Array(byteSize);
-
-        let stride = 0;
-
-        while (stride < byteSize) {
-            const c = Math.random() < density ? 255 : 0;
-            data[stride++] = c;
-            data[stride++] = c;
-            data[stride++] = c;
-            data[stride++] = 255;
-        }
-        /*
-                let chunkCount = size * density;
-        
-                for (let chunk = 0; chunk < chunkCount; chunk++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    const radius = (Math.random() * 0.5 + 0.5) * chunkSize;
-        
-                    let stride = y * width * 4 + x * 4;
-        
-                    for (let dy = 0; dy < radius; dy++) {
-                        for (let dx = 0; dx < radius * 4; dx++) {
-                            if (stride >= byteSize) {
-                                stride -= byteSize;
-                            }
-                            data[stride++] = 255;
-                        }
-                        stride += width * 4;
-                    }
-        
-                }
-        */
-        // used the buffer to create a DataTexture
-
-        const texture = new THREE.DataTexture(data, width, height);
-        texture.needsUpdate = true;
-
-        // // create a texture loader.
-        // const textureLoader = new THREE.TextureLoader();
-
-        // // load a texture
-        // const texture = textureLoader.load(
-        //     'images/ring-texture.png',
-        // );
-
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        // texture.repeat.set(4, 4);
-
-        // create a "standard" material using
-        // return new THREE.MeshStandardMaterial({ color: 'purple' });
-        // return new THREE.MeshStandardMaterial({ alphaMap: texture, color: ringColor, transparent: true });
-        return new THREE.MeshLambertMaterial({
-            alphaMap: texture,
-            color: ringColor,
-            transparent: true,
-        });
-        //return new THREE.MeshLambertMaterial({ color: 'purple' });
-    }
 }
+*/

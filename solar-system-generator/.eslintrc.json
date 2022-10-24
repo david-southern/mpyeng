@@ -18,11 +18,8 @@
     },
     "plugins": ["@typescript-eslint"],
     "rules": {
-        "indent": ["error", 4],
-        "linebreak-style": ["error", "windows"],
-        "quotes": ["error", "single"],
-        "semi": ["error", "always"],
         "@typescript-eslint/no-non-null-assertion": "off",
-        "@typescript-eslint/no-extraneous-class": "off"
+        "@typescript-eslint/no-extraneous-class": "off",
+        "@typescript-eslint/ban-ts-comment": "off"
     }
 }

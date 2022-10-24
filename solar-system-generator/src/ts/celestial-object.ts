@@ -1,8 +1,7 @@
 ﻿import { BehaviorSubject } from 'rxjs';
 import * as THREE from 'three';
+import { Constants } from './constants';
 import { Utils } from './utils';
-
-export const COLOR_NONE = 'none';
 
 export class CelestialObject {
     ParentObject?: CelestialObject;
@@ -11,7 +10,7 @@ export class CelestialObject {
     ChildDepth = 0;
     SystemOrder = 0;
 
-    public Name$ = new BehaviorSubject(COLOR_NONE);
+    public Name$ = new BehaviorSubject(Constants.COLOR_NONE);
     public get Name() {
         return this.Name$.value;
     }
@@ -83,7 +82,7 @@ export class CelestialObject {
         this.ObjectRadius$.next(value);
     }
 
-    public ObjectColor$ = new BehaviorSubject(COLOR_NONE);
+    public ObjectColor$ = new BehaviorSubject(Constants.COLOR_NONE);
     public get ObjectColor() {
         return this.ObjectColor$.value;
     }
@@ -91,7 +90,7 @@ export class CelestialObject {
         this.ObjectColor$.next(value);
     }
 
-    public OrbitColor$ = new BehaviorSubject(COLOR_NONE);
+    public OrbitColor$ = new BehaviorSubject<string | undefined>(Constants.COLOR_NONE);
     public get OrbitColor() {
         return this.OrbitColor$.value;
     }
@@ -139,7 +138,7 @@ export class CelestialObject {
         this.RingDensity$.next(value);
     }
 
-    public RingColor$ = new BehaviorSubject(COLOR_NONE);
+    public RingColor$ = new BehaviorSubject(Constants.COLOR_NONE);
     public get RingColor() {
         return this.RingColor$.value;
     }
@@ -147,7 +146,36 @@ export class CelestialObject {
         this.RingColor$.next(value);
     }
 
-    Obj3D?: THREE.Object3D;
+    public Obj3D?: THREE.Object3D;
+
+    private ownedObjects = new Map<string, unknown>();
+
+    public OwnedObject3D<T extends THREE.Object3D>(objectKey: string, type: new () => T, objectName: string): T {
+        if (this.ownedObjects.has(objectKey)) {
+            return this.ownedObjects.get(objectKey) as T;
+        }
+
+        const retval = new type();
+        retval.name = objectName;
+        this.ownedObjects.set(objectKey, retval);
+        return retval;
+    }
+
+    public OwnedObject<T>(objectKey: string, creator: () => T): T {
+        if (this.ownedObjects.has(objectKey)) {
+            return this.ownedObjects.get(objectKey) as T;
+        }
+
+        const retval = creator();
+        this.ownedObjects.set(objectKey, retval);
+        return retval;
+    }
+
+    public RemoveOwnedObject(objectKey: string) {
+        const retval = this.ownedObjects.get(objectKey);
+        this.ownedObjects.delete(objectKey);
+        return retval;
+    }
 
     constructor(partialObj?: Partial<CelestialObject>) {
         if (partialObj) {
