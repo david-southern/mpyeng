@@ -25,7 +25,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
         get
         {
             return new("Cygnus X-1", parentObject: null,
-                semiMajorAxis: 0, semiMinorAxis: 0,
+                semiMajorAxis: 0,
                 orbitalVelocity: 0, orbitalInclination: 0,
                 objectRadius: Constants.SolarRadius,
                 objectColor: "#ddddff")
@@ -36,7 +36,7 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     }
 
     public CelestialObject(string name, CelestialObject? parentObject = null,
-        float? semiMajorAxis = null, float? semiMinorAxis = null,
+        float? semiMajorAxis = null, float? eccentricity = null,
         float? orbitalVelocity = null, float? orbitalInclination = null, string? orbitColor = null,
         float? objectRadius = null, string? objectColor = null,
         float? initialAngle = null, float? perigee = null
@@ -57,8 +57,9 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
 
         ObjectRadius = objectRadius ?? DEFAULT_RADIUS;
         OrbitalSemiMajorAxis = semiMajorAxis ?? DEFAULT_ORBITAL_RADIUS;
-        OrbitalSemiMinorAxis = semiMinorAxis ?? DEFAULT_ORBITAL_RADIUS;
-        OrbitalPerigee = perigee ?? 0;
+        OrbitalEccentricity = eccentricity ?? 0;
+        //OrbitalSemiMinorAxis = semiMinorAxis ?? DEFAULT_ORBITAL_RADIUS;
+        //OrbitalPerigee = perigee ?? 0;
         OrbitalVelocity = orbitalVelocity ?? DEFAULT_ORBITAL_VELOCITY;
         OrbitalInclination = orbitalInclination ?? DEFAULT_INCLINATION;
         ObjectColor = objectColor ?? "white";
@@ -117,16 +118,18 @@ public class CelestialObject : IEquatable<CelestialObject>, IComparable<Celestia
     /// </summary>
     public float OrbitalSemiMajorAxis { get; set; }
 
-    /// <summary>
-    /// This is the length in meters of the semi-major axis of the object's orbit.
-    /// </summary>
-    public float OrbitalSemiMinorAxis { get; set; }
+    public float OrbitalEccentricity { get; set; }
 
-    /// <summary>
-    /// This is the distnace in meters of the offset of the semi-major axis from the center of the object's orbit at
-    /// orbital angle zero.
-    /// </summary>
-    public float OrbitalPerigee { get; set; }
+    ///// <summary>
+    ///// This is the length in meters of the semi-major axis of the object's orbit.
+    ///// </summary>
+    //public float OrbitalSemiMinorAxis { get; set; }
+
+    ///// <summary>
+    ///// This is the distnace in meters of the offset of the semi-major axis from the center of the object's orbit at
+    ///// orbital angle zero.
+    ///// </summary>
+    //public float OrbitalPerigee { get; set; }
 
     /// <summary>
     /// This is the orbital velocity in degrees per second of the object when the system is being animated.

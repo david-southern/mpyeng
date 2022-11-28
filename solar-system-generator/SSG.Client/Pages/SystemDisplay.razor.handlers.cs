@@ -323,77 +323,108 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
-    public string EditOrbitalSemiMinorAxis
+    //public string EditOrbitalSemiMinorAxis
+    //{
+    //    get
+    //    {
+    //        return $"{Constants.AsAU(SelectedObject?.OrbitalSemiMinorAxis ?? 0)} AU";
+    //    }
+
+    //    set
+    //    {
+    //        if (SelectedObject == null) { return; }
+
+    //        value = value.ToLower();
+    //        if (value.Contains("au"))
+    //        {
+    //            value = value.Replace("au", "");
+    //        }
+
+    //        float floatValue = SelectedObject.OrbitalSemiMinorAxis;
+
+    //        try
+    //        {
+    //            floatValue = Convert.ToSingle(value);
+    //            floatValue = Constants.OfAU(floatValue);
+    //        }
+    //        catch { }
+
+
+    //        if (Utils.FloatEQ(SelectedObject.OrbitalSemiMinorAxis, floatValue))
+    //        {
+    //            return;
+    //        }
+
+    //        SelectedObject.OrbitalSemiMinorAxis = floatValue;
+    //        _ = UpdateSystem();
+    //        StateHasChanged();
+    //    }
+    //}
+
+    //public string EditOrbitalPerigee
+    //{
+    //    get
+    //    {
+    //        return $"{Constants.AsAU(SelectedObject?.OrbitalPerigee ?? 0)} AU";
+    //    }
+
+    //    set
+    //    {
+    //        if (SelectedObject == null) { return; }
+
+    //        value = value.ToLower();
+    //        if (value.Contains("au"))
+    //        {
+    //            value = value.Replace("au", "");
+    //        }
+
+    //        float floatValue = SelectedObject.OrbitalPerigee;
+
+    //        try
+    //        {
+    //            floatValue = Convert.ToSingle(value);
+    //            floatValue = Constants.OfAU(floatValue);
+    //        }
+    //        catch { }
+
+
+    //        if (Utils.FloatEQ(SelectedObject.OrbitalPerigee, floatValue))
+    //        {
+    //            return;
+    //        }
+
+    //        SelectedObject.OrbitalPerigee = floatValue;
+    //        _ = UpdateSystem();
+    //        StateHasChanged();
+    //    }
+    //}
+    
+    public string EditOrbitalEccentricity
     {
         get
         {
-            return $"{Constants.AsAU(SelectedObject?.OrbitalSemiMinorAxis ?? 0)} AU";
+            return $"{SelectedObject?.OrbitalEccentricity ?? 0:N3}";
         }
 
         set
         {
             if (SelectedObject == null) { return; }
 
-            value = value.ToLower();
-            if (value.Contains("au"))
-            {
-                value = value.Replace("au", "");
-            }
-
-            float floatValue = SelectedObject.OrbitalSemiMinorAxis;
+            float floatValue = SelectedObject.OrbitalEccentricity;
 
             try
             {
                 floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfAU(floatValue);
             }
             catch { }
 
 
-            if (Utils.FloatEQ(SelectedObject.OrbitalSemiMinorAxis, floatValue))
+            if (Utils.FloatEQ(SelectedObject.OrbitalEccentricity, floatValue))
             {
                 return;
             }
 
-            SelectedObject.OrbitalSemiMinorAxis = floatValue;
-            _ = UpdateSystem();
-            StateHasChanged();
-        }
-    }
-
-    public string EditOrbitalPerigee
-    {
-        get
-        {
-            return $"{Constants.AsAU(SelectedObject?.OrbitalPerigee ?? 0)} AU";
-        }
-
-        set
-        {
-            if (SelectedObject == null) { return; }
-
-            value = value.ToLower();
-            if (value.Contains("au"))
-            {
-                value = value.Replace("au", "");
-            }
-
-            float floatValue = SelectedObject.OrbitalPerigee;
-
-            try
-            {
-                floatValue = Convert.ToSingle(value);
-                floatValue = Constants.OfAU(floatValue);
-            }
-            catch { }
-
-
-            if (Utils.FloatEQ(SelectedObject.OrbitalPerigee, floatValue))
-            {
-                return;
-            }
-
-            SelectedObject.OrbitalPerigee = floatValue;
+            SelectedObject.OrbitalEccentricity = floatValue;
             _ = UpdateSystem();
             StateHasChanged();
         }
@@ -437,6 +468,42 @@ public partial class SystemDisplay : IDisposable
         }
     }
 
+    public string EditInitialAngle
+    {
+        get
+        {
+            return $"{SelectedObject?.InitialOrbitalAngle ?? 0} deg";
+        }
+
+        set
+        {
+            if (SelectedObject == null) { return; }
+
+            value = value.ToLower();
+            if (value.Contains("deg"))
+            {
+                value = value.Replace("deg", "");
+            }
+
+            float floatValue = SelectedObject.InitialOrbitalAngle;
+
+            try
+            {
+                floatValue = Convert.ToSingle(value);
+            }
+            catch { }
+
+
+            if (Utils.FloatEQ(SelectedObject.InitialOrbitalAngle, floatValue))
+            {
+                return;
+            }
+
+            SelectedObject.InitialOrbitalAngle = floatValue;
+            _ = UpdateSystem();
+            StateHasChanged();
+        }
+    }
     public string EditPhaseAngle
     {
         get
@@ -767,8 +834,17 @@ public partial class SystemDisplay : IDisposable
         await Task.CompletedTask;
         LoadDialogVisible = false;
 
-        SolarSystem = obj.CloneJSON();
+        SolarSystem = obj;
         Console.WriteLine($"Premade solar system: {SolarSystem.Name}");
+
+        string thingy = "<null>";
+
+        if(obj?.ChildObjects?.Count > 0) {
+            CelestialObject? parentObj = obj.ChildObjects.FirstOrDefault();
+            thingy = parentObj?.Name ?? thingy;
+        }
+
+        Console.WriteLine($"Premade solar system first child parent: {thingy}");
         SolarSystem.IsExpanded = true;
         SolarSystemTree.Clear();
         SolarSystemTree.Add(SolarSystem);
@@ -806,7 +882,7 @@ public partial class SystemDisplay : IDisposable
         float effectiveChildRadius = (effectiveParentRadius / 10) / Settings.PlanetScale;
 
         CelestialObject newChild = new($"{parent.Name} {childCount.ToRoman()}", parent,
-            semiMajorAxis: effectiveParentRadius * childCount * 10, semiMinorAxis: effectiveParentRadius * childCount * 10,
+            semiMajorAxis: effectiveParentRadius * childCount * 10,
             orbitalVelocity: Constants.AngVelFromDays(parent.ObjectRadius * childCount * 10), orbitalInclination: 0,
             objectRadius: effectiveChildRadius,
             objectColor: "magenta");

@@ -8,7 +8,7 @@
 @inject IJSRuntime JS
 @inject IDialogService DialogService
 
-<PageTitle>Solar System Generator v0.3</PageTitle>
+<PageTitle>Solar System Generator v0.4</PageTitle>
 
 <MudPopover Open="@(FileMenuOpen)" AnchorOrigin="@(Origin.TopRight)" TransformOrigin="@(Origin.TopRight)"
     Class="px-4 pt-4">
@@ -168,23 +168,28 @@
                 <MudStack Row="true">
                     <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMajorAxis"
                         Label="SemiMajor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis"
-                        Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalPerigee"
-                        Label="Perigee" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalEccentricity"
+                        Label="Eccentricity" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                    <!-- <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalSemiMinorAxis"
+                        Label="SemiMinor Axis" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField> -->
+                    <!-- <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalPerigee"
+                        Label="Perigee" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField> -->
                 </MudStack>
                 <MudStack Row="true">
                     <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalVelocity"
                         Label="Orbital Period" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                    <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditPhaseAngle" Label="Orbit Phase"
-                        Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                </MudStack>
-                <MudStack Row="true">
                     <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalInclination"
                         Label="Orbital Inclination" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+                </MudStack>
+                <MudStack Row="true">
                     <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditOrbitalColor"
                         Label="Orbit Color" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
-                </MudStack>
+                        
+                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditInitialAngle" Label="Initial Angle"
+                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+@*                        <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditPhaseAngle" Label="Orbit Phase"
+                            Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+*@                </MudStack>
                 <MudStack Row="true">
                     <MudTextField Disabled="@(SelectedObject == null)" @bind-Value="EditObjectRadius" Label="Radius"
                         Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
