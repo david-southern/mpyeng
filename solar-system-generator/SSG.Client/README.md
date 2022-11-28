@@ -24,6 +24,10 @@ To deploy:
   - run `python3 -m http.server`
   - View the site at `http://localhost:8080`
 
+Var 0.4 Release:
+- Replace Perigee and SemiMinorAxis with Eccentricity, use Alex's orbital calcs
+- Fix downloading JSON of system
+
 Ver 0.3 Release:
 - Perigee settings - center the orbit on the correct focus
 - display current sim time
