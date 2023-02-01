@@ -1,0 +1,15 @@
+{
+    "python.languageServer": "Jedi",
+    "python.linting.pylintEnabled": false,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
+    "python.analysis.extraPaths": [
+        "c:\\Users\\david\\.vscode\\extensions\\joedevivo.vscode-circuitpython-0.1.19-win32-x64\\boards\\0x239A\\0x811E",
+        "c:\\Users\\david\\.vscode\\extensions\\joedevivo.vscode-circuitpython-0.1.19-win32-x64\\stubs",
+        "c:\\Users\\david\\AppData\\Roaming\\Code\\User\\globalStorage\\joedevivo.vscode-circuitpython\\bundle\\20230124\\adafruit-circuitpython-bundle-py-20230124\\lib"
+    ],
+    "circuitpython.board.version": "8.0.0-beta.6",
+    "circuitpython.board.vid": "0x239A",
+    "circuitpython.board.pid": "0x811E"
+}
