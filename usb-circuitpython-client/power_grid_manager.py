@@ -1,10 +1,7 @@
 import time
 import board
-import adafruit_logging as logging
 from pixel_manager import BLACK, BLUE, GREEN, RED, YELLOW, PixelManager
-from utils import ENABLE_POWER_GRID, disabledString
-
-logger = logging.getLogger("PowerGridManager")
+from utils import ENABLE_POWER_GRID, disabledString, logger
 
 GRID_SCROLL_SECONDS = 1
 POWER_VALUE_LERP_PER_SECOND = 0.6

@@ -1,5 +1,4 @@
 import time
-import adafruit_logging as logging
 from card_manager import CardReaderManager
 from pixel_manager import PixelManager
 from power_display_manager import PowerDisplayManager
@@ -7,7 +6,7 @@ from power_grid_manager import PowerGridManager
 from protocol_dtos import PowerDisplayDto, PowerGridDto, ReaderColorDto
 from switchboard_manager import SwitchboardManager
 import usb_cdc
-from utils import format_hex_list, shortString
+from utils import format_hex_list, shortString, logger
 import json
 
 # If we receive a CR, then wait this long to see if an LF is going to show up, so we don't have stray LF's when reading
@@ -30,8 +29,6 @@ SER_PROTO_SWITCHBOARD_RESPONSE = "SP_SWB_R"
 SER_PROTO_SET_READER_COLOR = "SP_RDR_RGB"
 SER_PROTO_SET_DISPLAY_VALUE = "SP_DSP_VAL"
 SER_PROTO_SET_GRID_LEVEL = "SP_GRID_LEVEL"
-
-logger = logging.getLogger("ProtocolManager")
 
 class ProtocolManagerClass:
     def __init__(self):

@@ -4,14 +4,11 @@
 import board
 import microcontroller
 import digitalio
-import adafruit_logging as logging
-from utils import ENABLE_SWITCHBOARD, disabledString
+from utils import ENABLE_SWITCHBOARD, disabledString, logger
 
 # The number of seconds to wait between checks of the Switchboard state.  Makes sure that the scanning thread doesn't
 # take too much of the system's resources
 SCANNING_INTERVAL = 0.2
-
-logger = logging.getLogger("Switchboard")
 
 class SwitchboardEndpoint:
     def __init__(self, uid: int, name: str, pin: microcontroller.Pin):

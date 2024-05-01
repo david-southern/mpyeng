@@ -1,7 +1,8 @@
 from collections import namedtuple
 import adafruit_logging as logging
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger("main")
+logger.setLevel(logging.INFO)
 
 # Running the TM1637 displays when the board is does not have an external +5V supply causes the Arduino to crash
 # erratically.  Not sure why, but it definitely happens.  Providing the external +5V supply stops this happening, but

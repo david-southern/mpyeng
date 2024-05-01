@@ -1,7 +1,6 @@
 import board
-import adafruit_logging as logging
 from tm1637 import TM1637
-from utils import ENABLE_POWER_DISPLAY, disabledString
+from utils import ENABLE_POWER_DISPLAY, disabledString, logger
 
 #   CLK = board.D6
 #   DIO = board.D13
@@ -9,8 +8,6 @@ from utils import ENABLE_POWER_DISPLAY, disabledString
 #   while True:
 #     t = time.localtime()
 #     time.sleep(60-(t.tm_sec%60))
-
-logger = logging.getLogger("PowerDisplayManager")
 
 class PowerDisplay:
     def __init__(self, uid, dataPin, clockPin, displayName=None):

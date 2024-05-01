@@ -1,9 +1,7 @@
 import time
 import board
-import adafruit_logging as logging
 import neopixel
-
-from utils import ENABLE_PIXELS, disabledString
+from utils import disabledString, logger, ENABLE_PIXELS
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
@@ -22,8 +20,6 @@ PIXEL_BRIGHTNESS = 0.1
 # Usually the component color updaters will send the pixel data as part of the update.  The PixelManager will
 # automatically re-send the pixel data this often, in case an update is missed
 PIXEL_REFRESH_SECONDS = 0.25
-
-logger = logging.getLogger("PixelManager")
 
 LED_DATA_PIN = board.D32
 
@@ -85,8 +81,6 @@ RED = (255, 0, 0)
 YELLOW = (255, 150, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-
-logger = logging.getLogger("PixelManager")
 
 class PixelManagerClass:
     def __init__(self):

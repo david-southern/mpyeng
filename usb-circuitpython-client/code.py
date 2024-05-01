@@ -1,11 +1,14 @@
+# type: ignore
+
+# This is the main entry point for the USB Client. It is responsible for
+# managing the various components of the client, including the USB serial
+# connection, the card reader, the switchboard, and the power grid. It also
+# handles the heartbeat and logging for the client.
+
 import random
 import time
 
 import usb_cdc
-import adafruit_logging as logging
-
-logger = logging.getLogger("main")
-logger.setLevel(logging.INFO)
 
 from pixel_manager import BLACK, PixelManager
 from power_grid_manager import PowerGridManager
@@ -14,6 +17,7 @@ from power_display_manager import PowerDisplayManager
 from card_manager import CardReaderManager
 from protocol_manager import ProtocolManager
 from switchboard_manager import SwitchboardManager
+from utils import logger
 
 # Only check the serial line this often so we don't use up all the client's cycles
 SERIAL_READ_FREQUENCY_SEC = 0.01
@@ -29,7 +33,7 @@ next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 showSerialDiags = False
 showSerialStats = False
 
-showCardReaderDiags = False
+showCardReaderDiags = True
 showSwitchboardDiags = True
 
 prevSwitchboard = ""
@@ -45,7 +49,6 @@ for readerIndex in range(10):
 
 while True:
     ProtocolManager.HandleComms()
-    CardReaderManager.UpdateReaderState()
     PixelManager.UpdatePixelData()
     PowerGridManager.UpdateGridState()
 
