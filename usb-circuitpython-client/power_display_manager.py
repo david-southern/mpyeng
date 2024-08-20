@@ -61,16 +61,16 @@ class PowerDisplayManagerClass:
         self._ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self._ALL_POWER_DISPLAYS = []
         if ENABLE_POWER_DISPLAY:
-            self._ALL_POWER_DISPLAYS.append(PowerDisplay(1, board.D0, board.D1, "Eng1"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(1, board.D2, board.D3, "Eng1"))
             self._ALL_POWER_DISPLAYS.append(PowerDisplay(2, board.D52, board.D53, "Eng2"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(3, board.D4, board.D5, "Dist1Max"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(4, board.D6, board.D7, "Dist1Cur"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(5, board.D8, board.D9, "Dist2Max"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(6, board.D10, board.D11, "Dist2Cur"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(7, board.D12, board.D13, "Dist3Max"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(8, board.D14, board.D15, "Dist3Cur"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(9, board.D16, board.D17, "Dist4Max"))
-            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(10, board.D18, board.D19, "Dist4Cur"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(3, board.D26, board.D25, "Dist1Max"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(4, board.D28, board.D27, "Dist1Cur"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(5, board.D30, board.D29, "Dist2Max"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(6, board.D32, board.D31, "Dist2Cur"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(7, board.D34, board.D33, "Dist3Max"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(8, board.D36, board.D35, "Dist3Cur"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(9, board.D46, board.D45, "Dist4Max"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(10, board.D48, board.D47, "Dist4Cur"))
 
     def AllDisplays(self) -> list[PowerDisplay]:
         return self._ALL_POWER_DISPLAYS
