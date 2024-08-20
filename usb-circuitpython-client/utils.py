@@ -8,10 +8,12 @@ logger.setLevel(logging.INFO)
 # erratically.  Not sure why, but it definitely happens.  Providing the external +5V supply stops this happening, but
 # I'll leave this enable flag here so that the board can be run without external power if desired.
 ENABLE_POWER_DISPLAY = True
-ENABLE_PIXELS = True
-ENABLE_CARD_READER = True
-ENABLE_POWER_GRID = True
+ENABLE_PIXELS = False
+ENABLE_CARD_READER = False
+ENABLE_POWER_GRID = False
 ENABLE_SWITCHBOARD = True
+ENABLE_LEFT_SWITCHBOARD = True
+ENABLE_RIGHT_SWITCHBOARD = False
 
 def disabledString(enabled:bool):
     return "" if enabled else "(DISABLED)"

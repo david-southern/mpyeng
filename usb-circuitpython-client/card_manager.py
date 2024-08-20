@@ -44,13 +44,14 @@ class CardReader:
 
 class CardReaderManagerClass:
     def __init__(self) -> None:
-        logger.info(f"CardReaderManager: Creating card readers on A0 - A2")
 
         self._ALL_CARD_READERS: list["CardReader"] = []
         self._ALL_CARD_READERS = []
-        self._ALL_CARD_READERS.append(CardReader(0, board.A0))
-        # self._ALL_CARD_READERS.append(CardReader(1, board.A1))
-        # self._ALL_CARD_READERS.append(CardReader(2, board.A2))
+        if ENABLE_CARD_READER:
+            self._ALL_CARD_READERS.append(CardReader(0, board.A0))
+            # self._ALL_CARD_READERS.append(CardReader(1, board.A1))
+            # self._ALL_CARD_READERS.append(CardReader(2, board.A2))
+            logger.info(f"CardReaderManager: Creating card readers on A0 - A2")
 
     def AllReaders(self) -> list[CardReader]:
         return self._ALL_CARD_READERS

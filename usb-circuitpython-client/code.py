@@ -5,6 +5,12 @@
 # connection, the card reader, the switchboard, and the power grid. It also
 # handles the heartbeat and logging for the client.
 
+
+# Rebuild tested functionality:
+# PowerDisplay: Eng1, Eng2
+# SwitchBoard: EngineTop, EngineBottom, Dist*_In
+
+
 import random
 import time
 
@@ -38,16 +44,16 @@ showSwitchboardDiags = True
 
 prevSwitchboard = ""
 
-GRID_CHANGE_FREQ = 0.1
+GRID_CHANGE_FREQ = 1.0
 nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
 
-for gridIndex in range(6):
-    PowerGridManager.SetGridMaxLevel(gridIndex, 1000)
+for powerGrid in PowerGridManager.AllGrids():
+    powerGrid.MaxLevel = 1000
 
-for readerIndex in range(10):
-    PowerDisplayManager.SetDisplayValue(readerIndex, 1000)
+for powerDisplay in PowerDisplayManager.AllDisplays():
+    powerDisplay.Value = 888
 
-while True:
+def mainLoop():
     ProtocolManager.HandleComms()
     PixelManager.UpdatePixelData()
     PowerGridManager.UpdateGridState()
@@ -85,3 +91,22 @@ while True:
         next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
     time.sleep(SERIAL_READ_FREQUENCY_SEC)
+
+testIteration = 0
+def testLoop():
+    global testIteration
+    global nextGridChange
+    if time.monotonic() > nextGridChange:
+        nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
+        for powerDisplayIndex in range(0, len(PowerDisplayManager.AllDisplays())):
+            PowerDisplayManager.SetDisplayValue(powerDisplayIndex, powerDisplayIndex * 111 + testIteration)
+        testIteration += 1
+
+        logger.info(f"Switchboard: {SwitchboardManager.ConnectionStatus()}")
+
+    time.sleep(SERIAL_READ_FREQUENCY_SEC)
+
+
+while True:
+    testLoop()
+

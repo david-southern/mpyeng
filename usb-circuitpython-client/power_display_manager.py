@@ -50,26 +50,27 @@ class PowerDisplay:
                 self.__display.number(value)
             else:
                 self.__display.show(str(value))
-        # logger.info(f"Setting PowerDisplay {self.UID}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}")
+        logger.info(f"Setting PowerDisplay {self}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}")
 
     def __str__(self):
-        return f"{self.UID}/{self.DisplayName}{disabledString(ENABLE_POWER_DISPLAY)}"
+        return f"{self.DisplayName}/D:{self.DataPin}/C:{self.ClockPin}{disabledString(ENABLE_POWER_DISPLAY)}"
 
 
 class PowerDisplayManagerClass:
     def __init__(self) -> None:
         self._ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self._ALL_POWER_DISPLAYS = []
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(1, board.D0, board.D1, "Eng1"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(2, board.D2, board.D3, "Eng2"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(3, board.D4, board.D5, "Dist1Max"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(4, board.D6, board.D7, "Dist1Cur"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(5, board.D8, board.D9, "Dist2Max"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(6, board.D10, board.D11, "Dist2Cur"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(7, board.D12, board.D13, "Dist3Max"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(8, board.D14, board.D15, "Dist3Cur"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(9, board.D16, board.D17, "Dist4Max"))
-        self._ALL_POWER_DISPLAYS.append(PowerDisplay(10, board.D18, board.D19, "Dist4Cur"))
+        if ENABLE_POWER_DISPLAY:
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(1, board.D0, board.D1, "Eng1"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(2, board.D52, board.D53, "Eng2"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(3, board.D4, board.D5, "Dist1Max"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(4, board.D6, board.D7, "Dist1Cur"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(5, board.D8, board.D9, "Dist2Max"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(6, board.D10, board.D11, "Dist2Cur"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(7, board.D12, board.D13, "Dist3Max"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(8, board.D14, board.D15, "Dist3Cur"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(9, board.D16, board.D17, "Dist4Max"))
+            # self._ALL_POWER_DISPLAYS.append(PowerDisplay(10, board.D18, board.D19, "Dist4Cur"))
 
     def AllDisplays(self) -> list[PowerDisplay]:
         return self._ALL_POWER_DISPLAYS

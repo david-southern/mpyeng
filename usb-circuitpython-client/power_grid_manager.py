@@ -152,12 +152,13 @@ class PowerGridManagerClass:
     def __init__(self) -> None:
         self._ALL_POWER_GRIDS: list[PowerGrid] = []
         self._ALL_POWER_GRIDS = []
-        self._ALL_POWER_GRIDS.append(PowerGrid(0, True))
-        self._ALL_POWER_GRIDS.append(PowerGrid(1, True))
-        self._ALL_POWER_GRIDS.append(PowerGrid(2, False))
-        self._ALL_POWER_GRIDS.append(PowerGrid(3, False))
-        self._ALL_POWER_GRIDS.append(PowerGrid(4, False))
-        self._ALL_POWER_GRIDS.append(PowerGrid(5, False))
+        if ENABLE_POWER_GRID:
+            self._ALL_POWER_GRIDS.append(PowerGrid(0, True))
+            self._ALL_POWER_GRIDS.append(PowerGrid(1, True))
+            self._ALL_POWER_GRIDS.append(PowerGrid(2, False))
+            self._ALL_POWER_GRIDS.append(PowerGrid(3, False))
+            self._ALL_POWER_GRIDS.append(PowerGrid(4, False))
+            self._ALL_POWER_GRIDS.append(PowerGrid(5, False))
 
     def AllGrids(self) -> list[PowerGrid]:
         return self._ALL_POWER_GRIDS

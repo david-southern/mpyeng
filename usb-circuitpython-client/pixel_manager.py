@@ -21,7 +21,7 @@ PIXEL_BRIGHTNESS = 0.1
 # automatically re-send the pixel data this often, in case an update is missed
 PIXEL_REFRESH_SECONDS = 0.25
 
-LED_DATA_PIN = board.D32
+LED_DATA_PIN = board.D7
 
 PIXEL_GRID_COUNT = 6
 
@@ -103,7 +103,7 @@ class PixelManagerClass:
             self.pixels.fill(BLACK)
             self.pixels.show()
 
-        logger.info(f"Created PixelManager{disabledString(ENABLE_PIXELS)} with {TOTAL_LED_COUNT} pixels")
+            logger.info(f"Created PixelManager{disabledString(ENABLE_PIXELS)} with {TOTAL_LED_COUNT} pixels")
 
     def SetReaderColor(self, readerIndex: int, color: tuple):
         if readerIndex < 0 or readerIndex >= READER_COUNT:

@@ -4,7 +4,7 @@
 import board
 import microcontroller
 import digitalio
-from utils import ENABLE_SWITCHBOARD, disabledString, logger
+from utils import ENABLE_RIGHT_SWITCHBOARD, ENABLE_LEFT_SWITCHBOARD, ENABLE_SWITCHBOARD, disabledString, logger
 
 # The number of seconds to wait between checks of the Switchboard state.  Makes sure that the scanning thread doesn't
 # take too much of the system's resources
@@ -43,7 +43,7 @@ class SwitchboardEndpoint:
         return self._dio
 
     def __str__(self):
-        return f"{self.UID}/{self.Name}{disabledString(ENABLE_SWITCHBOARD)} on pin {self.Pin}"
+        return f"{self.Name}/{self.Pin}{disabledString(ENABLE_SWITCHBOARD)}"
 
 
 class Switchboard:
@@ -51,10 +51,10 @@ class Switchboard:
         self.uid = int(uid)
         self._name = name
 
-        if len(sources) < 1:
-            raise Exception(f"{self}: A Switchboard must have at least one Source")
-        if len(sinks) < 1:
-            raise Exception(f"{self}: A Switchboard must have at least one Sink")
+        # if len(sources) < 1:
+        #     raise Exception(f"{self}: A Switchboard must have at least one Source")
+        # if len(sinks) < 1:
+        #     raise Exception(f"{self}: A Switchboard must have at least one Sink")
 
         self._sources = sources
         self._sinks = sinks
@@ -117,39 +117,45 @@ class Switchboard:
 
 class SwitchboardManagerClass:
     def __init__(self) -> None:
-        self._leftSwitchboard = Switchboard(
-            1,
-            "LeftSwitchboard",
-            [
-                SwitchboardEndpoint(1, "P1", board.D52),
-                SwitchboardEndpoint(2, "P2", board.D53),
-            ],
-            [
-                SwitchboardEndpoint(3, "DI1", board.D48),
-                SwitchboardEndpoint(4, "DI2", board.D49),
-                SwitchboardEndpoint(5, "DI3", board.D50),
-                SwitchboardEndpoint(6, "DI4", board.D51),
-            ],
-        )
+        self._leftSwitchboard = Switchboard(1, "NullLeftSB", [], [])
+        self._rightSwitchboard = Switchboard(2, "NullCenterSB", [], [])
 
-        self._rightSwitchboard = Switchboard(
-            2,
-            "RightSwitchboard",
-            [
-                SwitchboardEndpoint(7, "DO1", board.D38),
-                SwitchboardEndpoint(8, "DO2", board.D39),
-                SwitchboardEndpoint(9, "DO3", board.D40),
-                SwitchboardEndpoint(10, "DO4", board.D41),
-            ],
-            [
-                SwitchboardEndpoint(11, "B1", board.D42),
-                SwitchboardEndpoint(12, "B2", board.D43),
-                SwitchboardEndpoint(13, "B3", board.D44),
-                SwitchboardEndpoint(14, "B4", board.D45),
-                SwitchboardEndpoint(15, "B5", board.D46),
-                SwitchboardEndpoint(16, "B6", board.D47),
-            ],
-        )
+        if ENABLE_SWITCHBOARD:
+            if ENABLE_LEFT_SWITCHBOARD:
+                self._leftSwitchboard = Switchboard(
+                    1,
+                    "LeftSwitchboard",
+                    [
+                        SwitchboardEndpoint(1, "EngineTop", board.D22),
+                        SwitchboardEndpoint(2, "EngineBottom", board.D49),
+                    ],
+                    [
+                        SwitchboardEndpoint(3, "Dist1_In", board.D24),
+                        SwitchboardEndpoint(4, "Dist2_In", board.D23),
+                        SwitchboardEndpoint(5, "Dist3_In", board.D50),
+                        SwitchboardEndpoint(6, "Dist4_In", board.D51),
+                    ],
+                )
+
+            if ENABLE_RIGHT_SWITCHBOARD:
+                self._rightSwitchboard = Switchboard(
+                    2,
+                    "CenterSwitchboard",
+                    [
+                        SwitchboardEndpoint(7, "Dist1_Out", board.D38),
+                        SwitchboardEndpoint(8, "Dist1_Out", board.D39),
+                        SwitchboardEndpoint(9, "Dist1_Out", board.D40),
+                        SwitchboardEndpoint(10, "Dist1_Out", board.D41),
+                    ],
+                    [
+                        SwitchboardEndpoint(11, "Bus1", board.D42),
+                        SwitchboardEndpoint(12, "Bus2", board.D43),
+                        SwitchboardEndpoint(13, "Bus3", board.D44),
+                        SwitchboardEndpoint(14, "Bus4", board.D45),
+                        SwitchboardEndpoint(15, "Bus5", board.D46),
+                        SwitchboardEndpoint(16, "Bus6", board.D47),
+                    ],
+                )
 
     def ConnectionStatus(self) -> list[list[str]]:
         return self._leftSwitchboard.Connections + self._rightSwitchboard.Connections
