@@ -4,7 +4,7 @@
 import board
 import microcontroller
 import digitalio
-from utils import ENABLE_RIGHT_SWITCHBOARD, ENABLE_LEFT_SWITCHBOARD, ENABLE_SWITCHBOARD, disabledString, logger
+from eng_utils import ENABLE_RIGHT_SWITCHBOARD, ENABLE_LEFT_SWITCHBOARD, ENABLE_SWITCHBOARD, disabledString, logger
 
 # The number of seconds to wait between checks of the Switchboard state.  Makes sure that the scanning thread doesn't
 # take too much of the system's resources
@@ -127,13 +127,13 @@ class SwitchboardManagerClass:
                     "LeftSwitchboard",
                     [
                         SwitchboardEndpoint(1, "EngineTop", board.D22),
-                        SwitchboardEndpoint(2, "EngineBottom", board.D49),
+                        SwitchboardEndpoint(2, "EngineBottom", board.D42),
                     ],
                     [
                         SwitchboardEndpoint(3, "Dist1_In", board.D24),
                         SwitchboardEndpoint(4, "Dist2_In", board.D23),
-                        SwitchboardEndpoint(5, "Dist3_In", board.D50),
-                        SwitchboardEndpoint(6, "Dist4_In", board.D51),
+                        SwitchboardEndpoint(5, "Dist3_In", board.D44),
+                        SwitchboardEndpoint(6, "Dist4_In", board.D43),
                     ],
                 )
 

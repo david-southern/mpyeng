@@ -1,13 +1,8 @@
 import board
 from tm1637 import TM1637
-from utils import ENABLE_POWER_DISPLAY, disabledString, logger
+from eng_utils import ENABLE_POWER_DISPLAY, disabledString, logger
 
-#   CLK = board.D6
-#   DIO = board.D13
-#   time.sleep(5)
-#   while True:
-#     t = time.localtime()
-#     time.sleep(60-(t.tm_sec%60))
+SHOW_POWER_DISPLAY_DIAGS = False
 
 class PowerDisplay:
     def __init__(self, uid, dataPin, clockPin, displayName=None):
@@ -50,19 +45,20 @@ class PowerDisplay:
                 self.__display.number(value)
             else:
                 self.__display.show(str(value))
-        logger.info(f"Setting PowerDisplay {self}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}")
+            if SHOW_POWER_DISPLAY_DIAGS:
+                logger.info(f"Setting PowerDisplay {self}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}")
 
     def __str__(self):
         return f"{self.DisplayName}/D:{self.DataPin}/C:{self.ClockPin}{disabledString(ENABLE_POWER_DISPLAY)}"
 
-
+ 
 class PowerDisplayManagerClass:
     def __init__(self) -> None:
         self._ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self._ALL_POWER_DISPLAYS = []
         if ENABLE_POWER_DISPLAY:
             self._ALL_POWER_DISPLAYS.append(PowerDisplay(1, board.D2, board.D3, "Eng1"))
-            self._ALL_POWER_DISPLAYS.append(PowerDisplay(2, board.D52, board.D53, "Eng2"))
+            self._ALL_POWER_DISPLAYS.append(PowerDisplay(2, board.D53, board.D49, "Eng2"))
             self._ALL_POWER_DISPLAYS.append(PowerDisplay(3, board.D26, board.D25, "Dist1Max"))
             self._ALL_POWER_DISPLAYS.append(PowerDisplay(4, board.D28, board.D27, "Dist1Cur"))
             self._ALL_POWER_DISPLAYS.append(PowerDisplay(5, board.D30, board.D29, "Dist2Max"))

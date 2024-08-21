@@ -1,3 +1,4 @@
-Adafruit CircuitPython 7.3.2 on 2022-07-20; Adafruit Grand Central M4 Express with samd51p20
+Adafruit CircuitPython 9.1.1 on 2024-07-22; Adafruit Grand Central M4 Express with samd51p20
 Board ID:grandcentral_m4_express
+UID:B95A95D5485437532020204E370A14FF
 boot.py output:

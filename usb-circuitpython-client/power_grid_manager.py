@@ -1,7 +1,7 @@
 import time
 import board
 from pixel_manager import BLACK, BLUE, GREEN, RED, YELLOW, PixelManager
-from utils import ENABLE_POWER_GRID, disabledString, logger
+from eng_utils import ENABLE_POWER_GRID, disabledString, logger
 
 GRID_SCROLL_SECONDS = 1
 POWER_VALUE_LERP_PER_SECOND = 0.6

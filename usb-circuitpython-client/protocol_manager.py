@@ -6,7 +6,7 @@ from power_grid_manager import PowerGridManager
 from protocol_dtos import PowerDisplayDto, PowerGridDto, ReaderColorDto
 from switchboard_manager import SwitchboardManager
 import usb_cdc
-from utils import format_hex_list, shortString, logger
+from eng_utils import format_hex_list, shortString, logger
 import json
 
 # If we receive a CR, then wait this long to see if an LF is going to show up, so we don't have stray LF's when reading

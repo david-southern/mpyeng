@@ -1,7 +1,7 @@
 import time
 import board
 import neopixel
-from utils import disabledString, logger, ENABLE_PIXELS
+from eng_utils import disabledString, logger, ENABLE_PIXELS
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your

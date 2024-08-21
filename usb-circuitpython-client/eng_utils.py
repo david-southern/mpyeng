@@ -9,7 +9,7 @@ logger.setLevel(logging.INFO)
 # I'll leave this enable flag here so that the board can be run without external power if desired.
 ENABLE_POWER_DISPLAY = True
 ENABLE_PIXELS = True
-ENABLE_CARD_READER = False
+ENABLE_CARD_READER = True
 ENABLE_POWER_GRID = True
 ENABLE_SWITCHBOARD = True
 ENABLE_LEFT_SWITCHBOARD = True
