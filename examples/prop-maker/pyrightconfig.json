@@ -1,0 +1,20 @@
+{
+    "ignore": [
+        "board"
+    ],
+
+    "defineConstant": {
+        "DEBUG": true
+    },
+
+    "extraPaths": [
+        "./lib"
+    ],
+
+    "stubPath": "src/stubs",
+    
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportAttributeAccessIssue": "warning",
+    "reportMissingModuleSource": "none"
+}
