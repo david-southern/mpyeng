@@ -4,7 +4,7 @@ from adafruit_is31fl3741.adafruit_rgbmatrixqt import Adafruit_RGBMatrixQT as RGB
 import adafruit_is31fl3741
 from rainbowio import colorwheel
 
-ENABLE_PIX_GRID = False
+ENABLE_PIX_GRID = True
 
 logger.info("Initializing Pixel Grid Manager")
 
@@ -20,8 +20,8 @@ class PixGridManagerClass:
             logger.error(f"Error initializing PixGrid: {e}")
             return
             
-        self.pixGrid.set_led_scaling(0x10)  # LEDs brightness scaling
-        self.pixGrid.global_current = 0x10
+        self.pixGrid.set_led_scaling(0xFF)  # LEDs brightness scaling
+        self.pixGrid.global_current = 0xFF
         self.pixGrid.enable = True
         self.rainbowOffset = 0
 

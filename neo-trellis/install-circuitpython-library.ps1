@@ -1,0 +1,1 @@
+circup --path . install --py --requirement requirements.txt

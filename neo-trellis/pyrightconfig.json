@@ -1,0 +1,18 @@
+{
+    "ignore": [
+        "board"
+    ],
+    "defineConstant": {
+        "DEBUG": true
+    },
+    "extraPaths": [
+        ".\\lib",
+        "C:\\Users\\david\\source\\tools\\adafruit-circuitpython-bundle-9.x-mpy"
+    ],
+    "stubPath": "src/stubs",
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportAttributeAccessIssue": "warning",
+    "reportMissingModuleSource": "warning",
+    "reportPossiblyUnboundVariable": "none",
+}
