@@ -10,8 +10,8 @@ class TrellisGameRandom(TrellisGame):
     def __init__(self):
         TrellisGame.__init__(self)
 
-    def buttonPressed(self, x, y):
-        TrellisGame.buttonPressed(self, x, y)
+    def buttonPressed(self, x, y, event):
+        super().buttonPressed(x, y, event)
         eng_logger.info(f"Rand: Button Pressed: {x}, {y}")
         curColor = NeoTrellisManager.getButtonColor(x, y)
         newColor = AdaColors.BLACK if curColor != AdaColors.BLACK else COMMON_COLORS[randrange(len(COMMON_COLORS))]

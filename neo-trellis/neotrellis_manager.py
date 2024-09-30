@@ -1,3 +1,4 @@
+import time
 import board
 from eng_utils import eng_logger
 from adafruit_led_animation import color as AdaColors
@@ -8,6 +9,11 @@ ENABLE_NEO_TRELLIS = True
 
 eng_logger.info("Initializing NeoTrellis Manager")
 
+class ButtonEvent():
+    LONG_PRESS = 1
+    SHORT_PRESS = 2
+    DOUBLE_PRESS = 3
+
 class NeoTrellisManagerClass:
     TRELLIS_WIDTH = 8
     TRELLIS_HEIGHT = 8
@@ -16,6 +22,7 @@ class NeoTrellisManagerClass:
         self.neoTrellis:MultiTrellis = None # pyright: ignore[reportAttributeAccessIssue]
 
         self.subscribers = set()
+        self.longPressTime = 0.5
 
         self.buttonColor = [ 
             [ AdaColors.BLACK ] * NeoTrellisManagerClass.TRELLIS_WIDTH
@@ -52,7 +59,7 @@ class NeoTrellisManagerClass:
             for x in range(NeoTrellisManagerClass.TRELLIS_WIDTH):
                 # Activate rising/falling edge events on all keys
                 self.neoTrellis.activate_key(x, y, NeoTrellis.EDGE_RISING)
-                # self.neoTrellis.activate_key(x, y, NeoTrellis.EDGE_FALLING)
+                self.neoTrellis.activate_key(x, y, NeoTrellis.EDGE_FALLING)
                 self.neoTrellis.set_callback(x, y, self.buttonEvent)
                 self.setButtonColor(x, y, AdaColors.AMBER)
             self.neoTrellis.show()
@@ -81,8 +88,19 @@ class NeoTrellisManagerClass:
     def buttonEvent(self, x, y, edge):
         x, y = self.adjustCoords(x, y)
         eng_logger.info(f"MGR: Button Event: {x}, {y}, {edge}")
+
+        if edge == NeoTrellis.EDGE_RISING:
+            self.longPressStart = time.monotonic()
+            return
+        
+        if edge == NeoTrellis.EDGE_FALLING:
+            if time.monotonic() - self.longPressStart > self.longPressTime:
+                buttonEvent = ButtonEvent.LONG_PRESS
+            else:
+                buttonEvent = ButtonEvent.SHORT_PRESS
+
         for subscriber in self.subscribers:
-            subscriber(x, y, edge)
+            subscriber(x, y, buttonEvent)
 
     def setBrightness(self, brightness):
         if self.neoTrellis is None:
@@ -100,6 +118,14 @@ class NeoTrellisManagerClass:
         x, y = self.adjustCoords(x, y)
         self.buttonColor[x][y] = color
         self.neoTrellis.color(x, y, color)
+
+    def fill(self, color):
+        if self.neoTrellis is None:
+            return
+        for y in range(NeoTrellisManagerClass.TRELLIS_HEIGHT):
+            for x in range(NeoTrellisManagerClass.TRELLIS_WIDTH):
+                self.setButtonColor(x, y, color)
+        self.Update()
 
     def Update(self):
         if self.neoTrellis is None:

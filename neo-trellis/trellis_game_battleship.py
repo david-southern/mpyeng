@@ -40,11 +40,11 @@ class TrellisGameBattleship(TrellisGame):
         self.hintDirection = HintDirection.X
         self.winRadius = 0
         self.winColor = AdaColors.BLACK
-        NeoTrellisManager.setButtonColor(self.targetX, self.targetY, AdaColors.AMBER)
+        # NeoTrellisManager.setButtonColor(self.targetX, self.targetY, AdaColors.AMBER)
 
 
-    def buttonPressed(self, x, y):
-        TrellisGame.buttonPressed(self, x, y)
+    def buttonPressed(self, x, y, event):
+        super().buttonPressed(x, y, event)
 
         if x == self.targetX and y == self.targetY:
             self.createWinAnimation()
