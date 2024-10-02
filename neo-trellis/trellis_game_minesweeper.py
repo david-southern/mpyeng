@@ -14,6 +14,7 @@ eng_logger.setLevel(logging.INFO) # pyright: ignore[reportAttributeAccessIssue]
 
 SHOW_DIAGNOSTICS = False
 TARGET_COUNT = 10
+SHOW_START_HINT = True
 
 class GameState():
     Guessing = 1
@@ -88,9 +89,65 @@ class TrellisGameMinesweeper(TrellisGame):
                 self.winCount -= 1
                 # NeoTrellisManager.setButtonColor(targetX, targetY, AdaColors.MAGENTA)
 
+        if SHOW_START_HINT:
+            zeros = []
+            for x in range(NeoTrellisManagerClass.TRELLIS_WIDTH):
+                for y in range(NeoTrellisManagerClass.TRELLIS_HEIGHT):
+                    if self.mines[x][y]:
+                        continue
+                    count = self.minesAround(x, y)
+                    if count != 0:
+                        continue
+                    zeros.append(Coord(x, y))
+            
+            eng_logger.info(f"Found {len(zeros)} zeros")
+
+            if len(zeros) > 0:
+                self.zerosGroups = []
+                self.zeroFill(zeros)
+                maxZeroLength = 0
+                maxZeroGroup = None
+                for zeroGroup in self.zerosGroups:
+                    if len(zeroGroup) > maxZeroLength:
+                        maxZeroLength = len(zeroGroup)
+                        maxZeroGroup = zeroGroup
+                
+                if(maxZeroGroup is not None):
+                    zeroIndex = randrange(len(maxZeroGroup))
+                    self.hiliteZero = maxZeroGroup[zeroIndex]
+                    NeoTrellisManager.setButtonColor(self.hiliteZero.x, self.hiliteZero.y, AdaColors.AMBER)
+
         self.gameState = GameState.Guessing
 
         # AnimationManager.add(Blink(0, 0, 0.5, AdaColors.RED, AdaColors.BLACK, 10))
+
+    def zeroFill(self, allZeros: list[Coord]):
+        while len(allZeros) > 0:
+            nextZero = allZeros[0]
+            zeroGroup = [ ]
+
+            checkZeros = deque([nextZero], 64)
+            while True:
+                self.zeroFillWorker(checkZeros, zeroGroup, allZeros)
+                if len(checkZeros) == 0:
+                    break
+            self.zerosGroups.append(zeroGroup)
+
+    def zeroFillWorker(self, checkZeros: deque, zeroGroup: list[Coord], allZeros: list[Coord]):
+        testZero: Coord = checkZeros.popleft()
+
+        if allZeros.count(testZero) == 0:
+            return
+
+        zeroGroup.append(testZero)
+        allZeros.remove(testZero)
+
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                if dx == 0 and dy == 0:
+                    continue
+                checkZeros.append(Coord(testZero.x + dx, testZero.y + dy))
+
 
     def getSafeLocation(self):
         while True:
@@ -117,6 +174,10 @@ class TrellisGameMinesweeper(TrellisGame):
     
     def buttonPressed(self, x, y, event):
         super().buttonPressed(x, y, event)
+
+        if self.hiliteZero is not None:
+            NeoTrellisManager.setButtonColor(self.hiliteZero.x, self.hiliteZero.y, GroundColor)
+            self.hiliteZero = None
         
         if self.gameState == GameState.Animating:
             return
@@ -216,7 +277,7 @@ class TrellisGameMinesweeper(TrellisGame):
         self.gameState = GameState.Animating
         lossAnimation = Blink(x, y, 0.5, AdaColors.BLACK, AdaColors.RED, 30)
         lossAnimation.SetAnimationComplete(self.buttonResetGame)
-        AnimationManager.add(lossAnimation)
+        AnimationManager.add(lossAnimation) 
         for x in range(NeoTrellisManagerClass.TRELLIS_WIDTH):
             for y in range(NeoTrellisManagerClass.TRELLIS_HEIGHT):
                 if NeoTrellisManager.getButtonColor(x, y) == GroundColor:
