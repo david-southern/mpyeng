@@ -1,8 +1,9 @@
+from random import randrange
 import adafruit_logging as logging # pyright: ignore[reportMissingImports]
 from adafruit_led_animation import color as AdaColors
 
 eng_logger = logging.getLogger("main")
-eng_logger.setLevel(logging.WARNING) # pyright: ignore[reportAttributeAccessIssue]
+eng_logger.setLevel(logging.INFO) # pyright: ignore[reportAttributeAccessIssue]
 
 COMMON_COLORS = [ 
     AdaColors.RED, 
@@ -13,6 +14,9 @@ COMMON_COLORS = [
     AdaColors.YELLOW, 
     AdaColors.WHITE 
 ]
+
+def randomColor():
+    return (randrange(256), randrange(256), randrange(256))
 
 def lerp(begin, end, t):
     return begin + (end - begin) * t

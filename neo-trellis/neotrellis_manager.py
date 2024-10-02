@@ -22,7 +22,7 @@ class NeoTrellisManagerClass:
         self.neoTrellis:MultiTrellis = None # pyright: ignore[reportAttributeAccessIssue]
 
         self.subscribers = set()
-        self.longPressTime = 0.5
+        self.longPressTime = 0.3
 
         self.buttonColor = [ 
             [ AdaColors.BLACK ] * NeoTrellisManagerClass.TRELLIS_WIDTH
@@ -80,9 +80,11 @@ class NeoTrellisManagerClass:
         return (x, y)
 
     def subscribe(self, subscriber) -> None:
+        eng_logger.info(f"MGR: Adding subscriber: {id(subscriber)}")
         self.subscribers.add(subscriber)
 
     def unsubscribe(self, subscriber) -> None:
+        eng_logger.info(f"MGR: Removing subscriber: {id(subscriber)}")
         self.subscribers.remove(subscriber)
 
     def buttonEvent(self, x, y, edge):
@@ -99,8 +101,9 @@ class NeoTrellisManagerClass:
             else:
                 buttonEvent = ButtonEvent.SHORT_PRESS
 
+        eng_logger.info(f"MGR: Notifying {len(self.subscribers)} Subscribers")
         for subscriber in self.subscribers:
-            subscriber(x, y, buttonEvent)
+            subscriber.buttonPressed(x, y, buttonEvent)
 
     def setBrightness(self, brightness):
         if self.neoTrellis is None:

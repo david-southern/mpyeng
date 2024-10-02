@@ -27,7 +27,8 @@ class GameState():
     
 class TrellisGameBattleship(TrellisGame):
     def __init__(self):
-        TrellisGame.__init__(self)
+        super()
+        self.name = "Battleship"
         self.lastLogString = ""
         self.HintMode = HintMode.Quarter
         self.resetGame()

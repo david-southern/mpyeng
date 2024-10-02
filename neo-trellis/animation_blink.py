@@ -1,5 +1,6 @@
 import adafruit_logging as logging # pyright: ignore[reportMissingImports]
 from animation_manager import Animatable, AnimationManager
+from eng_utils import randomColor
 from neotrellis_manager import NeoTrellisManager
 
 class Blink(Animatable):
@@ -62,4 +63,32 @@ class ListBlink(Animatable):
             blinkColor = self.onColor if self.blinkOn else self.offColor
             for coord in self.coords:
                 NeoTrellisManager.setButtonColor(coord.x, coord.y, blinkColor)
+            self.startTime = total_time
+
+class ListDisco(Animatable):
+    def __init__(self, coords, blinkFreq, offColor, maxBlinks = 0):
+        super().__init__()
+        self.coords = coords
+        self.offColor = offColor
+        self.blinkFreq = blinkFreq
+        self.maxBlinks = maxBlinks
+        self.blinkAccum = 0
+
+    def Draw(self, delta_time, total_time):
+        self.blinkAccum += delta_time
+        # eng_logger.info(f"Blink.Draw: {self.x}, {self.y}, blinkT: {self.blinkAccum}, blinkFreq: {self.blinkFreq}")
+        if  self.blinkAccum > self.blinkFreq:
+            self.maxBlinks -= 1
+            if self.maxBlinks == 0:
+                # eng_logger.info(f"Removing Blink: {self.x}, {self.y}")
+                for coord in self.coords:
+                    NeoTrellisManager.setButtonColor(coord.x, coord.y, self.offColor)
+                AnimationManager.remove(self)
+                if(self.AnimationComplete):
+                    self.AnimationComplete()
+                return
+            
+            self.blinkAccum = 0
+            for coord in self.coords:
+                NeoTrellisManager.setButtonColor(coord.x, coord.y, randomColor())
             self.startTime = total_time

@@ -8,7 +8,8 @@ from trellis_game_base import TrellisGame
 
 class TrellisGameRandom(TrellisGame):
     def __init__(self):
-        TrellisGame.__init__(self)
+        super()
+        self.name = "Random"
 
     def buttonPressed(self, x, y, event):
         super().buttonPressed(x, y, event)

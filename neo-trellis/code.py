@@ -19,8 +19,12 @@ gameSelector.addGame("Minesweeper", 'M', AdaColors.OLD_LACE, TrellisGameMineswee
 gameSelector.addGame("Battleship", 'B', AdaColors.BLUE, TrellisGameBattleship)
 gameSelector.addGame("Random", 'R', AdaColors.RED, TrellisGameRandom)
 
+gameSelector.Enable()
+
 while gameSelector.selectedGameClass is None:
     gameSelector.Update()
+
+gameSelector.Disable()
 
 gameClassName = gameSelector.selectedGameClass.__name__ # pyright: ignore
 
@@ -30,6 +34,8 @@ NeoTrellisManager.fill(AdaColors.BLACK)
 
 gameCons = globals()[gameClassName]
 game: TrellisGame = gameCons()
+
+game.Enable()
 
 while True:
     game.Update()
