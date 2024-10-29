@@ -59,11 +59,6 @@ def mainLoop():
 
     if time.monotonic() > nextGridChange:
         nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
-        gridIndex = random.randint(0, 5)
-        newValue = random.randint(0, 1000)
-        PowerGridManager.SetGridCurLevel(gridIndex, newValue)
-        readerIndex = gridIndex if gridIndex < 2 else (gridIndex - 2) * 2 + 3
-        PowerDisplayManager.SetDisplayValue(readerIndex, newValue)
 
     if time.monotonic() > next_heartbeat:
         logString = f"Heartbeat"

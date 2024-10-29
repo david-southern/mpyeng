@@ -3,7 +3,7 @@ from card_manager import CardReaderManager
 from pixel_manager import PixelManager
 from power_display_manager import PowerDisplayManager
 from power_grid_manager import PowerGridManager
-from protocol_dtos import PowerDisplayDto, PowerGridDto, ReaderColorDto
+from protocol_resources import FAKE_ENGINE_POWER_DATA, FAKE_SYSTEM_POWER_DATA, FAKE_TRANSFORMER_POWER_DATA, EnginePower, SystemPower, TransformerPower, json_string
 from switchboard_manager import SwitchboardManager
 import usb_cdc
 from eng_utils import format_hex_list, shortString, logger
@@ -16,19 +16,31 @@ BYTE_CR = 0x0D
 BYTE_LF = 0x0A
 
 SER_PROTO_DIAGS = 2
-SER_PROTO_RESPONSE_DELIMITER = ":"
+SER_PROTO_RESPONSE_DELIMITER = "|"
 
 SER_PROTO_INIT_HEADER = "SP_INIT"
 SER_PROTO_INIT_RESPONSE = "SP_READY"
 SER_PROTO_OK = "SP_OK"
 SER_PROTO_ERR = "SP_ERR"
-SER_PROTO_CARDS_QUERY = "SP_CRD_Q"
-SER_PROTO_SWITCHBOARD_QUERY = "SP_SWB_Q"
-SER_PROTO_CARDS_RESPONSE = "SP_CRD_R"
-SER_PROTO_SWITCHBOARD_RESPONSE = "SP_SWB_R"
-SER_PROTO_SET_READER_COLOR = "SP_RDR_RGB"
-SER_PROTO_SET_DISPLAY_VALUE = "SP_DSP_VAL"
-SER_PROTO_SET_GRID_LEVEL = "SP_GRID_LEVEL"
+
+SER_PROTO_QUERY = "_QUERY"
+SER_PROTO_RESPONSE = "_RESPONSE"
+SER_PROTO_SET = "_SET"
+
+SER_PROTO_ENGINE_POWER = "SP_ENG_POWER"
+SER_PROTO_ENGINE_POWER_QUERY = SER_PROTO_ENGINE_POWER + SER_PROTO_QUERY
+SER_PROTO_ENGINE_POWER_RESPONSE = SER_PROTO_ENGINE_POWER + SER_PROTO_RESPONSE
+SER_PROTO_ENGINE_POWER_SET = SER_PROTO_ENGINE_POWER + SER_PROTO_SET
+
+SER_PROTO_TRANSFORMER_POWER = "SP_TRANS_POWER"
+SER_PROTO_TRANSFORMER_POWER_QUERY = SER_PROTO_TRANSFORMER_POWER + SER_PROTO_QUERY
+SER_PROTO_TRANSFORMER_POWER_RESPONSE = SER_PROTO_TRANSFORMER_POWER + SER_PROTO_RESPONSE
+SER_PROTO_TRANSFORMER_POWER_SET = SER_PROTO_TRANSFORMER_POWER + SER_PROTO_SET
+
+SER_PROTO_SYSTEM_POWER = "SP_SYS_POWER"
+SER_PROTO_SYSTEM_POWER_QUERY = SER_PROTO_SYSTEM_POWER + SER_PROTO_QUERY
+SER_PROTO_SYSTEM_POWER_RESPONSE = SER_PROTO_SYSTEM_POWER + SER_PROTO_RESPONSE
+SER_PROTO_SYSTEM_POWER_SET = SER_PROTO_SYSTEM_POWER + SER_PROTO_SET
 
 class ProtocolManagerClass:
     def __init__(self):
@@ -75,7 +87,7 @@ class ProtocolManagerClass:
     def __SendPacket(self, command, data=None):
         packet = command
         if data is not None:
-            jsonData = json.dumps(data)
+            jsonData = json_string(data)
             packet += f"{SER_PROTO_RESPONSE_DELIMITER}{jsonData}"
         packet += "\n"
 
@@ -98,103 +110,104 @@ class ProtocolManagerClass:
             self.__total_commands_handled += 1
             return
 
-        if command == SER_PROTO_CARDS_QUERY:
+        if command == SER_PROTO_ENGINE_POWER_QUERY:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received CARD QUERY command")
+                logger.info(f"Received ENGINE POWER QUERY command")
 
-            self.__SendPacket(SER_PROTO_CARDS_RESPONSE, CardReaderManager.ReaderStatus())
+            self.__SendPacket(SER_PROTO_ENGINE_POWER_RESPONSE, FAKE_ENGINE_POWER_DATA)
             self.__total_commands_handled += 1
             return
 
-        if command == SER_PROTO_SWITCHBOARD_QUERY:
+        if command == SER_PROTO_TRANSFORMER_POWER_QUERY:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SWITCHBOARD QUERY command")
+                logger.info(f"Received TRANSFORMER POWER QUERY command")
 
-            self.__SendPacket(SER_PROTO_SWITCHBOARD_RESPONSE, f"{SwitchboardManager.ConnectionStatus()}")
+            self.__SendPacket(SER_PROTO_TRANSFORMER_POWER_RESPONSE, FAKE_TRANSFORMER_POWER_DATA)
             self.__total_commands_handled += 1
             return
 
-        if command == SER_PROTO_SET_READER_COLOR:
+        if command == SER_PROTO_SYSTEM_POWER_QUERY:
+            if SER_PROTO_DIAGS > 0:
+                logger.info(f"Received SYSTEM POWER QUERY command")
+
+            self.__SendPacket(SER_PROTO_SYSTEM_POWER_RESPONSE, FAKE_SYSTEM_POWER_DATA)
+            self.__total_commands_handled += 1
+            return
+
+        if command == SER_PROTO_ENGINE_POWER_SET:
             if data is None:
-                logger.error(f"Received SET READER COLOR command with no data")
+                logger.error(f"Received SET ENGINE POWER command with no data")
                 return
 
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SET READER COLOR command: {shortString(data)}")
+                logger.info(f"Received SET ENGINE POWER command: {shortString(data)}")
 
             try:
-                for readerDict in data:
-                    readerDTO = ReaderColorDto.from_json_dict(readerDict)
-                    readerColor = (readerDTO.R, readerDTO.G, readerDTO.B)
-                    PixelManager.SetReaderColor(readerDTO.ReaderIndex, readerColor)
-
-                PixelManager.ShowPixels()
-
-                self.__SendPacket(SER_PROTO_OK)
-            except TypeError as ex:
-                logger.error(
-                    f"Received invalid SET READER COLOR data: {str(ex)} data packet: {shortString(json.dumps(data))}"
-                )
-                self.__SendPacket(SER_PROTO_ERR, str(ex))
-
-            self.__total_commands_handled += 1
-            return
-
-        if command == SER_PROTO_SET_DISPLAY_VALUE:
-            if data is None:
-                logger.error(f"Received SET DISPLAY VALUE command with no data")
-                return
-
-            if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SET DISPLAY VALUE command: {shortString(data)}")
-
-            try:
+                FAKE_ENGINE_POWER_DATA.clear()
                 for powerDict in data:
-                    powerDTO = PowerDisplayDto.from_json_dict(powerDict)
-                    PowerDisplayManager.SetDisplayValue(powerDTO.DisplayIndex, powerDTO.Value)
+                    powerResource = EnginePower.from_json_dict(powerDict)
+                    logger.info(f"Adding ENGINE POWER: {powerResource}")
+                    FAKE_ENGINE_POWER_DATA.append(powerResource)
+                    
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
                 logger.error(
-                    f"Received invalid SET DISPLAY VALUE data: {str(ex)} data packet: {shortString(json.dumps(data))}"
+                    f"Received invalid SET ENGINE POWER data: {str(ex)} data packet: {shortString(json_string(data))}"
                 )
                 self.__SendPacket(SER_PROTO_ERR, str(ex))
 
             self.__total_commands_handled += 1
             return
 
-        if command == SER_PROTO_SET_GRID_LEVEL:
+        if command == SER_PROTO_TRANSFORMER_POWER_SET:
             if data is None:
-                logger.error(f"Received SET GRID LEVEL command with no data")
+                logger.error(f"Received SET TRANSFORMER POWER command with no data")
                 return
 
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SET GRID LEVEL command: {shortString(data)}")
+                logger.info(f"Received SET TRANSFORMER POWER command: {shortString(data)}")
 
             try:
-                for gridDict in data:
-                    gridDTO = PowerGridDto.from_json_dict(gridDict)
-                    if gridDTO.MaxLevel >= 0:
-                        PowerGridManager.SetGridMaxLevel(gridDTO.GridIndex, gridDTO.MaxLevel)
-                    if gridDTO.CurLevel >= 0:
-                        PowerGridManager.SetGridCurLevel(gridDTO.GridIndex, gridDTO.CurLevel)
-                    if not gridDTO.WarnMode is None:
-                        PowerGridManager.SetGridPowerWarning(gridDTO.GridIndex, gridDTO.WarnMode)
-                    if not gridDTO.DeadMode is None:
-                        PowerGridManager.SetGridPowerDead(gridDTO.GridIndex, gridDTO.DeadMode)
+                FAKE_TRANSFORMER_POWER_DATA.clear()
+                for powerDict in data:
+                    powerResource = TransformerPower.from_json_dict(powerDict)
+                    logger.info(f"Adding TRANSFORMER POWER: {powerResource}")
+                    FAKE_TRANSFORMER_POWER_DATA.append(powerResource)
 
-                PixelManager.ShowPixels()
-                
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
                 logger.error(
-                    f"Received invalid GRID LEVEL VALUE data: {str(ex)} data packet: {shortString(json.dumps(data))}"
+                    f"Received invalid SET TRANSFORMER POWER data: {str(ex)} data packet: {shortString(json_string(data))}"
                 )
                 self.__SendPacket(SER_PROTO_ERR, str(ex))
 
             self.__total_commands_handled += 1
             return
 
-        logger.error(f"Unknown protocol command: {command}")
+        if command == SER_PROTO_SYSTEM_POWER_SET:
+            if data is None:
+                logger.error(f"Received SET SYSTEM POWER command with no data")
+                return
+
+            if SER_PROTO_DIAGS > 0:
+                logger.info(f"Received SET SYSTEM POWER command: {shortString(data)}")
+
+            try:
+                FAKE_SYSTEM_POWER_DATA.clear()
+                for powerDict in data:
+                    powerResource = SystemPower.from_json_dict(powerDict)
+                    logger.info(f"Adding SYSTEM POWER: {powerResource}")
+                    FAKE_SYSTEM_POWER_DATA.append(powerResource)
+
+                self.__SendPacket(SER_PROTO_OK)
+            except TypeError as ex:
+                logger.error(
+                    f"Received invalid SET SYSTEM POWER data: {str(ex)} data packet: {shortString(json_string(data))}"
+                )
+                self.__SendPacket(SER_PROTO_ERR, str(ex))
+
+            self.__total_commands_handled += 1
+            return
 
     def __CheckCommand(self):
         if len(self.__pendingCommand) < 1:
@@ -227,6 +240,5 @@ class ProtocolManagerClass:
                 return
 
             self.__HandleCommand(commandParts[0], data)
-
 
 ProtocolManager = ProtocolManagerClass()
