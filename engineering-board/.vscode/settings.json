@@ -15,6 +15,7 @@
     "git.ignoreLimitWarning": true,
     "cSpell.words": [
         "busio",
+        "debouncer",
         "digitalio",
         "MOSI"
     ]

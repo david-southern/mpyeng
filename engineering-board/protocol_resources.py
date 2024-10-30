@@ -47,24 +47,3 @@ class SystemPower(EngBoardResource):
 
     def __str__(self):
         return f"{self.Name}, Power:{self.Power}, CardCount:{self.CardCount}"
-
-
-FAKE_ENGINE_POWER_DATA = [
-    EnginePower("Left Wing", 1500, 900),
-    EnginePower("Right Wing", 2000, 450),
-]
-
-FAKE_TRANSFORMER_POWER_DATA = [
-    TransformerPower("T1", 1500, 100),
-    TransformerPower("T2", 750, 500),
-    TransformerPower("T3", 1000, 700),
-    TransformerPower("T4", 500, 50),
-]
-
-FAKE_SYSTEM_POWER_DATA = [
-    SystemPower("Thrusters", 100, 1),
-    SystemPower("Warp", 500, 5),
-    SystemPower("Shields", 300, 2),
-    SystemPower("Phasers", 400, 8),
-    SystemPower("Life Support", 50, 1),
-]

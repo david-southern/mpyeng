@@ -6,7 +6,8 @@
 import random
 import time
 
-import usb_cdc # type: ignore
+from fake_data_manager import FakeDataManager
+import usb_cdc  # type: ignore
 
 from pixel_manager import BLACK, PixelManager
 from power_grid_manager import PowerGridManager
@@ -31,8 +32,9 @@ next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 showSerialDiags = False
 showSerialStats = False
 
-showCardReaderDiags = True
-showSwitchboardDiags = True
+showCardReaderDiags = False
+showSwitchboardDiags = False
+showFakeData = True
 
 prevSwitchboard = ""
 
@@ -45,6 +47,7 @@ for powerGrid in PowerGridManager.AllGrids():
 for powerDisplay in PowerDisplayManager.AllDisplays():
     powerDisplay.Value = 888
 
+
 def mainLoop():
     global nextGridChange
     global next_heartbeat
@@ -52,6 +55,9 @@ def mainLoop():
     global showSerialStats
     global showCardReaderDiags
     global showSwitchboardDiags
+    global showFakeData
+
+    FakeDataManager.update_fake_data()
 
     ProtocolManager.HandleComms()
     PixelManager.UpdatePixelData()
@@ -63,7 +69,7 @@ def mainLoop():
     if time.monotonic() > next_heartbeat:
         logString = f"Heartbeat"
 
-        if(showSerialDiags):
+        if showSerialDiags:
             connState = "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
             logString += f": SerProto: {connState}"
 
@@ -73,10 +79,17 @@ def mainLoop():
                 + f"commands handled: {ProtocolManager.TotalCommandsHandled}"
             )
 
-        if(showSwitchboardDiags):
+        if showSwitchboardDiags:
             logString += f": Switchboard: {SwitchboardManager.ConnectionStatus()}"
 
-        if(showCardReaderDiags):
+        if showFakeData:
+            powerDiag = [
+                f"{power.Name}: {power.Power}"
+                for power in FakeDataManager.GetSystemPowerData()
+            ]
+            logString += f", FakeData: {powerDiag}"
+
+        if showCardReaderDiags:
             cardLog = ", ".join(CardReaderManager.ReaderCards())
             logString += f", ReaderState: {cardLog}"
 
@@ -84,8 +97,10 @@ def mainLoop():
 
         next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
+
 TEST_LOOP_REPORT_FREQUENCY = 0.25
 testChannelIndex = 0
+
 
 def testLoop():
     global nextGridChange
@@ -98,4 +113,3 @@ def testLoop():
 while True:
     mainLoop()
     time.sleep(SERIAL_READ_FREQUENCY_SEC)
- 

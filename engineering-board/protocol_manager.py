@@ -1,13 +1,12 @@
-import time
-from card_manager import CardReaderManager
-from pixel_manager import PixelManager
-from power_display_manager import PowerDisplayManager
-from power_grid_manager import PowerGridManager
-from protocol_resources import FAKE_ENGINE_POWER_DATA, FAKE_SYSTEM_POWER_DATA, FAKE_TRANSFORMER_POWER_DATA, EnginePower, SystemPower, TransformerPower, json_string
-from switchboard_manager import SwitchboardManager
-import usb_cdc
-from eng_utils import format_hex_list, shortString, logger
 import json
+import time
+
+from fake_data_manager import FakeDataManager
+
+from protocol_resources import EnginePower, SystemPower, TransformerPower, json_string
+import usb_cdc  # type: ignore # pylint: disable=import-error
+
+from eng_utils import format_hex_list, shortString, logger
 
 # If we receive a CR, then wait this long to see if an LF is going to show up, so we don't have stray LF's when reading
 # from a CRLF controller
@@ -41,6 +40,7 @@ SER_PROTO_SYSTEM_POWER = "SP_SYS_POWER"
 SER_PROTO_SYSTEM_POWER_QUERY = SER_PROTO_SYSTEM_POWER + SER_PROTO_QUERY
 SER_PROTO_SYSTEM_POWER_RESPONSE = SER_PROTO_SYSTEM_POWER + SER_PROTO_RESPONSE
 SER_PROTO_SYSTEM_POWER_SET = SER_PROTO_SYSTEM_POWER + SER_PROTO_SET
+
 
 class ProtocolManagerClass:
     def __init__(self):
@@ -80,7 +80,9 @@ class ProtocolManagerClass:
                 logger.info(f"Read serial chunk: {format_hex_list(chunkBytes)}")
             self.__pendingCommand += chunkBytes
             if SER_PROTO_DIAGS > 3:
-                logger.info(f"Pending command: {format_hex_list(self.__pendingCommand)}")
+                logger.info(
+                    f"Pending command: {format_hex_list(self.__pendingCommand)}"
+                )
             self.__lastReadTime = time.monotonic()
         self.__CheckCommand()
 
@@ -100,7 +102,7 @@ class ProtocolManagerClass:
     def __HandleCommand(self, command, data=None):
         if command == SER_PROTO_INIT_HEADER:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received INIT command")
+                logger.info("Received INIT command")
 
             # Clear the buffers in case there are any unsent/received bytes waiting (possibly from another failed communication)
             self.__dataSerial.reset_input_buffer()
@@ -112,43 +114,50 @@ class ProtocolManagerClass:
 
         if command == SER_PROTO_ENGINE_POWER_QUERY:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received ENGINE POWER QUERY command")
+                logger.info("Received ENGINE POWER QUERY command")
 
-            self.__SendPacket(SER_PROTO_ENGINE_POWER_RESPONSE, FAKE_ENGINE_POWER_DATA)
+            self.__SendPacket(
+                SER_PROTO_ENGINE_POWER_RESPONSE, FakeDataManager.GetEnginePowerData()
+            )
             self.__total_commands_handled += 1
             return
 
         if command == SER_PROTO_TRANSFORMER_POWER_QUERY:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received TRANSFORMER POWER QUERY command")
+                logger.info("Received TRANSFORMER POWER QUERY command")
 
-            self.__SendPacket(SER_PROTO_TRANSFORMER_POWER_RESPONSE, FAKE_TRANSFORMER_POWER_DATA)
+            self.__SendPacket(
+                SER_PROTO_TRANSFORMER_POWER_RESPONSE,
+                FakeDataManager.GetTransformerPowerData(),
+            )
             self.__total_commands_handled += 1
             return
 
         if command == SER_PROTO_SYSTEM_POWER_QUERY:
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SYSTEM POWER QUERY command")
+                logger.info("Received SYSTEM POWER QUERY command")
 
-            self.__SendPacket(SER_PROTO_SYSTEM_POWER_RESPONSE, FAKE_SYSTEM_POWER_DATA)
+            self.__SendPacket(
+                SER_PROTO_SYSTEM_POWER_RESPONSE, FakeDataManager.GetSystemPowerData()
+            )
             self.__total_commands_handled += 1
             return
 
         if command == SER_PROTO_ENGINE_POWER_SET:
             if data is None:
-                logger.error(f"Received SET ENGINE POWER command with no data")
+                logger.error("Received SET ENGINE POWER command with no data")
                 return
 
             if SER_PROTO_DIAGS > 0:
                 logger.info(f"Received SET ENGINE POWER command: {shortString(data)}")
 
             try:
-                FAKE_ENGINE_POWER_DATA.clear()
-                for powerDict in data:
-                    powerResource = EnginePower.from_json_dict(powerDict)
-                    logger.info(f"Adding ENGINE POWER: {powerResource}")
-                    FAKE_ENGINE_POWER_DATA.append(powerResource)
-                    
+                FakeDataManager.ClearEnginePowerData()
+                for power_dict in data:
+                    power_resource = EnginePower.from_json_dict(power_dict)
+                    logger.info(f"Adding ENGINE POWER: {power_resource}")
+                    FakeDataManager.AddEnginePowerResource(power_resource)
+
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
                 logger.error(
@@ -161,18 +170,20 @@ class ProtocolManagerClass:
 
         if command == SER_PROTO_TRANSFORMER_POWER_SET:
             if data is None:
-                logger.error(f"Received SET TRANSFORMER POWER command with no data")
+                logger.error("Received SET TRANSFORMER POWER command with no data")
                 return
 
             if SER_PROTO_DIAGS > 0:
-                logger.info(f"Received SET TRANSFORMER POWER command: {shortString(data)}")
+                logger.info(
+                    f"Received SET TRANSFORMER POWER command: {shortString(data)}"
+                )
 
             try:
-                FAKE_TRANSFORMER_POWER_DATA.clear()
-                for powerDict in data:
-                    powerResource = TransformerPower.from_json_dict(powerDict)
-                    logger.info(f"Adding TRANSFORMER POWER: {powerResource}")
-                    FAKE_TRANSFORMER_POWER_DATA.append(powerResource)
+                FakeDataManager.ClearTransformerPowerData()
+                for power_dict in data:
+                    power_resource = TransformerPower.from_json_dict(power_dict)
+                    logger.info(f"Adding TRANSFORMER POWER: {power_resource}")
+                    FakeDataManager.AddTransformerPowerResource(power_resource)
 
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
@@ -186,18 +197,18 @@ class ProtocolManagerClass:
 
         if command == SER_PROTO_SYSTEM_POWER_SET:
             if data is None:
-                logger.error(f"Received SET SYSTEM POWER command with no data")
+                logger.error("Received SET SYSTEM POWER command with no data")
                 return
 
             if SER_PROTO_DIAGS > 0:
                 logger.info(f"Received SET SYSTEM POWER command: {shortString(data)}")
 
             try:
-                FAKE_SYSTEM_POWER_DATA.clear()
-                for powerDict in data:
-                    powerResource = SystemPower.from_json_dict(powerDict)
-                    logger.info(f"Adding SYSTEM POWER: {powerResource}")
-                    FAKE_SYSTEM_POWER_DATA.append(powerResource)
+                FakeDataManager.ClearSystemPowerData()
+                for power_dict in data:
+                    power_resource = SystemPower.from_json_dict(power_dict)
+                    logger.info(f"Adding SYSTEM POWER: {power_resource}")
+                    FakeDataManager.AddSystemPowerResource(power_resource)
 
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
@@ -215,17 +226,24 @@ class ProtocolManagerClass:
 
         commandFinished = self.__pendingCommand[-1] == BYTE_LF
 
-        if self.__pendingCommand[-1] == BYTE_CR and time.monotonic() - self.__lastReadTime > PENDING_CRLF_DELAY_SEC:
+        if (
+            self.__pendingCommand[-1] == BYTE_CR
+            and time.monotonic() - self.__lastReadTime > PENDING_CRLF_DELAY_SEC
+        ):
             commandFinished = True
 
         if commandFinished:
             self.__total_bytes_read += len(self.__pendingCommand)
 
-            command = self.__pendingCommand.decode("utf-8").replace("\r", "").replace("\n", "")
+            command = (
+                self.__pendingCommand.decode("utf-8")
+                .replace("\r", "")
+                .replace("\n", "")
+            )
             self.__pendingCommand = bytearray(0)
 
             if len(command) < 1:
-                logger.error(f"Empty command received")
+                logger.error("Empty command received")
                 return
 
             if SER_PROTO_DIAGS > 1:
@@ -236,9 +254,12 @@ class ProtocolManagerClass:
             try:
                 data = None if len(commandParts) < 2 else json.loads(commandParts[1])
             except:
-                logger.error(f"Invalid JSON data for command '{commandParts[0]}': {commandParts[1]}")
+                logger.error(
+                    f"Invalid JSON data for command '{commandParts[0]}': {commandParts[1]}"
+                )
                 return
 
             self.__HandleCommand(commandParts[0], data)
+
 
 ProtocolManager = ProtocolManagerClass()
