@@ -5,6 +5,7 @@ bin/
 000-attic/
 *.user
 node_modules
+__pycache__
 
 # Prerequisites
 *.d
