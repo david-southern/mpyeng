@@ -44,7 +44,7 @@ warp_red = Debouncer(red_pin)
 blue_pin = digitalio.DigitalInOut(board.D7)
 blue_pin.direction = digitalio.Direction.INPUT
 blue_pin.pull = digitalio.Pull.UP
-shields = Debouncer(blue_pin)
+shields = Debouncer(blue_pin, interval=0.1)
 
 
 def set_warp_power(power: int):

@@ -1,6 +1,6 @@
 ﻿import serial.tools.list_ports
 
-from utils import log_debug
+from utils import logger
 
 
 class SerialPortInfo:
@@ -12,7 +12,7 @@ class SerialPortInfo:
         for p in ports:
             port_info = SerialPortInfo(p)
             retval.append(port_info)
-            log_debug(f"Found serial port: {port_info}")
+            logger.debug(f"Found serial port: {port_info}")
 
         return retval
 

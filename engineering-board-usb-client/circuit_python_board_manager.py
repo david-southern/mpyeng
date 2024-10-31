@@ -2,6 +2,8 @@
 from eng_board_resources import ClientType
 from serial_port_info import SerialPortInfo
 
+from utils import logger
+
 
 class CircuitPythonBoardManager:
     """
@@ -62,14 +64,14 @@ class CircuitPythonBoardManager:
         checks if there is a cached board for the client type and verifies its connection status. If
         no cached board is found or the cached board is not connected, it scans available serial
         ports to find a matching board.
-        
+
         Args:
             client_type (int): The type of client to find the board for.
         Returns:
             CircuitPythonBoard: The found CircuitPythonBoard instance, or None if no matching board
             is found.
         """
-        
+
         client_board = CircuitPythonBoardManager.__ClientTypeMap.get(client_type)
         if client_board:
             if client_board.is_connected:
@@ -104,7 +106,7 @@ class CircuitPythonBoardManager:
                     )
                     return board_info
 
-        print(f"No {client_type} board found")
+        logger.error(f"No {client_type} board found")
         return None
 
 

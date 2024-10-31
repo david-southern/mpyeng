@@ -1,5 +1,5 @@
-DEBUG_LOGGING = False
+# Configure logging
+import logging
 
-def log_debug(message: str):
-    if DEBUG_LOGGING:
-        print(message)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)

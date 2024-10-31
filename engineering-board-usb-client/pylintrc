@@ -442,7 +442,8 @@ disable=raw-checker-failed,
         missing-function-docstring, 
         missing-module-docstring, 
         too-few-public-methods,
-        broad-exception-caught
+        broad-exception-caught,
+        logging-fstring-interpolation
 #        invalid-name
 
 # Enable the message, report, category or checker with the given id(s). You can

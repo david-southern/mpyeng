@@ -8,6 +8,7 @@
             "name": "Python Debugger",
             "type": "debugpy",
             "request": "launch",
+            "cwd": "${workspaceFolder}",
             "program": "main.py",
             "console": "integratedTerminal"
         }
