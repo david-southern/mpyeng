@@ -59,7 +59,6 @@ class SerialProtocolHandler:
 
         self.port_name = port_name
         self.board_name = board_name
-        self.communication_lock = threading.Lock()
         self.is_valid = False
 
         self.port = serial.Serial(
