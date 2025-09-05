@@ -1,4 +1,4 @@
-Adafruit CircuitPython 9.1.4 on 2024-09-17; Adafruit ItsyBitsy M4 Express with samd51g19
-Board ID:itsybitsy_m4_express
-UID:43022548484633532020204E351310FF
+Adafruit CircuitPython 9.2.8 on 2025-05-28; Adafruit Grand Central M4 Express with samd51p20
+Board ID:grandcentral_m4_express
+UID:C3568B84385350532020204A443915FF
 boot.py output:

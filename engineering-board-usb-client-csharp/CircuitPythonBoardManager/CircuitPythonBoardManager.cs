@@ -1,7 +1,5 @@
 ﻿// spell-checker: disable
 
-using Helpers;
-
 namespace CircuitPythonInterface;
 
 public enum ClientType
@@ -12,9 +10,10 @@ public enum ClientType
 
 public class CircuitPythonBoardManager
 {
-    public static readonly Dictionary<string, CircuitPythonBoard> KnownCPyBoards = new();
-    public static readonly Dictionary<string, CircuitPythonBoard> PortToBoardMap = new();
-    public static readonly Dictionary<ClientType, CircuitPythonBoard> ClientTypeMap = new();
+    public static readonly Dictionary<string, CircuitPythonBoard> KnownCPyBoards = [];
+    public static readonly Dictionary<string, CircuitPythonBoard> SpecificCPyBoards = [];
+    public static readonly Dictionary<string, CircuitPythonBoard> PortToBoardMap = [];
+    public static readonly Dictionary<ClientType, CircuitPythonBoard> ClientTypeMap = [];
 
     static CircuitPythonBoardManager()
     {
@@ -127,7 +126,14 @@ public class CircuitPythonBoardManager
         #endregion
 
         static void AddBoard(string name, string vid, string pid, string serNo, List<ClientType> clientTypes)
-            => KnownCPyBoards.Add(MakeKey(vid, pid, serNo), new CircuitPythonBoard(name, vid, pid, serNo, clientTypes));
+        {
+            string anyKey = MakeAnyKey(vid, pid);
+            if (!KnownCPyBoards.ContainsKey(anyKey))
+            {
+                KnownCPyBoards.Add(anyKey, new CircuitPythonBoard(name, vid, pid, "<any>", clientTypes));
+            }
+            SpecificCPyBoards.Add(MakeSpecificKey(vid, pid, serNo), new CircuitPythonBoard(name, vid, pid, serNo, clientTypes));
+        }
 
         List<ClientType> AllClients =
         [
@@ -140,8 +146,11 @@ public class CircuitPythonBoardManager
         AddBoard("Adafruit Feather RP2040 Black",
             "VID_239A", "PID_80F2", "6&1F8589CA&0&0002", AllClients);
 
-        AddBoard("Adafruit Grand Central M4 Express with samd51p20",
+        AddBoard("Adafruit Grand Central M4 Express(samd51p20) - EngBoard",
             "VID_239A", "PID_8032", "7&256F071&0&0002", AllClients);
+
+       AddBoard("Adafruit Grand Central M4 Express(samd51p20) - NoHeader",
+            "VID_239A", "PID_8032", "8&2145BDD2&0&0002", AllClients);
 
         AddBoard("Adafruit ItsyBitsy M4 Express with samd51g19",
             "VID_239A", "PID_802C", "6&B566A03&0&0002", AllClients);
@@ -153,21 +162,28 @@ public class CircuitPythonBoardManager
             "VID_239A", "PID_801F", "7&32FD1556&0&0002", AllClients);
     }
 
-    private static string MakeKey(string vid, string pid, string serNo)
+    private static string MakeSpecificKey(string vid, string pid, string serNo)
     {
         return $"{vid}//{pid}//{serNo}";
     }
 
+    private static string MakeAnyKey(string vid, string pid)
+    {
+        return $"{vid}//{pid}";
+    }
+
     private static CircuitPythonBoard? GetBoard(string? vid, string? pid, string? serNo)
     {
-        if (vid == null || pid == null || serNo == null) { return null; }
-        KnownCPyBoards.TryGetValue(MakeKey(vid, pid, serNo), out CircuitPythonBoard? retval);
+        if (vid == null || pid == null)
+        { return null; }
+
+        SpecificCPyBoards.TryGetValue(MakeSpecificKey(vid, pid, serNo ?? ""), out CircuitPythonBoard? retval);
         return retval;
     }
 
     public static void ScanSerialPorts()
     {
-        var portInfos = SerialPortInfo.GetPortInformation();
+        List<SerialPortInfo> portInfos = SerialPortInfo.GetPortInformation();
         Log.Information($"Serial Port Scan:");
 
         if (portInfos.Count > 0)
@@ -189,10 +205,10 @@ public class CircuitPythonBoardManager
     {
         // If we found a board mapping but it is no longer connected then remove it from the
         // mappings
-        var removeClientMappings = ClientTypeMap.Where(kvp => kvp.Value == clientBoard).ToList();
+        List<KeyValuePair<ClientType, CircuitPythonBoard>> removeClientMappings = ClientTypeMap.Where(kvp => kvp.Value == clientBoard).ToList();
         removeClientMappings.ForEach(kvp => ClientTypeMap.Remove(kvp.Key));
 
-        var removePortMappings = PortToBoardMap.Where(kvp => kvp.Value == clientBoard).ToList();
+        List<KeyValuePair<string, CircuitPythonBoard>> removePortMappings = PortToBoardMap.Where(kvp => kvp.Value == clientBoard).ToList();
         removePortMappings.ForEach(kvp => PortToBoardMap.Remove(kvp.Key));
     }
 

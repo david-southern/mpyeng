@@ -1,0 +1,1 @@
+circup --path . install --requirement requirements.txt
