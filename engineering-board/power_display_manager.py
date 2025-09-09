@@ -11,7 +11,6 @@ class PowerDisplay:
         self.__clockPin = clockPin
         self.__dataPin = dataPin
 
-        self.__display = None
         if ENABLE_POWER_DISPLAY:
             self.__display = TM1637(clockPin, dataPin)
 
@@ -41,7 +40,7 @@ class PowerDisplay:
     def Value(self, value):
         self.__value = value
         if ENABLE_POWER_DISPLAY:
-            if type(value) == int:
+            if isinstance(value, int):
                 self.__display.number(value)
             else:
                 self.__display.show(str(value))

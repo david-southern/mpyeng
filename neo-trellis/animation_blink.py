@@ -1,4 +1,4 @@
-import adafruit_logging as logging # pyright: ignore[reportMissingImports]
+import adafruit_logging as logging
 from animation_manager import Animatable, AnimationManager
 from eng_utils import randomColor
 from neotrellis_manager import NeoTrellisManager

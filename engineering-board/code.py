@@ -3,13 +3,12 @@
 # connection, the card reader, the switchboard, and the power grid. It also
 # handles the heartbeat and logging for the client.
 
-import random
 import time
+import usb_cdc # pyright: ignore[reportMissingImports]
 
 from fake_data_manager import FakeDataManager
-import usb_cdc  # type: ignore
 
-from pixel_manager import BLACK, PixelManager
+from pixel_manager import PixelManager
 from power_grid_manager import PowerGridManager
 from power_display_manager import PowerDisplayManager
 
@@ -27,7 +26,7 @@ if usb_cdc.data is None:
 
 logger.info("Initializing USB Client")
 
-next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
+nextHeartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
 showSerialDiags = False
 showSerialStats = False
@@ -50,12 +49,7 @@ for powerDisplay in PowerDisplayManager.AllDisplays():
 
 def mainLoop():
     global nextGridChange
-    global next_heartbeat
-    global showSerialDiags
-    global showSerialStats
-    global showCardReaderDiags
-    global showSwitchboardDiags
-    global showFakeData
+    global nextHeartbeat
 
     FakeDataManager.update_fake_data()
 
@@ -66,8 +60,8 @@ def mainLoop():
     if time.monotonic() > nextGridChange:
         nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
 
-    if time.monotonic() > next_heartbeat:
-        logString = f"Heartbeat"
+    if time.monotonic() > nextHeartbeat:
+        logString = "Heartbeat"
 
         if showSerialDiags:
             connState = "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
@@ -95,7 +89,7 @@ def mainLoop():
 
         logger.info(logString)
 
-        next_heartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
+        nextHeartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
 
 TEST_LOOP_REPORT_FREQUENCY = 0.25
@@ -104,7 +98,6 @@ testChannelIndex = 0
 
 def testLoop():
     global nextGridChange
-    global testChannelIndex
 
     if time.monotonic() > nextGridChange:
         nextGridChange = time.monotonic() + TEST_LOOP_REPORT_FREQUENCY
@@ -113,3 +106,4 @@ def testLoop():
 while True:
     mainLoop()
     time.sleep(SERIAL_READ_FREQUENCY_SEC)
+ # pyright: ignore[reportShadowedImports]

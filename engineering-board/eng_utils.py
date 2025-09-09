@@ -1,5 +1,4 @@
-from collections import namedtuple
-import adafruit_logging as logging
+import adafruit_logging as logging  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)
@@ -15,8 +14,10 @@ ENABLE_SWITCHBOARD = False
 ENABLE_LEFT_SWITCHBOARD = False
 ENABLE_RIGHT_SWITCHBOARD = False
 
-def disabledString(enabled:bool):
+
+def disabledString(enabled: bool):
     return "" if enabled else "(DISABLED)"
+
 
 def safeString(thingy, defaultString):
     return str(thingy) if thingy is not None else defaultString

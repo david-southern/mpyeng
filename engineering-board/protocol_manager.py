@@ -1,10 +1,10 @@
 import json
 import time
+import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from fake_data_manager import FakeDataManager
 
 from protocol_resources import EnginePower, SystemPower, TransformerPower, json_string
-import usb_cdc  # type: ignore # pylint: disable=import-error
 
 from eng_utils import format_hex_list, shortString, logger
 

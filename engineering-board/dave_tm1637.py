@@ -1,3 +1,5 @@
+# pylint: disable=consider-using-f-string
+
 # NOTE: I pulled this code from the Micropython codebase to run the TM1637 in CircuitPython. I had to make a few changes
 # to get it to work.  I later found that someone else had ported TH1637 to CircuitPython themselves, and decided to use
 # their port.  I'm keeping this code around, in case the other code has problems.
@@ -39,7 +41,7 @@ TM1637_MSB = 128  # msb is the decimal point or the colon depending on your disp
 
 # 0-9, a-z, blank, dash, star
 _SEGMENTS = bytearray(
-    b"\x3F\x06\x5B\x4F\x66\x6D\x7D\x07\x7F\x6F\x77\x7C\x39\x5E\x79\x71\x3D\x76\x06\x1E\x76\x38\x55\x54\x3F\x73\x67\x50\x6D\x78\x3E\x1C\x2A\x76\x6E\x5B\x00\x40\x63"
+    b"\x3f\x06\x5b\x4f\x66\x6d\x7d\x07\x7f\x6f\x77\x7c\x39\x5e\x79\x71\x3d\x76\x06\x1e\x76\x38\x55\x54\x3f\x73\x67\x50\x6d\x78\x3e\x1c\x2a\x76\x6e\x5b\x00\x40\x63"  # pylint: disable=line-too-long
 )
 
 
@@ -162,8 +164,8 @@ class TM1637(object):
         space, dash, star to an array of segments, matching the length of the
         source string."""
         segments = bytearray(len(string))
-        for i in range(len(string)):
-            segments[i] = self.encode_char(string[i])
+        for i, rawChar in enumerate(string):
+            segments[i] = self.encode_char(rawChar)
         return segments
 
     def encode_char(self, char):
@@ -245,10 +247,10 @@ class TM1637Decimal(TM1637):
         the source string."""
         segments = bytearray(len(string.replace(".", "")))
         j = 0
-        for i in range(len(string)):
-            if string[i] == "." and j > 0:
+        for _, rawChar in enumerate(string):
+            if rawChar == "." and j > 0:
                 segments[j - 1] |= TM1637_MSB
                 continue
-            segments[j] = self.encode_char(string[i])
+            segments[j] = self.encode_char(rawChar)
             j += 1
         return segments

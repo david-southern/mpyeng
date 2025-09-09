@@ -1,7 +1,8 @@
-from eng_utils import logger
 import board
 import digitalio
-from adafruit_debouncer import Debouncer  # type: ignore # pylint: disable=import-error
+from adafruit_debouncer import Debouncer # pyright: ignore[reportMissingImports]
+
+from eng_utils import logger
 
 from protocol_resources import EnginePower, SystemPower, TransformerPower
 

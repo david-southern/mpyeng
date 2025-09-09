@@ -1,7 +1,7 @@
-import json 
+import json
 
 def json_string(data):
-    if type(data) is list:
+    if isinstance(data, list):
         return '[ ' + ', '.join([json_string(json_el) for json_el in data]) + ' ]'
     return json.dumps(data.__dict__)
 

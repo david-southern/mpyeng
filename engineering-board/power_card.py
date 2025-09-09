@@ -1,13 +1,18 @@
-_ALL_POWER_CARDS: list["PowerCard"] = None
+from __future__ import annotations
+
+_ALL_POWER_CARDS: list[PowerCard]
 CARD_VOLTAGE_THRESHOLD = 0.05
+
 
 class PowerCard:
     @classmethod
-    def FindCard(cls, cardVoltage) -> "PowerCard":
-        if(_ALL_POWER_CARDS is None):
+    def FindCard(cls, cardVoltage) -> PowerCard | None:
+        if _ALL_POWER_CARDS is None:
             InitializePowerCards()
 
-        matchingCards = [card for card in _ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)]
+        matchingCards = [
+            card for card in _ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)
+        ]
         return matchingCards[0] if len(matchingCards) > 0 else None
 
     def __init__(self, uid, cardVoltage, requiredPower, cardName=None):
@@ -41,18 +46,19 @@ class PowerCard:
     def __str__(self):
         return f"{self.UID}/{self.CardName}({self.voltage:.2f}V)"
 
+
 def InitializePowerCards():
     global _ALL_POWER_CARDS
     _ALL_POWER_CARDS = []
-    _ALL_POWER_CARDS.append(PowerCard(1,  0.10, 50))
-    _ALL_POWER_CARDS.append(PowerCard(2,  0.20, 80))
-    _ALL_POWER_CARDS.append(PowerCard(3,  0.30, 50))
-    _ALL_POWER_CARDS.append(PowerCard(4,  0.40, 40))
-    _ALL_POWER_CARDS.append(PowerCard(5,  0.50, 90))
-    _ALL_POWER_CARDS.append(PowerCard(6,  0.60, 10))
-    _ALL_POWER_CARDS.append(PowerCard(7,  0.70, 10))
-    _ALL_POWER_CARDS.append(PowerCard(8,  0.80, 60))
-    _ALL_POWER_CARDS.append(PowerCard(9,  0.90, 30))
+    _ALL_POWER_CARDS.append(PowerCard(1, 0.10, 50))
+    _ALL_POWER_CARDS.append(PowerCard(2, 0.20, 80))
+    _ALL_POWER_CARDS.append(PowerCard(3, 0.30, 50))
+    _ALL_POWER_CARDS.append(PowerCard(4, 0.40, 40))
+    _ALL_POWER_CARDS.append(PowerCard(5, 0.50, 90))
+    _ALL_POWER_CARDS.append(PowerCard(6, 0.60, 10))
+    _ALL_POWER_CARDS.append(PowerCard(7, 0.70, 10))
+    _ALL_POWER_CARDS.append(PowerCard(8, 0.80, 60))
+    _ALL_POWER_CARDS.append(PowerCard(9, 0.90, 30))
     _ALL_POWER_CARDS.append(PowerCard(10, 1.00, 30))
     _ALL_POWER_CARDS.append(PowerCard(11, 1.10, 30))
     _ALL_POWER_CARDS.append(PowerCard(12, 1.20, 60))
@@ -75,4 +81,3 @@ def InitializePowerCards():
     _ALL_POWER_CARDS.append(PowerCard(29, 2.90, 60))
     _ALL_POWER_CARDS.append(PowerCard(30, 3.00, 20))
     _ALL_POWER_CARDS.append(PowerCard(31, 3.10, 70))
-

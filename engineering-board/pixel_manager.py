@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+from math import floor
 import time
 import board
-import neopixel
+
+from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import disabledString, logger, ENABLE_PIXELS
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
@@ -33,48 +37,28 @@ LARGE_GRID_LED_BASE_INDEX = 0
 SMALL_GRID_COUNT = 4
 SMALL_GRID_SIZE = 8
 LEDS_PER_SMALL_GRID = SMALL_GRID_SIZE * SMALL_GRID_SIZE
-SMALL_GRID_LED_BASE_INDEX = LARGE_GRID_LED_BASE_INDEX + LEDS_PER_LARGE_GRID * LARGE_GRID_COUNT
+SMALL_GRID_LED_BASE_INDEX = (
+    LARGE_GRID_LED_BASE_INDEX + LEDS_PER_LARGE_GRID * LARGE_GRID_COUNT
+)
 
-READER_COUNT = 0
-LEDS_PER_READER = 11
-READERS_LED_BASE_INDEX = SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * SMALL_GRID_COUNT
+CARD_BUS_COUNT = 6
+CARDS_PER_BUS = 5
+LEDS_PER_CARD = 25
 
-TOTAL_LED_COUNT = READERS_LED_BASE_INDEX + READER_COUNT * LEDS_PER_READER
+TRAYS_PER_BUS = 2
+TRAY_LEDS_PER_CARD = 4
+LEDS_PER_TRAY = TRAY_LEDS_PER_CARD * CARDS_PER_BUS
 
-# Pixel Map
-# Large Grid #0 - 256 px
-# Large Grid #1 - 256 px
-# Small Grid #2 - 64 px
-# Small Grid #3 - 64 px
-# Small Grid #4 - 64 px
-# Small Grid #5 - 64 px
+CARDS_LED_BASE_INDEX = (
+    SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * SMALL_GRID_COUNT
+)
+CARD_TRAYS_LED_BASE_INDEX = (
+    CARDS_LED_BASE_INDEX + CARD_BUS_COUNT * CARDS_PER_BUS * LEDS_PER_CARD
+)
 
-PixelGridLEDStartIndex = {
-    0 : LARGE_GRID_LED_BASE_INDEX,
-    1 : LARGE_GRID_LED_BASE_INDEX + LEDS_PER_LARGE_GRID,
-    2 : SMALL_GRID_LED_BASE_INDEX,
-    3 : SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID,
-    4 : SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * 2,
-    5 : SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * 3,
-}
-
-PixelGridLEDLength = {
-    0 : LEDS_PER_LARGE_GRID,
-    1 : LEDS_PER_LARGE_GRID,
-    2 : LEDS_PER_SMALL_GRID,
-    3 : LEDS_PER_SMALL_GRID,
-    4 : LEDS_PER_SMALL_GRID,
-    5 : LEDS_PER_SMALL_GRID,
-}
-
-PixelGridSize = {
-    0 : LARGE_GRID_SIZE,
-    1 : LARGE_GRID_SIZE,
-    2 : SMALL_GRID_SIZE,
-    3 : SMALL_GRID_SIZE,
-    4 : SMALL_GRID_SIZE,
-    5 : SMALL_GRID_SIZE,
-}
+TOTAL_LED_COUNT = (
+    CARD_TRAYS_LED_BASE_INDEX + CARD_BUS_COUNT * TRAYS_PER_BUS * LEDS_PER_TRAY
+)
 
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -82,55 +66,168 @@ YELLOW = (255, 150, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+
 class PixelManagerClass:
+    PixelGridLEDStartIndex = [
+        LARGE_GRID_LED_BASE_INDEX,
+        LARGE_GRID_LED_BASE_INDEX + LEDS_PER_LARGE_GRID,
+        SMALL_GRID_LED_BASE_INDEX,
+        SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID,
+        SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * 2,
+        SMALL_GRID_LED_BASE_INDEX + LEDS_PER_SMALL_GRID * 3,
+    ]
+
+    PixelGridLEDLength = [
+        LEDS_PER_LARGE_GRID,
+        LEDS_PER_LARGE_GRID,
+        LEDS_PER_SMALL_GRID,
+        LEDS_PER_SMALL_GRID,
+        LEDS_PER_SMALL_GRID,
+        LEDS_PER_SMALL_GRID,
+    ]
+
+    PixelGridSize = [
+        LARGE_GRID_SIZE,
+        LARGE_GRID_SIZE,
+        SMALL_GRID_SIZE,
+        SMALL_GRID_SIZE,
+        SMALL_GRID_SIZE,
+        SMALL_GRID_SIZE,
+    ]
+
+    CardLEDStartIndex: list[list[int]] = []
+    CardTrayLEDStartIndex: list[list[list[int]]] = []
+
+    @classmethod
+    def classInitialize(cls):
+        if len(cls.CardLEDStartIndex) < 1:
+            PixelManagerClass.CardLEDStartIndex = [
+                [
+                    CARDS_LED_BASE_INDEX + (bus * CARDS_PER_BUS + card) * LEDS_PER_CARD
+                    for card in range(CARDS_PER_BUS)
+                ]
+                for bus in range(CARD_BUS_COUNT)
+            ]
+
+        if len(cls.CardTrayLEDStartIndex) < 1:
+            PixelManagerClass.CardTrayLEDStartIndex = [
+                [
+                    [
+                        CARD_TRAYS_LED_BASE_INDEX
+                        + (bus * TRAYS_PER_BUS + tray) * LEDS_PER_TRAY
+                        + card * TRAY_LEDS_PER_CARD
+                        for card in range(CARDS_PER_BUS)
+                    ]
+                    for tray in range(TRAYS_PER_BUS)
+                ]
+                for bus in range(CARD_BUS_COUNT)
+            ]
+
     def __init__(self):
-        self.pixels = None
+        PixelManagerClass.classInitialize()
         self.__nextPixelUpdate = time.monotonic() + PIXEL_REFRESH_SECONDS
         self.heartbeatColor = BLUE
         self.heartbeatFreq = 4
         self.heartbeatCount = 0
         self.powerGridPixels = 0
-        
+
+        logger.info(
+            f"Creating PixelManager{disabledString(ENABLE_PIXELS)} with {TOTAL_LED_COUNT} pixels"
+        )
+
+        # Dump out one log line for each pixel grid, indicating the pixel index range for that grid
+        logger.info(f"Pixel Grids: {PIXEL_GRID_COUNT} total")
+        for gridIndex in range(PIXEL_GRID_COUNT):
+            startIndex = PixelManagerClass.PixelGridLEDStartIndex[gridIndex]
+            length = PixelManagerClass.PixelGridLEDLength[gridIndex]
+            logger.info(
+                f"  Pixel Grid #{gridIndex}: LED index {startIndex} to {startIndex + length - 1} ({length} LEDs)"
+            )
+
+        # Dump out one log line for each card, indicating the pixel index range for that card
+        logger.info(
+            f"Cards: {len(PixelManagerClass.CardLEDStartIndex)} buses"
+        )
+        logger.info(
+            f"Cards: {len(PixelManagerClass.CardLEDStartIndex[0])} cards per bus"
+        )
+        for busIndex in range(CARD_BUS_COUNT):
+            for cardIndex in range(CARDS_PER_BUS):
+                startIndex = PixelManagerClass.CardLEDStartIndex[busIndex][cardIndex]
+                logger.info(
+                    f"  Card B{busIndex}/C{cardIndex}: LED index {startIndex} to {startIndex + LEDS_PER_CARD - 1} ({LEDS_PER_CARD} LEDs)"
+                )
+
+        # Dump out one log line for each card tray, indicating the pixel index range for that tray
+        logger.info(
+            f"Card Reader Trays: {CARD_BUS_COUNT} buses, {TRAYS_PER_BUS} trays per bus, {CARDS_PER_BUS} cards per tray"
+        )
+        for busIndex in range(CARD_BUS_COUNT):
+            for trayIndex in range(TRAYS_PER_BUS):
+                for cardIndex in range(CARDS_PER_BUS):
+                    startIndex = PixelManagerClass.CardTrayLEDStartIndex[busIndex][
+                        trayIndex
+                    ][cardIndex]
+                    logger.info(
+                        f"  Tray B{busIndex}/T{trayIndex}/C{cardIndex}: LED index {startIndex} to {startIndex + LEDS_PER_TRAY - 1} ({LEDS_PER_TRAY} LEDs)"
+                    )
+
         if ENABLE_PIXELS:
-            self.enabledString = "";
-            self.pixels = neopixel.NeoPixel(
+            self.enabledString = ""
+            self.pixels = NeoPixel(
                 LED_DATA_PIN,
                 TOTAL_LED_COUNT,
                 brightness=PIXEL_BRIGHTNESS,
                 auto_write=False,
                 pixel_order="GRB",
             )
+
+            logger.info(
+                f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels"
+            )
+
             self.pixels.fill(BLACK)
             self.pixels.show()
 
-            logger.info(f"Created PixelManager{disabledString(ENABLE_PIXELS)} with {TOTAL_LED_COUNT} pixels")
-
-    def SetReaderColor(self, readerIndex: int, color: tuple):
-        if readerIndex < 0 or readerIndex >= READER_COUNT:
-            logger.error(f"Reader index {readerIndex} is out of range.")
+    def SetTrayColor(self, bus: int, card: int, color: tuple):
+        if bus < 0 or bus >= CARD_BUS_COUNT:
+            logger.error(f"Pixel Bus index {bus} is out of range.")
             return
 
-        logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting CardReader #{readerIndex} to color: {color}")
+        if card < 0 or card >= CARDS_PER_BUS:
+            logger.error(f"Pixel Card index {card} is out of range.")
+            return
 
-        readerPixelIndexStart = READERS_LED_BASE_INDEX + readerIndex * LEDS_PER_READER
-        readerPixelIndexEnd = readerPixelIndexStart + LEDS_PER_READER
+        logger.info(
+            f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Tray B{bus}/C{card} to color: {color}"
+        )
 
-        if ENABLE_PIXELS:
-            for pixelIndex in range(readerPixelIndexStart, readerPixelIndexEnd):
-                self.pixels[pixelIndex] = color
+        for tray in range(TRAYS_PER_BUS):
+            readerPixelIndexStart = PixelManagerClass.CardTrayLEDStartIndex[bus][tray][
+                card
+            ]
+            readerPixelIndexEnd = readerPixelIndexStart + LEDS_PER_TRAY
+
+            if ENABLE_PIXELS:
+                for pixelIndex in range(readerPixelIndexStart, readerPixelIndexEnd):
+                    self.pixels[pixelIndex] = color
 
     def SetPowerGridColor(self, gridIndex: int, x: int, y: int, color: tuple):
         if gridIndex < 0 or gridIndex >= PIXEL_GRID_COUNT:
             logger.error(f"Pixel Grid index {gridIndex} is out of range.")
             return
 
-        gridSize = PixelGridSize[gridIndex]
+        gridSize = PixelManagerClass.PixelGridSize[gridIndex]
 
         if x < 0 or x >= gridSize or y < 0 or y >= gridSize:
-            logger.error(f"Pixel Grid index {gridIndex} coordinates ({x}, {y}) is out of range.")
+            logger.error(
+                f"Pixel Grid index {gridIndex} coordinates ({x}, {y}) is out of range."
+            )
             return
 
-        gridPixelIndex = PixelGridLEDStartIndex[gridIndex] + y * gridSize
+        gridPixelIndex = (
+            PixelManagerClass.PixelGridLEDStartIndex[gridIndex] + y * gridSize
+        )
 
         # The pixel grids that we are using map the pixels as a zig-zag linear string: Pixel zero starts at the
         # bottom-left of the grid, and the pixels increment to the right until the string reaches the edge of the grid.
@@ -141,7 +238,6 @@ class PixelManagerClass:
             gridPixelIndex += (gridSize - 1) - x
 
         self.powerGridPixels += 1
-        # logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting PixelGrid #{gridIndex}({x}, {y}) (LED index {gridPixelIndex})to color: {color}")
 
         if ENABLE_PIXELS:
             self.pixels[gridPixelIndex] = color
@@ -174,31 +270,42 @@ class PixelManagerClass:
 
         CYLON_COLOR = (255, 0, 0)
         BASE_COLOR = (0, 0, 0)
+        self.pixels.fill(BASE_COLOR)
 
         cylon = 0
         prevCylon = 0
+        deltaCylon = 1
+        cylonSpeed = 0.05
+        nextCylonUpdate = time.monotonic() + cylonSpeed
 
-        cylonSpeed = 0.01
         cylonCount = 0
-        self.pixels.fill(BASE_COLOR)
+
+        heartbeatFreq = 2
+        nextHeartbeat = time.monotonic() + heartbeatFreq
 
         while True:
-            self.pixels[prevCylon] = BASE_COLOR
-            self.pixels[cylon] = CYLON_COLOR
+            if time.monotonic() > nextHeartbeat:
+                logger.info(
+                    f"Cylon Pixel Test color: {BASE_COLOR}, brightness: {brightness} {cylon}/{testCount}"
+                )
+                nextHeartbeat = time.monotonic() + heartbeatFreq
 
-            prevCylon = cylon
-            cylon += 1
+            if nextCylonUpdate > time.monotonic():
+                nextCylonUpdate = time.monotonic() + cylonSpeed
 
-            if cylon % 100 == 0:
-                logger.info(f"Cylon Pixel Test color: {BASE_COLOR}, brightness: {brightness} {cylon}/{testCount}")
+                prevCylon = cylon
+                cylon += deltaCylon
 
-            if cylon >= testCount:
-                cylonCount += 1
-                logger.info(f"Cylon Pixel Test {cylonCount}")
-                cylon = 0
+                if cylon < 0 or cylon >= testCount:
+                    deltaCylon = -deltaCylon
+                    cylon += deltaCylon
+                    cylonCount += 1
+                    logger.info(f"Cylon Pixel Test {cylonCount}")
 
-            self.pixels.show()
-
+                if floor(cylon) != floor(prevCylon):
+                    self.pixels[floor(prevCylon)] = BASE_COLOR
+                    self.pixels[floor(cylon)] = CYLON_COLOR
+                    self.pixels.show()
 
     def __str__(self):
         return f"PixelManager{disabledString(ENABLE_PIXELS)}"
