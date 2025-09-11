@@ -4,7 +4,7 @@
 # handles the heartbeat and logging for the client.
 
 import time
-import usb_cdc # pyright: ignore[reportMissingImports]
+import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from fake_data_manager import FakeDataManager
 
@@ -46,64 +46,54 @@ for powerGrid in PowerGridManager.AllGrids():
 for powerDisplay in PowerDisplayManager.AllDisplays():
     powerDisplay.Value = 888
 
-
 def mainLoop():
     global nextGridChange
     global nextHeartbeat
 
-    FakeDataManager.update_fake_data()
+    while True:
+        time.sleep(SERIAL_READ_FREQUENCY_SEC)
 
-    ProtocolManager.HandleComms()
-    PixelManager.UpdatePixelData()
-    PowerGridManager.UpdateGridState()
+        FakeDataManager.update_fake_data()
 
-    if time.monotonic() > nextGridChange:
-        nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
+        ProtocolManager.HandleComms()
+        PixelManager.UpdatePixelData()
+        PowerGridManager.UpdateGridState()
 
-    if time.monotonic() > nextHeartbeat:
-        logString = "Heartbeat"
+        if time.monotonic() > nextGridChange:
+            nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
 
-        if showSerialDiags:
-            connState = "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
-            logString += f": SerProto: {connState}"
+        if time.monotonic() > nextHeartbeat:
+            logString = "Heartbeat"
 
-        if showSerialStats:
-            logString += (
-                f", bytes read/sent: {ProtocolManager.TotalBytesRead}/{ProtocolManager.TotalBytesSent}, "
-                + f"commands handled: {ProtocolManager.TotalCommandsHandled}"
-            )
+            if showSerialDiags:
+                connState = (
+                    "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
+                )
+                logString += f": SerProto: {connState}"
 
-        if showSwitchboardDiags:
-            logString += f": Switchboard: {SwitchboardManager.ConnectionStatus()}"
+            if showSerialStats:
+                logString += (
+                    f", bytes read/sent: {ProtocolManager.TotalBytesRead}/{ProtocolManager.TotalBytesSent}, "
+                    + f"commands handled: {ProtocolManager.TotalCommandsHandled}"
+                )
 
-        if showFakeData:
-            powerDiag = [
-                f"{power.Name}: {power.Power}"
-                for power in FakeDataManager.GetSystemPowerData()
-            ]
-            logString += f", FakeData: {powerDiag}"
+            if showSwitchboardDiags:
+                logString += f": Switchboard: {SwitchboardManager.ConnectionStatus()}"
 
-        if showCardReaderDiags:
-            cardLog = ", ".join(CardReaderManager.ReaderCards())
-            logString += f", ReaderState: {cardLog}"
+            if showFakeData:
+                powerDiag = [
+                    f"{power.Name}: {power.Power}"
+                    for power in FakeDataManager.GetSystemPowerData()
+                ]
+                logString += f", FakeData: {powerDiag}"
 
-        logger.info(logString)
+            if showCardReaderDiags:
+                cardLog = ", ".join(CardReaderManager.ReaderCards())
+                logString += f", ReaderState: {cardLog}"
 
-        nextHeartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
+            logger.info(logString)
 
-
-TEST_LOOP_REPORT_FREQUENCY = 0.25
-testChannelIndex = 0
-
-
-def testLoop():
-    global nextGridChange
-
-    if time.monotonic() > nextGridChange:
-        nextGridChange = time.monotonic() + TEST_LOOP_REPORT_FREQUENCY
+            nextHeartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
 
-while True:
-    mainLoop()
-    time.sleep(SERIAL_READ_FREQUENCY_SEC)
- # pyright: ignore[reportShadowedImports]
+mainLoop()

@@ -1,7 +1,7 @@
 import time
-import board
 from pixel_manager import BLACK, BLUE, GREEN, RED, YELLOW, PixelManager
-from eng_utils import ENABLE_POWER_GRID, disabledString, logger
+from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString, logger
+from protocol_resources import LEFT_WING, RIGHT_WING, TRANS1, TRANS2, TRANS3, TRANS4
 
 GRID_SCROLL_SECONDS = 1
 POWER_VALUE_LERP_PER_SECOND = 0.6
@@ -21,13 +21,14 @@ SAFE_COLOR = GREEN
 WARNING_COLOR = YELLOW
 DANGER_COLOR = RED
 
+
 class PowerGrid:
     def __init__(self, uid, isLarge):
         self.__uid = uid
         self.__isLarge = isLarge
         self.__maxLevel = 100
         self.__targetLevel = 0
-        self.__curLevel = 0
+        self.__curLevel: float = 0
         self.__warnMode = False
         self.__deadMode = False
         self.__gridSize = 16 if isLarge else 8
@@ -41,32 +42,29 @@ class PowerGrid:
             self.safePowerLevel = SMALL_SAFE_POWER_LEVEL
             self.warningPowerLevel = SMALL_WARNING_POWER_LEVEL
 
-        self.__pixelColors = [[BLACK for x in range(self.__gridSize)] for y in range(self.__gridSize)]
+        self.__pixelColors = [
+            [BLACK for x in range(self.__gridSize)] for y in range(self.__gridSize)
+        ]
 
         self.__gridScrollSeconds = GRID_SCROLL_SECONDS / self.__gridSize
         self.__lastScrollTime = time.monotonic()
         self.__nextGridScrollTime = self.__lastScrollTime + self.__gridScrollSeconds
 
     def UpdateGridState(self):
+        SlowLog(f"Updating Power Grid {self.UID} state")
         simTime = time.monotonic()
 
         if simTime > self.__nextGridScrollTime:
             elapsedTime = simTime - self.__lastScrollTime
 
-            diag = f"{self}"
-
             delta = abs(self.__curLevel - self.__targetLevel)
-
             if delta > 0:
                 delta = min(delta, self.ValueLerpPerSecond * elapsedTime)
-
                 if self.__curLevel > self.__targetLevel:
                     delta = -delta
-
                 self.__curLevel += delta
 
             currentLevel = self.__curLevel / self.__maxLevel
-
             currentY = int(currentLevel * self.__gridSize)
 
             for y in range(self.__gridSize):
@@ -76,8 +74,6 @@ class PowerGrid:
                     if x < self.__gridSize - 1:
                         pixelColor = self.__pixelColors[x + 1][y]
                     elif y <= currentY:
-                        pixelLevel = y / float(self.__gridSize)
-
                         pixelColor = DANGER_COLOR
 
                         if y <= self.lowPowerLevel:
@@ -104,7 +100,7 @@ class PowerGrid:
 
     @property
     def CurLevel(self):
-        return self.__curLevel
+        return int(self.__curLevel)
 
     @property
     def ValueLerpPerSecond(self):
@@ -149,6 +145,9 @@ class PowerGrid:
 
 
 class PowerGridManagerClass:
+    __WING_POWER_GRID_INDEXES = {LEFT_WING: 0, RIGHT_WING: 1}
+    __TRANSFORMER_POWER_GRID_INDEXES = {TRANS1: 2, TRANS2: 3, TRANS3: 4, TRANS4: 5}
+
     def __init__(self) -> None:
         self._ALL_POWER_GRIDS: list[PowerGrid] = []
         self._ALL_POWER_GRIDS = []
@@ -159,6 +158,48 @@ class PowerGridManagerClass:
             self._ALL_POWER_GRIDS.append(PowerGrid(3, False))
             self._ALL_POWER_GRIDS.append(PowerGrid(4, False))
             self._ALL_POWER_GRIDS.append(PowerGrid(5, False))
+
+    def SetWingMaxPower(self, wingName: str, powerLevel: int):
+        gridIndex = self.__WING_POWER_GRID_INDEXES.get(wingName)
+        if gridIndex is None:
+            logger.error(f"Wing name {wingName} is not recognized.")
+            return
+        self.SetGridMaxLevel(gridIndex, powerLevel)
+
+    def SetWingTargetPower(self, wingName: str, powerLevel: int):
+        gridIndex = self.__WING_POWER_GRID_INDEXES.get(wingName)
+        if gridIndex is None:
+            logger.error(f"Wing name {wingName} is not recognized.")
+            return
+        self.SetGridTargetLevel(gridIndex, powerLevel)
+
+    def SetTransformerMaxPower(self, transformerName: str, powerLevel: int):
+        gridIndex = self.__TRANSFORMER_POWER_GRID_INDEXES.get(transformerName)
+        if gridIndex is None:
+            logger.error(f"Transformer index {gridIndex} is out of range.")
+            return
+        self.SetGridMaxLevel(gridIndex, powerLevel)
+
+    def SetTransformerTargetPower(self, transformerName: str, powerLevel: int):
+        gridIndex = self.__TRANSFORMER_POWER_GRID_INDEXES.get(transformerName)
+        if gridIndex is None:
+            logger.error(f"Transformer index {gridIndex} is out of range.")
+            return
+        self.SetGridTargetLevel(gridIndex, powerLevel)
+
+    def GetWingCurrentPower(self, wingName: str) -> int:
+        gridIndex = self.__WING_POWER_GRID_INDEXES.get(wingName)
+        if gridIndex is None:
+            logger.error(f"Wing name {wingName} is not recognized.")
+            return 0
+        return self._ALL_POWER_GRIDS[gridIndex].CurLevel
+
+    def GetTransformerCurrentPower(self, transformerName: str) -> int:
+        gridIndex = self.__TRANSFORMER_POWER_GRID_INDEXES.get(transformerName)
+        if gridIndex is None:
+            logger.error(f"Transformer name {transformerName} is not recognized.")
+            return 0
+        return self._ALL_POWER_GRIDS[gridIndex].CurLevel
 
     def AllGrids(self) -> list[PowerGrid]:
         return self._ALL_POWER_GRIDS
@@ -172,10 +213,12 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} max power level to {maxLevel}")
+        logger.info(
+            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} max power level to {maxLevel}"
+        )
         self._ALL_POWER_GRIDS[gridIndex].MaxLevel = maxLevel
 
-    def SetGridCurLevel(self, gridIndex: int, curLevel: int):
+    def SetGridTargetLevel(self, gridIndex: int, curLevel: int):
         if gridIndex < 0 or gridIndex >= len(self._ALL_POWER_GRIDS):
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
@@ -188,7 +231,9 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power warning to {warnMode}")
+        logger.info(
+            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power warning to {warnMode}"
+        )
         self._ALL_POWER_GRIDS[gridIndex].WarnMode = warnMode
 
     def SetGridPowerDead(self, gridIndex: int, deadMode: bool):
@@ -196,7 +241,9 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power DEAD to {deadMode}")
+        logger.info(
+            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power DEAD to {deadMode}"
+        )
         self._ALL_POWER_GRIDS[gridIndex].DeadMode = deadMode
 
 

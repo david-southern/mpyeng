@@ -1,5 +1,15 @@
 import json
 
+# Resource Names
+LEFT_WING = "LeftWing"
+RIGHT_WING = "RightWing"
+TRANS1 = "Transformer1"
+TRANS2 = "Transformer2"
+TRANS3 = "Transformer3"
+TRANS4 = "Transformer4"
+MAX_DISPLAY = "_Max"
+CUR_DISPLAY = "_Cur"
+
 def json_string(data):
     if isinstance(data, list):
         return '[ ' + ', '.join([json_string(json_el) for json_el in data]) + ' ]'
@@ -22,7 +32,7 @@ class EnginePower(EngBoardResource):
     def __str__(self):
         return f"{self.Name}, Max:{self.MaxPower}, Usage:{self.PowerUsage}"
 
-class TransformerPower(EngBoardResource):
+class  TransformerPower(EngBoardResource):
     @classmethod
     def from_json_dict(cls, json_dict):
         return TransformerPower(**json_dict)
