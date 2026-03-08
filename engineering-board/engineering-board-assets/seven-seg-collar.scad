@@ -1,6 +1,6 @@
 include <BOSL2/std.scad>
 include <BOSL2/shapes3d.scad>
-include <useful_stuff.scad>
+include <useful-stuff.scad>
 
 seven_seg_color = "dodgerblue";
 wall_thickness = 2;

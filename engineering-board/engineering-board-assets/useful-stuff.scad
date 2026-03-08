@@ -27,3 +27,21 @@ wire_22ga_outer_diameter = 1.65;
 wire_26ga_outer_diameter = 1.4;
 
 function toPct(thingy) = thingy < 1 ? thingy : thingy / 100;
+
+function CheckRenderPieces(bit) = (RenderPieces & bit) == bit;
+
+/**
+ * Empty attachable context for positioning children without rendering a visible object.
+ */
+module empty_attachable_context(context_dimension, anchor = CENTER, spin = 0, orient = UP) {
+    attachable(anchor, spin, orient, size=[context_dimension[0], context_dimension[1], context_dimension[2]]) {
+        hide("hidey")
+        tag_this("hidey")
+            cube(
+                [0, 0, 0],
+                anchor=CENTER
+            );
+
+        children();
+    }
+}

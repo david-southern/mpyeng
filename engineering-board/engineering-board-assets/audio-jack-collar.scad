@@ -1,6 +1,6 @@
 include <BOSL2/std.scad>
 include <BOSL2/shapes3d.scad>
-include <useful_stuff.scad>
+include <useful-stuff.scad>
 
 audio_jack_color = "steelblue";
 
