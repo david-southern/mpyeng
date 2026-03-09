@@ -23,7 +23,7 @@ Implementation Notes
   https://github.com/adafruit/circuitpython/releases
 """
 
-__version__ = "2.1.5"
+__version__ = "2.1.6"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Itertools.git"
 
 try:

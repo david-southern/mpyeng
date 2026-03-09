@@ -25,7 +25,7 @@ Implementation Notes
 
 # imports
 
-__version__ = "2.0.12"
+__version__ = "2.0.13"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Debouncer.git"
 
 from adafruit_ticks import ticks_diff, ticks_ms

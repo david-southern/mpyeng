@@ -4,18 +4,20 @@
 # handles the heartbeat and logging for the client.
 
 import time
+from power_card_tray import RightPixelStrip, TestPowerCardTray
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
+from eng_utils import logger
 from fake_data_manager import FakeDataManager
 
-from pixel_manager import PixelManager
-from power_grid_manager import PowerGridManager
+from power_grid_manager import LeftPixelStrip, PowerGridManager
 from power_display_manager import PowerDisplayManager
 
 from card_manager import CardReaderManager
 from protocol_manager import ProtocolManager
 from switchboard_manager import SwitchboardManager
-from eng_utils import logger
+
+logger.info("Initializing USB Client")
 
 # Only check the serial line this often so we don't use up all the client's cycles
 SERIAL_READ_FREQUENCY_SEC = 0.01
@@ -23,8 +25,6 @@ HEARTBEAT_FREQUENCY_SEC = 2
 
 if usb_cdc.data is None:
     raise ConnectionError("Unable to open USB_cdc.data Serial connection")
-
-logger.info("Initializing USB Client")
 
 nextHeartbeat = time.monotonic() + HEARTBEAT_FREQUENCY_SEC
 
@@ -56,14 +56,16 @@ def mainLoop():
         FakeDataManager.update_fake_data()
 
         ProtocolManager.HandleComms()
-        PixelManager.UpdatePixelData()
         PowerGridManager.UpdateGridState()
+        TestPowerCardTray.Update()
+        LeftPixelStrip.Update()
+        RightPixelStrip.Update()
 
         if time.monotonic() > nextGridChange:
             nextGridChange = time.monotonic() + GRID_CHANGE_FREQ
 
         if time.monotonic() > nextHeartbeat:
-            logString = "Heartbeat"
+            logString = "** Heartbeat"
 
             if showSerialDiags:
                 connState = (

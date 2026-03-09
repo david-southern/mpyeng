@@ -104,6 +104,9 @@ class PowerDisplayManagerClass:
         return self._ALL_POWER_DISPLAYS
 
     def SetDisplayCurValue(self, displayName: str, value: int):
+        if not ENABLE_POWER_DISPLAY:
+            return
+
         displayName += CUR_DISPLAY
         try:
             display = next(
@@ -120,6 +123,9 @@ class PowerDisplayManagerClass:
         display.Value = value
 
     def SetDisplayMaxValue(self, displayName: str, value: int):
+        if not ENABLE_POWER_DISPLAY:
+            return
+
         displayName += MAX_DISPLAY
         try:
             display = next(
@@ -136,6 +142,9 @@ class PowerDisplayManagerClass:
         display.Value = value
 
     def SetDisplayValue(self, displayName: str, value: int):
+        if not ENABLE_POWER_DISPLAY:
+            return
+
         try:
             display = next(
                 d for d in self._ALL_POWER_DISPLAYS if d.DisplayName == displayName

@@ -77,7 +77,7 @@ try:
 except ImportError:
     pass
 
-__version__ = "5.5.5"
+__version__ = "5.6.1"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Logger.git"
 
 __all__ = [
@@ -100,17 +100,23 @@ __all__ = [
 
 # The level module-global variables get created when loaded
 
-LEVELS = [
-    (00, "NOTSET"),
-    (10, "DEBUG"),
-    (20, "INFO"),
-    (30, "WARNING"),
-    (40, "ERROR"),
-    (50, "CRITICAL"),
-]
+CRITICAL: int = 50
+FATAL = CRITICAL
+ERROR: int = 40
+WARNING: int = 30
+WARN = WARNING
+INFO: int = 20
+DEBUG: int = 10
+NOTSET: int = 0
 
-for __value, __name in LEVELS:
-    globals()[__name] = __value
+LEVELS = [
+    (NOTSET, "NOTSET"),
+    (DEBUG, "DEBUG"),
+    (INFO, "INFO"),
+    (WARNING, "WARNING"),
+    (ERROR, "ERROR"),
+    (CRITICAL, "CRITICAL"),
+]
 
 
 def _level_for(value: int) -> str:
@@ -164,7 +170,7 @@ class Formatter:
         datefmt: Optional[str] = None,
         style: str = "%",
         validate: bool = True,
-        defaults: Dict = None,
+        defaults=None,
     ):
         self.fmt = fmt
         self.datefmt = datefmt
@@ -263,7 +269,7 @@ class StreamHandler(Handler):
 
     terminator = "\n"
 
-    def __init__(self, stream: Optional[WriteableStream] = None) -> None:
+    def __init__(self, stream: WriteableStream | None = None) -> None:
         super().__init__()
         if stream is None:
             stream = sys.stderr
@@ -393,7 +399,7 @@ class RotatingFileHandler(FileHandler):
         # Reopen the file.
         self.stream = open(self._LogFileName, mode=self._WriteMode)
 
-    def GetLogSize(self) -> int:
+    def GetLogSize(self) -> int | None:
         """Check the size of the log file."""
         try:
             self.stream.flush()  # We need to call this or the file size is always zero.
@@ -411,8 +417,10 @@ class RotatingFileHandler(FileHandler):
 
         :param record: The record (message object) to be logged
         """
+        logsize: int | None = self.GetLogSize()
         if (
-            (self.GetLogSize() >= self._maxBytes)
+            (logsize is not None)
+            and (logsize >= self._maxBytes)
             and (self._maxBytes > 0)
             and (self._backupCount > 0)
         ):
@@ -617,3 +625,59 @@ class Logger:
             # so we can't add the indent in the above line - needs to be done separately
             lines = lines.replace("\n", "\n  ")
             self._log(ERROR, lines)
+
+
+def critical(msg, *args, **kwargs):
+    """
+    Log a message with severity 'CRITICAL' on the root logger.
+    """
+    getLogger().critical(msg, *args, **kwargs)
+
+
+def fatal(msg, *args, **kwargs):
+    """
+    Don't use this function, use critical() instead.
+    """
+    critical(msg, *args, **kwargs)
+
+
+def error(msg, *args, **kwargs):
+    """
+    Log a message with severity 'ERROR' on the root logger.
+    """
+    getLogger().error(msg, *args, **kwargs)
+
+
+def warning(msg, *args, **kwargs):
+    """
+    Log a message with severity 'WARNING' on the root logger.
+    """
+    getLogger().warning(msg, *args, **kwargs)
+
+
+def warn(msg, *args, **kwargs):
+    """
+    Don't use this function, use warning() instead.
+    """
+    warning(msg, *args, **kwargs)
+
+
+def info(msg, *args, **kwargs):
+    """
+    Log a message with severity 'INFO' on the root logger.
+    """
+    getLogger().info(msg, *args, **kwargs)
+
+
+def debug(msg, *args, **kwargs):
+    """
+    Log a message with severity 'DEBUG' on the root logger.
+    """
+    getLogger().debug(msg, *args, **kwargs)
+
+
+def log(level, msg, *args, **kwargs):
+    """
+    Log 'msg % args' with the integer severity 'level' on the root logger.
+    """
+    getLogger().log(level, msg, *args, **kwargs)

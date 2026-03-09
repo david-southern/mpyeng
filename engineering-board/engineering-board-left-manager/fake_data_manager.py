@@ -6,6 +6,7 @@ from adafruit_debouncer import Debouncer  # pyright: ignore[reportMissingImports
 
 from eng_utils import logger
 
+from power_card_tray import TestPowerCardTray
 from power_display_manager import PowerDisplayManager
 from protocol_resources import (
     LEFT_WING,
@@ -135,6 +136,8 @@ class FakeDataManager:
             FakeDataManager.__nextRandomUpdate = (
                 time.monotonic() + RANDOM_POWER_UPDATE_FREQ
             )
+
+            TestPowerCardTray.TargetLevel = random.randint(0, 100)
 
             for power_resource in FAKE_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
