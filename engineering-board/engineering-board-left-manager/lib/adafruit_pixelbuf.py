@@ -20,7 +20,7 @@ try:
 except ImportError:
     pass
 
-__version__ = "2.0.10"
+__version__ = "2.0.11"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Pixelbuf.git"
 
 DOTSTAR_LED_START_FULL_BRIGHT = 0xFF

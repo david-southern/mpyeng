@@ -37,7 +37,7 @@ Implementation Notes
     `MCP3004`_, `MCP3002`_) for a list of available differential channel mappings.
 """
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP3xxx.git"
 
 from adafruit_bus_device.spi_device import SPIDevice

@@ -2,15 +2,19 @@ import random
 import time
 import board
 
-from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString
-from pixel_strip_manager import PixelStripManager
+from eng_utils import ENABLE_RIGHT_PIXELS, SlowLog, scaledColor, logger
+from pixel_strip_manager import BLUE, GREEN, RED, YELLOW, PixelStripManager
 from power_grid_manager import RandomGridGenerator
 
-PIXEL_CARD_TRAY_LEDS = 4
+PIXEL_CARD_TRAYS = 5
+PIXEL_CARD_TRAY_LEDS = 5
 PIXEL_CARD_TRAY_GRID_SIZE = 8
 PIXEL_CARD_TRAY_GRID_LEDS = PIXEL_CARD_TRAY_GRID_SIZE * PIXEL_CARD_TRAY_GRID_SIZE
 
 PIXEL_CARD_TRAY_TOTAL_LEDS = PIXEL_CARD_TRAY_LEDS * 2 + PIXEL_CARD_TRAY_GRID_LEDS
+
+TRAY_BRIGHTNESS = 0.95
+CARD_TRAY_COLORS = [scaledColor(BLUE, TRAY_BRIGHTNESS), scaledColor(GREEN, TRAY_BRIGHTNESS), scaledColor(YELLOW, TRAY_BRIGHTNESS), scaledColor(RED, TRAY_BRIGHTNESS)]
 
 TRAY_REFRESH_SECONDS = 0.2
 TRAY_COLOR_CHANGE_SECONDS = 3.0
@@ -57,11 +61,7 @@ class PowerCardTray:
             )
 
             if simTime > self.__nextTrayColorUpdate:
-                newColor = (
-                    random.randint(0, 255),
-                    random.randint(0, 255),
-                    random.randint(0, 255),
-                )
+                newColor = CARD_TRAY_COLORS[random.randint(0, len(CARD_TRAY_COLORS) - 1)]
 
                 self.__pixelStripManager.SetPixelData(
                     self.__topTrayPixelIndex,
@@ -81,10 +81,13 @@ class PowerCardTray:
     def __str__(self):
         return f"PowerCardTray: {self.UID}"
 
+if board.board_id == "grandcentral_m4_express":
+    RIGHT_STRIP_DATA_PIN = board.D21
+else:
+    RIGHT_STRIP_DATA_PIN = board.D25
 
-RIGHT_STRIP_DATA_PIN = board.D25
-RIGHT_STRIP_LED_COUNT = PIXEL_CARD_TRAY_TOTAL_LEDS * 1
+RIGHT_STRIP_LED_COUNT = PIXEL_CARD_TRAY_TOTAL_LEDS * PIXEL_CARD_TRAYS
 
 RightPixelStrip = PixelStripManager(RIGHT_STRIP_DATA_PIN, RIGHT_STRIP_LED_COUNT)
 
-TestPowerCardTray = PowerCardTray(0, RightPixelStrip)
+TestPowerCardTrays = [ PowerCardTray(i, RightPixelStrip) for i in range(PIXEL_CARD_TRAYS) ]

@@ -7,6 +7,14 @@ from random_grid_generator import RandomGridGenerator
 
 GRID_REFRESH_SECONDS = 0.1
 
+LARGE_GRID_SIZE = 16
+LARGE_GRID_COUNT = 2
+
+SMALL_GRID_SIZE = 8
+SMALL_GRID_COUNT = 4
+
+LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
+
 class PowerGrid:
     def __init__(self, uid, isLarge, pixelStripManager: PixelStripManager):
         self.__uid = uid
@@ -224,7 +232,6 @@ class PowerGridManagerClass:
         self._ALL_POWER_GRIDS[gridIndex].DeadMode = deadMode
 
 LEFT_STRIP_DATA_PIN = board.D5
-LEFT_STRIP_LED_COUNT = 512
 
 LeftPixelStrip = PixelStripManager(LEFT_STRIP_DATA_PIN, LEFT_STRIP_LED_COUNT)
 

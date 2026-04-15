@@ -4,7 +4,7 @@
 # handles the heartbeat and logging for the client.
 
 import time
-from power_card_tray import RightPixelStrip, TestPowerCardTray
+from power_card_tray import RightPixelStrip, TestPowerCardTrays
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import logger
@@ -57,7 +57,8 @@ def mainLoop():
 
         ProtocolManager.HandleComms()
         PowerGridManager.UpdateGridState()
-        TestPowerCardTray.Update()
+        for tray in TestPowerCardTrays:
+            tray.Update()
         LeftPixelStrip.Update()
         RightPixelStrip.Update()
 

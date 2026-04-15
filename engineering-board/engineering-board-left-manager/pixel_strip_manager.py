@@ -9,7 +9,7 @@ from eng_utils import SlowLog, disabledString, logger, ENABLE_PIXELS
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
 # power supply can handle the current draw
-PIXEL_BRIGHTNESS = 0.1
+PIXEL_BRIGHTNESS = 0.9
 #  #px | Color         | Current Draw @ brightness = 0.1
 #  768 |   0,   0,  0  | 0.64
 #  768 | 255,   0,  0  | 1.35
