@@ -20,6 +20,8 @@ ENABLE_HEARTBEAT_LOGGING = False
 
 logger.info("Initializing USB Client")
 
+log_free_ram("power-on")
+
 # Only check the serial line this often so we don't use up all the client's cycles
 SERIAL_READ_FREQUENCY_SEC = 0.01
 TIMER_SERIAL_READ = "serial_read"

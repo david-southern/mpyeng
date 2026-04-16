@@ -9,27 +9,74 @@ class CardAnimationHelpers:
     WIDTH = 8
     HEIGHT = 8
     CARD_PIXEL_COUNT = WIDTH * HEIGHT
+    PALETTE_SIZE = 26
 
-    # Power card color_mask legend:
-    COLOR_MASK_BLACK = "." # transparent/black
-    COLOR_MASK_WAVE = "~" # animated "wave" pixel (cycle smoothly from O color to o color and back again)
-    COLOR_MASK_RANDOM_BRIGHTNESS = "@" # animated "random brightness" pixel (random flickering between the O color and the o color)
-    COLOR_MASK_RANDOM_COLOR = "%" # animated "random" pixel (random flickering rbg colors - each frame, each X pixel is a random color, with more time spent at black than the random color)
-    COLOR_MASK_FADE_OUT = ">" # animated "fade out" pixel (Start each animation cycle at the O color and smoothly fade to black at the end of the cycle)
-    COLOR_MASK_FADE_IN = "<" # animated "fade in" pixel (Start each animation cycle at black and smoothly fade to the O color)
-    COLOR_MASK_LIGHTNING = "*" # animated "lightning" pixel (Alternate (no smoothing, immediate transitions) between O color and black in a random pattern, with more time spent at O color than black) Power card
-    # * digits 0 - 9 = interpolate between the spec's dim color (0) and bright color (9) based on the digit
-    # * a-z = animated "delay" pixel (Start each animation cycle at black, smoothly transition to the spec's
-    #   bright color over a delay of <letter index> / <letter z index> of the animation duration,
-    #   then remain at the bright color for the rest of the animation cycle - e.g. 'a' will arrive
-    #   at full brightness very quickly (1/26 of the animation duration), while 'm' will take half of the animation duration to reach full brightness)
+    # Baked frame string character classes:
+    #   '.' = black (0x000000)
+    #   'a'-'z' = category palette index (a=dim, z=bright, 26 levels)
+    #   'A'-'Z' = random color palette index (26 pre-computed random colors)
+    #
+    # Original mask character types (resolved during frame baking):
+    #   '.' = black
+    #   '~' = wave (smooth ping-pong between bright and dim)
+    #   '@' = random brightness (random category palette entry each frame)
+    #   '%' = random color (random entry from shared random palette, biased toward black)
+    #   '>' = fade out (bright → black over the cycle)
+    #   '<' = fade in (black → bright over the cycle)
+    #   '*' = lightning (random flicker, biased toward bright)
+    #   '0'-'9' = static brightness (digit/9 interpolation from dim to bright)
+    #   'a'-'z' = delay (black → bright over a delay fraction of the cycle)
 
+    ANIMATED_MASK_CHARS = frozenset('~@%><*')
     DEFAULT_ANIMATION_DURATION = 3.0
 
     # Pre-computed cosine LUT for wave animation (64 entries, 0-256 scale)
-    # Maps cycle_progress to wave_t: 0 at progress=0, 256 at progress=0.5, 0 at progress=1.0
     _COS_LUT_SIZE = 64
     _COS_LUT = [int(128 - 128 * math.cos(i * 2 * math.pi / 64)) for i in range(64)]
+
+    # Shared render buffer (single pre-allocated list, reused every frame)
+    _render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
+
+    # Palette caches (regenerated when brightness changes)
+    _category_palettes: dict = {}      # category_name -> list[int] (26 entries)
+    _random_palette: list[int] = [0] * PALETTE_SIZE
+    _palette_brightness: float = -1.0
+    _category_color_defs: dict = {}    # category_name -> (bright_Color, dim_Color)
+
+    @classmethod
+    def register_category_colors(cls, category: str, bright_color: Color, dim_color: Color):
+        if category not in cls._category_color_defs:
+            cls._category_color_defs[category] = (bright_color, dim_color)
+
+    @classmethod
+    def _regenerate_palettes(cls, brightness: float):
+        ps = cls.PALETTE_SIZE
+        ps_1 = ps - 1
+        for cat_name, (bright, dim) in cls._category_color_defs.items():
+            palette = [0] * ps
+            br, bg, bb = bright.R, bright.G, bright.B
+            dr, dg, db = dim.R, dim.G, dim.B
+            for i in range(ps):
+                t = i / ps_1
+                r = int((dr + (br - dr) * t) * brightness)
+                g = int((dg + (bg - dg) * t) * brightness)
+                b = int((db + (bb - db) * t) * brightness)
+                palette[i] = (r << 16) | (g << 8) | b
+            cls._category_palettes[cat_name] = palette
+
+        rp = cls._random_palette
+        for i in range(ps):
+            r = int(random.random() * 255 * brightness)
+            g = int(random.random() * 255 * brightness)
+            b = int(random.random() * 255 * brightness)
+            rp[i] = (r << 16) | (g << 8) | b
+
+        cls._palette_brightness = brightness
+
+    @classmethod
+    def ensure_palettes(cls, brightness: float):
+        if cls._palette_brightness != brightness:
+            cls._regenerate_palettes(brightness)
 
     @classmethod
     def getCardAnimation(cls, spec_id: str):
@@ -64,7 +111,6 @@ class CardAnimationHelpers:
 
 class PowerCardAnimation:
     DIM_BRIGHTNESS = 0.25
-    PRECOMPUTED_FRAME_COUNT = 10
     
     def __init__(self, uid: str, name: str, category: str, bright_color: Color, string_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION):
         self.id = uid
@@ -75,124 +121,117 @@ class PowerCardAnimation:
         self.string_mask = string_mask
         self.animation_duration = animation_duration
 
-        # Pre-extract RGB components for integer math
-        self._bright_r = bright_color.R
-        self._bright_g = bright_color.G
-        self._bright_b = bright_color.B
-        self._dim_r = self.dim_color.R
-        self._dim_g = self.dim_color.G
-        self._dim_b = self.dim_color.B
+        # Register category for shared palette generation
+        CardAnimationHelpers.register_category_colors(category, bright_color, self.dim_color)
 
-        # Parse mask: classify each pixel
+        # Determine frame count: 1 for fully static masks, 10 for animated
         mask_h = len(string_mask)
         mask_w = len(string_mask[0]) if mask_h > 0 else 0
-        self._pixel_count = mask_w * mask_h
-        self._static_digits = []    # list of (idx, t_256) for digits 0-9
-        self._animated_pixels = []  # list of (idx, char, param) for animated types
+        has_animated = False
+        for row in string_mask:
+            for ch in row:
+                if ch in CardAnimationHelpers.ANIMATED_MASK_CHARS or ('a' <= ch <= 'z'):
+                    has_animated = True
+                    break
+            if has_animated:
+                break
+        num_frames = 10 if has_animated else 1
+
+        # Bake frame strings (each is 64 chars in serpentine pixel order)
+        self._frame_strings: list[str] = []
+        for fi in range(num_frames):
+            self._frame_strings.append(
+                self._bake_frame(fi, num_frames, mask_w, mask_h)
+            )
+
+    @staticmethod
+    def _intensity_to_char(f: float) -> str:
+        """Map intensity fraction (0.0=black, 1.0=bright) to a frame char.
+        Returns '.' for black, 'a'-'z' for the category palette range (dim to bright).
+        Values below DIM_BRIGHTNESS map to '.' since the palette only covers dim-to-bright.
+        """
+        dim = PowerCardAnimation.DIM_BRIGHTNESS
+        if f < dim:
+            return '.'
+        idx = int((f - dim) / (1.0 - dim) * 25)
+        return chr(97 + min(25, idx))
+
+    def _bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> str:
+        cycle_progress = frame_index / num_frames
+        n = mask_w * mask_h
+        frame = ['.'] * n
+
+        # Pre-compute wave char for this frame
+        cos_lut = CardAnimationHelpers._COS_LUT
+        cos_size = CardAnimationHelpers._COS_LUT_SIZE
+        wave_lut_val = cos_lut[int(cycle_progress * cos_size) % cos_size]
+        # LUT: 0 = bright end, 256 = dim end. Palette: a(0)=dim, z(25)=bright
+        wave_idx = 25 - min(25, (wave_lut_val * 25) >> 8)
+        wave_char = chr(97 + wave_idx)
+
+        _random = random.random
+        _randint = random.randint
+        _i2c = PowerCardAnimation._intensity_to_char
 
         for y in range(mask_h):
             for x in range(mask_w):
-                ch = string_mask[y][x]
+                ch = self.string_mask[y][x]
                 idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
                 if ch == '.':
-                    pass  # black, stays 0
-                elif '0' <= ch <= '9':
-                    self._static_digits.append((idx, int((ord(ch) - 48) * 256 / 9)))
-                elif 'a' <= ch <= 'z':
-                    self._animated_pixels.append((idx, ch, (ord(ch) - 97) / 25))
-                else:
-                    self._animated_pixels.append((idx, ch, 0))
-
-        # Frames are baked on first use per brightness value
-        self._cached_brightness = -1.0
-        self._frames: list[list[int]] = []
-
-    def _bake_frames(self, brightness: float):
-        """Pre-compute all frames as list[int] for the given brightness."""
-        n = self._pixel_count
-        nf = PowerCardAnimation.PRECOMPUTED_FRAME_COUNT
-        cos_lut = CardAnimationHelpers._COS_LUT
-        cos_size = CardAnimationHelpers._COS_LUT_SIZE
-
-        # Pre-compute brightness-scaled base colors as ints
-        br = int(self._bright_r * brightness)
-        bg = int(self._bright_g * brightness)
-        bb = int(self._bright_b * brightness)
-        dr = int(self._dim_r * brightness)
-        dg = int(self._dim_g * brightness)
-        db = int(self._dim_b * brightness)
-        max_rand = int(255 * brightness)
-
-        # Bake static base buffer once (digits + dots)
-        static_buf = [0] * n
-        b_r, b_g, b_b = self._bright_r, self._bright_g, self._bright_b
-        d_r, d_g, d_b = self._dim_r, self._dim_g, self._dim_b
-        for idx, t_256 in self._static_digits:
-            r = d_r + (((b_r - d_r) * t_256) >> 8)
-            g = d_g + (((b_g - d_g) * t_256) >> 8)
-            b = d_b + (((b_b - d_b) * t_256) >> 8)
-            r = int(r * brightness)
-            g = int(g * brightness)
-            b = int(b * brightness)
-            static_buf[idx] = (r << 16) | (g << 8) | b
-
-        # Bright packed int for quick assignment
-        bright_int = (br << 16) | (bg << 8) | bb
-
-        frames = []
-        _random = random.random
-        for fi in range(nf):
-            cycle_progress = fi / nf
-            buf = static_buf[:]
-
-            wave_t = cos_lut[int(cycle_progress * cos_size) % cos_size]
-
-            for idx, ch, param in self._animated_pixels:
-                if ch == '~':
-                    r = br + (((dr - br) * wave_t) >> 8)
-                    g = bg + (((dg - bg) * wave_t) >> 8)
-                    b = bb + (((db - bb) * wave_t) >> 8)
-                    buf[idx] = (r << 16) | (g << 8) | b
+                    pass  # already '.'
+                elif ch == '~':
+                    frame[idx] = wave_char
                 elif ch == '@':
-                    t = int(_random() * 256)
-                    r = dr + (((br - dr) * t) >> 8)
-                    g = dg + (((bg - dg) * t) >> 8)
-                    b = db + (((bb - db) * t) >> 8)
-                    buf[idx] = (r << 16) | (g << 8) | b
+                    frame[idx] = chr(97 + _randint(0, 25))
                 elif ch == '%':
-                    if _random() >= 0.6:
-                        buf[idx] = (int(_random() * max_rand) << 16) | (int(_random() * max_rand) << 8) | int(_random() * max_rand)
+                    if _random() < 0.6:
+                        pass  # stays '.' (black)
+                    else:
+                        frame[idx] = chr(65 + _randint(0, 25))
                 elif ch == '>':
-                    f = 1.0 - cycle_progress
-                    if f > 0:
-                        buf[idx] = (int(br * f) << 16) | (int(bg * f) << 8) | int(bb * f)
+                    frame[idx] = _i2c(1.0 - cycle_progress)
                 elif ch == '<':
-                    if cycle_progress > 0:
-                        buf[idx] = (int(br * cycle_progress) << 16) | (int(bg * cycle_progress) << 8) | int(bb * cycle_progress)
+                    frame[idx] = _i2c(cycle_progress)
                 elif ch == '*':
                     if _random() < 0.75:
-                        buf[idx] = bright_int
+                        frame[idx] = 'z'
+                    # else stays '.' (black)
                 elif 'a' <= ch <= 'z':
-                    if cycle_progress >= param:
-                        buf[idx] = bright_int
-                    elif param > 0:
-                        t = cycle_progress / param
-                        buf[idx] = (int(br * t) << 16) | (int(bg * t) << 8) | int(bb * t)
-
-            frames.append(buf)
-
-        self._cached_brightness = brightness
-        self._frames = frames
+                    delay_fraction = (ord(ch) - 97) / 25
+                    if delay_fraction <= 0 or cycle_progress >= delay_fraction:
+                        frame[idx] = 'z'
+                    else:
+                        frame[idx] = _i2c(cycle_progress / delay_fraction)
+                elif '0' <= ch <= '9':
+                    # Digits map directly to palette: 0→a (dim), 9→z (bright)
+                    frame[idx] = chr(97 + min(25, int((ord(ch) - 48) / 9 * 25)))
+                # else stays '.'
+        return ''.join(frame)
 
     def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
-        """Return a pre-computed frame as list[int]. Animation time is quantized to the nearest
-        pre-computed frame for maximum throughput.
+        """Translate a baked frame string to packed neopixel ints via palette lookup.
+        Returns the shared render buffer — caller must consume before the next PixelBuffer call.
         """
-        if self._cached_brightness != brightness:
-            self._bake_frames(brightness)
-        nf = PowerCardAnimation.PRECOMPUTED_FRAME_COUNT
+        CardAnimationHelpers.ensure_palettes(brightness)
+
+        nf = len(self._frame_strings)
         frame_idx = int(cycle_progress * nf) % nf
-        return self._frames[frame_idx][:]
+        frame = self._frame_strings[frame_idx]
+
+        buf = CardAnimationHelpers._render_buffer
+        cat_pal = CardAnimationHelpers._category_palettes[self.category]
+        rand_pal = CardAnimationHelpers._random_palette
+
+        for i in range(len(frame)):
+            o = ord(frame[i])
+            if o == 46:        # '.'
+                buf[i] = 0
+            elif o >= 97:      # 'a'-'z'
+                buf[i] = cat_pal[o - 97]
+            else:              # 'A'-'Z'
+                buf[i] = rand_pal[o - 65]
+
+        return buf
 
 
 CARD_ANIMATION_DEFS = {
