@@ -4,6 +4,13 @@ import random
 from color_utils import Color
 from power_card_categories import PowerCardCategories
 from power_card_ids import PowerCardIds
+from profiling import register_profile, start_profile, stop_profile
+
+PROFILE_ANIM_ENSURE_PAL = "anim_ensure_pal"
+PROFILE_ANIM_RENDER = "anim_render"
+
+register_profile(PROFILE_ANIM_ENSURE_PAL)
+register_profile(PROFILE_ANIM_RENDER)
 
 class CardAnimationHelpers:
     WIDTH = 8
@@ -42,6 +49,8 @@ class CardAnimationHelpers:
     _random_palette: list[int] = [0] * PALETTE_SIZE
     _palette_brightness: float = -1.0
     _category_color_defs: dict = {}    # category_name -> (bright_Color, dim_Color)
+    _category_luts: dict = {}          # category_name -> list[int] (123 entries: byte value -> packed int)
+    # LUT layout: index 46='.' -> 0, 65-90='A'-'Z' -> random palette, 97-122='a'-'z' -> category palette
 
     @classmethod
     def register_category_colors(cls, category: str, bright_color: Color, dim_color: Color):
@@ -70,6 +79,18 @@ class CardAnimationHelpers:
             g = int(random.random() * 255 * brightness)
             b = int(random.random() * 255 * brightness)
             rp[i] = (r << 16) | (g << 8) | b
+
+        # Build per-category render LUTs: byte value -> packed int (no branching at render time)
+        for cat_name, palette in cls._category_palettes.items():
+            lut = [0] * 123  # covers ord('.') through ord('z')
+            # 'A'-'Z' (65-90): random palette
+            for i in range(ps):
+                lut[65 + i] = rp[i]
+            # 'a'-'z' (97-122): category palette
+            for i in range(ps):
+                lut[97 + i] = palette[i]
+            # index 46 ('.') stays 0 (black)
+            cls._category_luts[cat_name] = lut
 
         cls._palette_brightness = brightness
 
@@ -137,8 +158,8 @@ class PowerCardAnimation:
                 break
         num_frames = 10 if has_animated else 1
 
-        # Bake frame strings (each is 64 chars in serpentine pixel order)
-        self._frame_strings: list[str] = []
+        # Bake frame strings (each is 64 bytes in serpentine pixel order)
+        self._frame_strings: list[bytes] = []
         for fi in range(num_frames):
             self._frame_strings.append(
                 self._bake_frame(fi, num_frames, mask_w, mask_h)
@@ -156,7 +177,7 @@ class PowerCardAnimation:
         idx = int((f - dim) / (1.0 - dim) * 25)
         return chr(97 + min(25, idx))
 
-    def _bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> str:
+    def _bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> bytes:
         cycle_progress = frame_index / num_frames
         n = mask_w * mask_h
         frame = ['.'] * n
@@ -206,30 +227,27 @@ class PowerCardAnimation:
                     # Digits map directly to palette: 0→a (dim), 9→z (bright)
                     frame[idx] = chr(97 + min(25, int((ord(ch) - 48) / 9 * 25)))
                 # else stays '.'
-        return ''.join(frame)
+        return bytes(''.join(frame), 'ascii')
 
     def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
         """Translate a baked frame string to packed neopixel ints via palette lookup.
         Returns the shared render buffer — caller must consume before the next PixelBuffer call.
         """
+        start_profile(PROFILE_ANIM_ENSURE_PAL)
         CardAnimationHelpers.ensure_palettes(brightness)
+        stop_profile(PROFILE_ANIM_ENSURE_PAL)
 
+        start_profile(PROFILE_ANIM_RENDER)
         nf = len(self._frame_strings)
         frame_idx = int(cycle_progress * nf) % nf
         frame = self._frame_strings[frame_idx]
 
         buf = CardAnimationHelpers._render_buffer
-        cat_pal = CardAnimationHelpers._category_palettes[self.category]
-        rand_pal = CardAnimationHelpers._random_palette
+        lut = CardAnimationHelpers._category_luts[self.category]
 
-        for i in range(len(frame)):
-            o = ord(frame[i])
-            if o == 46:        # '.'
-                buf[i] = 0
-            elif o >= 97:      # 'a'-'z'
-                buf[i] = cat_pal[o - 97]
-            else:              # 'A'-'Z'
-                buf[i] = rand_pal[o - 65]
+        for i in range(64):
+            buf[i] = lut[frame[i]]
+        stop_profile(PROFILE_ANIM_RENDER)
 
         return buf
 

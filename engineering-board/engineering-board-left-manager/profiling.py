@@ -9,7 +9,8 @@ _start_times = {}
 
 
 def log_free_ram(label: str = ""):
-    """Log the current free RAM."""
+    """Log the current free RAM after forcing a garbage collection for consistent readings."""
+    gc.collect()
     free = gc.mem_free()  # pyright: ignore[reportAttributeAccessIssue]
     prefix = f"[{label}] " if label else ""
     logger.info(f"{prefix}Free RAM: {free} bytes")
@@ -53,7 +54,8 @@ def report_all_profiles():
     col_max   = "max(ms)"
 
     rows = []
-    for key, p in active.items():
+    for key in sorted(active):
+        p = active[key]
         count = p["count"]
         total = p["total"]
         avg = total / count
