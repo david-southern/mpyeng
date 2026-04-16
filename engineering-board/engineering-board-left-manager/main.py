@@ -6,7 +6,7 @@ from power_card_tray import RightPixelStrip, TestPowerCardTrays
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import check_timer, register_timer, logger
-from profiling import register_profile, start_profile, stop_profile, report_all_profiles
+from profiling import register_profile, start_profile, stop_profile, report_all_profiles, log_free_ram
 from fake_data_manager import FakeDataManager
 
 from power_grid_manager import LeftPixelStrip, PowerGridManager
@@ -86,6 +86,8 @@ def log_heartbeat():
 
 
 def initialize():
+    log_free_ram("startup")
+
     for powerGrid in PowerGridManager.AllGrids():
         powerGrid.MaxLevel = 1000
 

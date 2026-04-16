@@ -1,9 +1,7 @@
 from __future__ import annotations
 import random
-from color_utils import Color
 from power_card_animation import CardAnimationHelpers
 from power_card_ids import PowerCardIds
-from power_card_tray import BLACK
 
 CARD_VOLTAGE_THRESHOLD = 0.05
 
@@ -70,11 +68,11 @@ class PowerCard:
     def VoltageMatches(self, cardVoltage) -> bool:
         return abs(self.__voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
 
-    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> list[Color]:
+    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> list[int]:
         if self.__cardAnimation is not None:
             return self.__cardAnimation.PixelBuffer(animationProgress, brightness)
         else:
-            return [BLACK] * CardAnimationHelpers.CARD_PIXEL_COUNT
+            return [0] * CardAnimationHelpers.CARD_PIXEL_COUNT
         
     def __str__(self):
         return f"{self.UID}/{self.CardName}({self.__voltage:.2f}V)"

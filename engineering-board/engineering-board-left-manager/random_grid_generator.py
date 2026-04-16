@@ -2,9 +2,7 @@ import time
 
 from eng_utils import check_timer, register_timer
 
-from color_utils import BLUE, GREEN, RED, YELLOW, Color
-from power_card import CardAnimationHelpers
-from power_card_tray import BLACK
+from color_utils import BLUE, GREEN, RED, YELLOW
 
 GRID_SCROLL_SECONDS = 1
 TIMER_GRID_SCROLL = "grid_scroll"
@@ -24,11 +22,15 @@ LOW_POWER_LEVEL_5 = 1
 SAFE_POWER_LEVEL_5 = 2
 WARNING_POWER_LEVEL_5 = 4
 
+def _scaled_int(color, brightness):
+    return (int(color.R * brightness) << 16) | (int(color.G * brightness) << 8) | int(color.B * brightness)
+
 GRID_BRIGHTNESS = 0.1
-LOW_COLOR = Color(BLUE).scale(GRID_BRIGHTNESS)
-SAFE_COLOR = Color(GREEN).scale(GRID_BRIGHTNESS)
-WARNING_COLOR = Color(YELLOW).scale(GRID_BRIGHTNESS)
-DANGER_COLOR = Color(RED).scale(GRID_BRIGHTNESS)
+BLACK_INT = 0
+LOW_COLOR = _scaled_int(BLUE, GRID_BRIGHTNESS)
+SAFE_COLOR = _scaled_int(GREEN, GRID_BRIGHTNESS)
+WARNING_COLOR = _scaled_int(YELLOW, GRID_BRIGHTNESS)
+DANGER_COLOR = _scaled_int(RED, GRID_BRIGHTNESS)
 
 class RandomGridGenerator:
     def __init__(self, gridSize):
@@ -42,7 +44,7 @@ class RandomGridGenerator:
         self.safePowerLevel = SAFE_POWER_LEVEL_16 if gridSize == 16 else SAFE_POWER_LEVEL_8 if gridSize == 8 else SAFE_POWER_LEVEL_5
         self.warningPowerLevel = WARNING_POWER_LEVEL_16 if gridSize == 16 else WARNING_POWER_LEVEL_8 if gridSize == 8 else WARNING_POWER_LEVEL_5
 
-        self.__pixelColors = [BLACK for pixIndex in range(self.__gridSize * self.__gridSize)]
+        self.__pixelColors: list[int] = [0] * (self.__gridSize * self.__gridSize)
 
         self.__gridScrollSeconds = GRID_SCROLL_SECONDS / self.__gridSize
         self.__lastScrollTime = time.monotonic()
@@ -50,8 +52,8 @@ class RandomGridGenerator:
 
 
     @property
-    def PixelColors(self):
-        return CardAnimationHelpers.pixel_buffer(self.__pixelColors)
+    def PixelColors(self) -> list[int]:
+        return self.__pixelColors
 
     @property
     def TargetLevel(self):
@@ -94,7 +96,7 @@ class RandomGridGenerator:
 
             for y in range(self.__gridSize):
                 for x in range(self.__gridSize):
-                    pixelColor = BLACK
+                    pixelColor = BLACK_INT
                     pixelIndex = self.PixelIndex(x, y)
 
                     if x < self.__gridSize - 1:

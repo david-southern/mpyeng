@@ -26,75 +26,14 @@ class CardAnimationHelpers:
 
     DEFAULT_ANIMATION_DURATION = 3.0
 
+    # Pre-computed cosine LUT for wave animation (64 entries, 0-256 scale)
+    # Maps cycle_progress to wave_t: 0 at progress=0, 256 at progress=0.5, 0 at progress=1.0
+    _COS_LUT_SIZE = 64
+    _COS_LUT = [int(128 - 128 * math.cos(i * 2 * math.pi / 64)) for i in range(64)]
+
     @classmethod
     def getCardAnimation(cls, spec_id: str):
         return CARD_ANIMATION_DEFS[spec_id]
-
-    @classmethod
-    def color_buffer(cls, result: list[Color], static_string_mask: list[str], bright_color: Color, dim_color: Color, cycle_progress: float, brightness: float) -> list[Color]:
-        """Fill a pre-allocated Color buffer from a string mask, ordered in the serpentine layout
-        used by our NeoPixel grids.  Brightness is applied during generation to avoid a second pass.
-        """
-        mask_height = len(static_string_mask)
-        mask_width = len(static_string_mask[0]) if mask_height > 0 else 0
-        # Compute wave_t once for the entire frame
-        wave_t = 0.5 - 0.5 * math.cos(cycle_progress * 2 * math.pi)
-        for y in range(mask_height):
-            for x in range(mask_width):
-                ch = static_string_mask[y][x]
-                idx = cls.xy_to_index(x, y, width=mask_width, height=mask_height)
-                pixel = result[idx]
-                if ch == cls.COLOR_MASK_BLACK:
-                    pixel.set_rgb(0, 0, 0)
-                elif ch == cls.COLOR_MASK_WAVE:
-                    # Smooth ping-pong between bright and dim
-                    pixel.copy_from(bright_color).lerp(dim_color, wave_t).scale(brightness)
-                elif ch == cls.COLOR_MASK_RANDOM_BRIGHTNESS:
-                    # Random value between dim and bright each frame
-                    t = random.random()
-                    pixel.copy_from(dim_color).lerp(bright_color, t).scale(brightness)
-                elif ch == cls.COLOR_MASK_RANDOM_COLOR:
-                    # Random RGB flash, biased toward black
-                    if random.random() < 0.6:
-                        pixel.set_rgb(0, 0, 0)
-                    else:
-                        pixel.set_rgb(
-                            int(random.random() * 255),
-                            int(random.random() * 255),
-                            int(random.random() * 255),
-                        ).scale(brightness)
-                elif ch == cls.COLOR_MASK_FADE_OUT:
-                    # Bright -> black over the cycle
-                    pixel.copy_from(bright_color).scale(1.0 - cycle_progress).scale(brightness)
-                elif ch == cls.COLOR_MASK_FADE_IN:
-                    # Black -> bright over the cycle
-                    pixel.copy_from(bright_color).scale(cycle_progress).scale(brightness)
-                elif ch == cls.COLOR_MASK_LIGHTNING:
-                    # Immediate random flicker, biased toward bright
-                    if random.random() < 0.75:
-                        pixel.copy_from(bright_color).scale(brightness)
-                    else:
-                        pixel.set_rgb(0, 0, 0)
-                elif "a" <= ch <= "z":
-                    # Delay pixel: stay black until delay%, then fade to bright
-                    delay_fraction = (ord(ch) - ord("a")) / (ord("z") - ord("a"))
-                    if cycle_progress >= delay_fraction:
-                        pixel.copy_from(bright_color).scale(brightness)
-                    else:
-                        t = (cycle_progress / delay_fraction)
-                        pixel.copy_from(bright_color).scale(t * brightness)
-                elif "0" <= ch <= "9":
-                    digit_t = (ord(ch) - ord("0")) / 9
-                    pixel.copy_from(dim_color).lerp(bright_color, digit_t).scale(brightness)
-                else:
-                    pixel.set_rgb(0, 0, 0)
-        return result
-
-    @classmethod
-    def pixel_buffer(cls, colors: list[Color]):
-        """Convert a list of Color to a list of integer color to send to our NeoPixel grids.
-        """
-        return [color.to_neopixel() for color in colors]
 
     @classmethod
     def xy_to_index(cls, x, y, flip_y = True, width=None, height=None, layout="serpentine"):
@@ -125,6 +64,7 @@ class CardAnimationHelpers:
 
 class PowerCardAnimation:
     DIM_BRIGHTNESS = 0.25
+    PRECOMPUTED_FRAME_COUNT = 10
     
     def __init__(self, uid: str, name: str, category: str, bright_color: Color, string_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION):
         self.id = uid
@@ -134,15 +74,125 @@ class PowerCardAnimation:
         self.dim_color = dim_color if dim_color else bright_color.copy().scale(PowerCardAnimation.DIM_BRIGHTNESS)
         self.string_mask = string_mask
         self.animation_duration = animation_duration
-        self._pixel_buffer = [Color((0, 0, 0)) for _ in range(CardAnimationHelpers.CARD_PIXEL_COUNT)]
 
-    def ColorBuffer(self, cycle_progress: float, brightness: float = 1.0):
-        """Fill the pre-allocated pixel buffer from the card's string mask."""
-        return CardAnimationHelpers.color_buffer(self._pixel_buffer, self.string_mask, self.bright_color, self.dim_color, cycle_progress, brightness)
+        # Pre-extract RGB components for integer math
+        self._bright_r = bright_color.R
+        self._bright_g = bright_color.G
+        self._bright_b = bright_color.B
+        self._dim_r = self.dim_color.R
+        self._dim_g = self.dim_color.G
+        self._dim_b = self.dim_color.B
 
-    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0):
-        """Fill the pre-allocated pixel buffer from the card's string mask."""
-        return self.ColorBuffer(cycle_progress, brightness)
+        # Parse mask: classify each pixel
+        mask_h = len(string_mask)
+        mask_w = len(string_mask[0]) if mask_h > 0 else 0
+        self._pixel_count = mask_w * mask_h
+        self._static_digits = []    # list of (idx, t_256) for digits 0-9
+        self._animated_pixels = []  # list of (idx, char, param) for animated types
+
+        for y in range(mask_h):
+            for x in range(mask_w):
+                ch = string_mask[y][x]
+                idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                if ch == '.':
+                    pass  # black, stays 0
+                elif '0' <= ch <= '9':
+                    self._static_digits.append((idx, int((ord(ch) - 48) * 256 / 9)))
+                elif 'a' <= ch <= 'z':
+                    self._animated_pixels.append((idx, ch, (ord(ch) - 97) / 25))
+                else:
+                    self._animated_pixels.append((idx, ch, 0))
+
+        # Frames are baked on first use per brightness value
+        self._cached_brightness = -1.0
+        self._frames: list[list[int]] = []
+
+    def _bake_frames(self, brightness: float):
+        """Pre-compute all frames as list[int] for the given brightness."""
+        n = self._pixel_count
+        nf = PowerCardAnimation.PRECOMPUTED_FRAME_COUNT
+        cos_lut = CardAnimationHelpers._COS_LUT
+        cos_size = CardAnimationHelpers._COS_LUT_SIZE
+
+        # Pre-compute brightness-scaled base colors as ints
+        br = int(self._bright_r * brightness)
+        bg = int(self._bright_g * brightness)
+        bb = int(self._bright_b * brightness)
+        dr = int(self._dim_r * brightness)
+        dg = int(self._dim_g * brightness)
+        db = int(self._dim_b * brightness)
+        max_rand = int(255 * brightness)
+
+        # Bake static base buffer once (digits + dots)
+        static_buf = [0] * n
+        b_r, b_g, b_b = self._bright_r, self._bright_g, self._bright_b
+        d_r, d_g, d_b = self._dim_r, self._dim_g, self._dim_b
+        for idx, t_256 in self._static_digits:
+            r = d_r + (((b_r - d_r) * t_256) >> 8)
+            g = d_g + (((b_g - d_g) * t_256) >> 8)
+            b = d_b + (((b_b - d_b) * t_256) >> 8)
+            r = int(r * brightness)
+            g = int(g * brightness)
+            b = int(b * brightness)
+            static_buf[idx] = (r << 16) | (g << 8) | b
+
+        # Bright packed int for quick assignment
+        bright_int = (br << 16) | (bg << 8) | bb
+
+        frames = []
+        _random = random.random
+        for fi in range(nf):
+            cycle_progress = fi / nf
+            buf = static_buf[:]
+
+            wave_t = cos_lut[int(cycle_progress * cos_size) % cos_size]
+
+            for idx, ch, param in self._animated_pixels:
+                if ch == '~':
+                    r = br + (((dr - br) * wave_t) >> 8)
+                    g = bg + (((dg - bg) * wave_t) >> 8)
+                    b = bb + (((db - bb) * wave_t) >> 8)
+                    buf[idx] = (r << 16) | (g << 8) | b
+                elif ch == '@':
+                    t = int(_random() * 256)
+                    r = dr + (((br - dr) * t) >> 8)
+                    g = dg + (((bg - dg) * t) >> 8)
+                    b = db + (((bb - db) * t) >> 8)
+                    buf[idx] = (r << 16) | (g << 8) | b
+                elif ch == '%':
+                    if _random() >= 0.6:
+                        buf[idx] = (int(_random() * max_rand) << 16) | (int(_random() * max_rand) << 8) | int(_random() * max_rand)
+                elif ch == '>':
+                    f = 1.0 - cycle_progress
+                    if f > 0:
+                        buf[idx] = (int(br * f) << 16) | (int(bg * f) << 8) | int(bb * f)
+                elif ch == '<':
+                    if cycle_progress > 0:
+                        buf[idx] = (int(br * cycle_progress) << 16) | (int(bg * cycle_progress) << 8) | int(bb * cycle_progress)
+                elif ch == '*':
+                    if _random() < 0.75:
+                        buf[idx] = bright_int
+                elif 'a' <= ch <= 'z':
+                    if cycle_progress >= param:
+                        buf[idx] = bright_int
+                    elif param > 0:
+                        t = cycle_progress / param
+                        buf[idx] = (int(br * t) << 16) | (int(bg * t) << 8) | int(bb * t)
+
+            frames.append(buf)
+
+        self._cached_brightness = brightness
+        self._frames = frames
+
+    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
+        """Return a pre-computed frame as list[int]. Animation time is quantized to the nearest
+        pre-computed frame for maximum throughput.
+        """
+        if self._cached_brightness != brightness:
+            self._bake_frames(brightness)
+        nf = PowerCardAnimation.PRECOMPUTED_FRAME_COUNT
+        frame_idx = int(cycle_progress * nf) % nf
+        return self._frames[frame_idx][:]
 
 
 CARD_ANIMATION_DEFS = {

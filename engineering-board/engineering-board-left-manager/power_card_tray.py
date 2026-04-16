@@ -1,7 +1,7 @@
 import time
 import board
 
-from color_utils import BLACK, BLUE, GREEN, YELLOW, RED, Color
+from color_utils import BLUE, GREEN, YELLOW, RED
 from eng_utils import SlowLog, check_timer, register_timer, logger
 from profiling import register_profile, start_profile, stop_profile
 from pixel_strip_manager import PixelStripManager
@@ -31,12 +31,15 @@ class PowerStateEnum:
     NO_POWER = 3
     ERROR = 4
 
+def _color_to_scaled_int(color, brightness):
+    return (int(color.R * brightness) << 16) | (int(color.G * brightness) << 8) | int(color.B * brightness)
+
 CARD_TRAY_COLORS = {
-    PowerStateEnum.OFF: BLACK, 
-    PowerStateEnum.FULL_POWER: Color(GREEN).scale(TRAY_BRIGHTNESS),
-    PowerStateEnum.PARTIAL_POWER: Color(YELLOW).scale(TRAY_BRIGHTNESS), 
-    PowerStateEnum.NO_POWER: Color(RED).scale(TRAY_BRIGHTNESS), 
-    PowerStateEnum.ERROR: Color(BLUE).scale(TRAY_BRIGHTNESS)
+    PowerStateEnum.OFF: 0,
+    PowerStateEnum.FULL_POWER: _color_to_scaled_int(GREEN, TRAY_BRIGHTNESS),
+    PowerStateEnum.PARTIAL_POWER: _color_to_scaled_int(YELLOW, TRAY_BRIGHTNESS),
+    PowerStateEnum.NO_POWER: _color_to_scaled_int(RED, TRAY_BRIGHTNESS),
+    PowerStateEnum.ERROR: _color_to_scaled_int(BLUE, TRAY_BRIGHTNESS)
 }
 
 TRAY_REFRESH_SECONDS = 0.05

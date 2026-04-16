@@ -1,9 +1,18 @@
+import gc
+
 import supervisor
 
 from eng_utils import logger
 
 _profiles = {}
 _start_times = {}
+
+
+def log_free_ram(label: str = ""):
+    """Log the current free RAM."""
+    free = gc.mem_free()  # pyright: ignore[reportAttributeAccessIssue]
+    prefix = f"[{label}] " if label else ""
+    logger.info(f"{prefix}Free RAM: {free} bytes")
 
 
 def register_profile(key: str):
@@ -68,6 +77,7 @@ def report_all_profiles():
     for r in rows:
         logger.info(fmt(*r))
     logger.info("")
+    log_free_ram("profile")
 
     for p in _profiles.values():
         p["count"] = 0

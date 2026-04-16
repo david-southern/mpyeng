@@ -1,6 +1,5 @@
 import random
 import board
-from color_utils import Color
 from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString, logger
 from power_card_tray import PixelStripManager
 from protocol_resources import LEFT_WING, RIGHT_WING, TRANS1, TRANS2, TRANS3, TRANS4
@@ -36,7 +35,7 @@ class PowerGrid:
         self.__pixelStripManager.SetPixelData(
             self.__pixelIndex,
             self.pixelCount - 1,
-            [Color((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))).to_neopixel() for pixIndex in range(self.pixelCount - 1)],
+            [(random.randint(0, 255) << 16) | (random.randint(0, 255) << 8) | random.randint(0, 255) for pixIndex in range(self.pixelCount - 1)],
         )
 
     @property

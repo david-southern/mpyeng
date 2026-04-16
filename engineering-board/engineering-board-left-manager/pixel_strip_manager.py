@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import board
 
-from color_utils import Color, to_neopixel
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
 
@@ -72,7 +71,7 @@ class PixelStripManager:
 
         return reservedPixelIndex
 
-    def SetPixelData(self, startIndex: int, pixelCount: int, pixelData: list[Color] | list[int] | list[tuple[int, int, int]]):
+    def SetPixelData(self, startIndex: int, pixelCount: int, pixelData: list[int]):
         if not ENABLE_PIXELS:
             return
 
@@ -94,14 +93,11 @@ class PixelStripManager:
             logger.error(f"SetPixelRangeColor: Pixel end index {endIndex} is out of range.")
             return
 
-        pixelData = [to_neopixel(color) for color in pixelData]
-
         SlowLog(
             f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Pixel range {startIndex}-{endIndex}"
         )
 
-        for pixelIndex in range(startIndex, endIndex + 1):
-            self.pixels[pixelIndex] = pixelData[pixelIndex - startIndex]
+        self.pixels[startIndex:startIndex + pixelCount] = pixelData
 
     def ShowPixels(self):
         if not ENABLE_PIXELS:
