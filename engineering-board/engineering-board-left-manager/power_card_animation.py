@@ -31,60 +31,63 @@ class CardAnimationHelpers:
         return CARD_ANIMATION_DEFS[spec_id]
 
     @classmethod
-    def color_buffer(cls, static_string_mask: list[str], bright_color: Color, dim_color: Color, cycle_progress: float) -> list[Color]:
-        """Convert a string mask to a flat list of Colors, ordered in the serpentine layout
-        used by our NeoPixel grids.
+    def color_buffer(cls, result: list[Color], static_string_mask: list[str], bright_color: Color, dim_color: Color, cycle_progress: float, brightness: float) -> list[Color]:
+        """Fill a pre-allocated Color buffer from a string mask, ordered in the serpentine layout
+        used by our NeoPixel grids.  Brightness is applied during generation to avoid a second pass.
         """
         mask_height = len(static_string_mask)
         mask_width = len(static_string_mask[0]) if mask_height > 0 else 0
-        result: list[Color] = [PowerCardCategories.OFF_COLOR] * (mask_width * mask_height)
+        # Compute wave_t once for the entire frame
+        wave_t = 0.5 - 0.5 * math.cos(cycle_progress * 2 * math.pi)
         for y in range(mask_height):
             for x in range(mask_width):
                 ch = static_string_mask[y][x]
                 idx = cls.xy_to_index(x, y, width=mask_width, height=mask_height)
+                pixel = result[idx]
                 if ch == cls.COLOR_MASK_BLACK:
-                    result[idx] = PowerCardCategories.OFF_COLOR
+                    pixel.set_rgb(0, 0, 0)
                 elif ch == cls.COLOR_MASK_WAVE:
                     # Smooth ping-pong between bright and dim
-                    wave_t = 0.5 - 0.5 * math.cos(cycle_progress * 2 * math.pi)
-                    result[idx] = bright_color.lerp(dim_color, wave_t)
+                    pixel.copy_from(bright_color).lerp(dim_color, wave_t).scale(brightness)
                 elif ch == cls.COLOR_MASK_RANDOM_BRIGHTNESS:
                     # Random value between dim and bright each frame
                     t = random.random()
-                    result[idx] = dim_color.lerp(bright_color, t)
+                    pixel.copy_from(dim_color).lerp(bright_color, t).scale(brightness)
                 elif ch == cls.COLOR_MASK_RANDOM_COLOR:
                     # Random RGB flash, biased toward black
                     if random.random() < 0.6:
-                        result[idx] = PowerCardCategories.OFF_COLOR
+                        pixel.set_rgb(0, 0, 0)
                     else:
-                        result[idx] = Color(
-                            (int(random.random() * 255), int(random.random() * 255), int(random.random() * 255))
-                        )
+                        pixel.set_rgb(
+                            int(random.random() * 255),
+                            int(random.random() * 255),
+                            int(random.random() * 255),
+                        ).scale(brightness)
                 elif ch == cls.COLOR_MASK_FADE_OUT:
                     # Bright -> black over the cycle
-                    result[idx] = bright_color.lerp(PowerCardCategories.OFF_COLOR, cycle_progress)
+                    pixel.copy_from(bright_color).scale(1.0 - cycle_progress).scale(brightness)
                 elif ch == cls.COLOR_MASK_FADE_IN:
                     # Black -> bright over the cycle
-                    result[idx] = PowerCardCategories.OFF_COLOR.lerp(bright_color, cycle_progress)
+                    pixel.copy_from(bright_color).scale(cycle_progress).scale(brightness)
                 elif ch == cls.COLOR_MASK_LIGHTNING:
                     # Immediate random flicker, biased toward bright
                     if random.random() < 0.75:
-                        result[idx] = bright_color
+                        pixel.copy_from(bright_color).scale(brightness)
                     else:
-                        result[idx] = PowerCardCategories.OFF_COLOR
+                        pixel.set_rgb(0, 0, 0)
                 elif "a" <= ch <= "z":
                     # Delay pixel: stay black until delay%, then fade to bright
                     delay_fraction = (ord(ch) - ord("a")) / (ord("z") - ord("a"))
                     if cycle_progress >= delay_fraction:
-                        result[idx] = bright_color
+                        pixel.copy_from(bright_color).scale(brightness)
                     else:
                         t = (cycle_progress / delay_fraction)
-                        result[idx] = PowerCardCategories.OFF_COLOR.lerp(bright_color, t)
+                        pixel.copy_from(bright_color).scale(t * brightness)
                 elif "0" <= ch <= "9":
-                    brightness = (ord(ch) - ord("0")) / 9
-                    result[idx] = dim_color.lerp(bright_color, brightness)
+                    digit_t = (ord(ch) - ord("0")) / 9
+                    pixel.copy_from(dim_color).lerp(bright_color, digit_t).scale(brightness)
                 else:
-                    result[idx] = PowerCardCategories.OFF_COLOR
+                    pixel.set_rgb(0, 0, 0)
         return result
 
     @classmethod
@@ -128,21 +131,18 @@ class PowerCardAnimation:
         self.name = name
         self.category = category
         self.bright_color = bright_color
-        self.dim_color = dim_color if dim_color else bright_color.scale(PowerCardAnimation.DIM_BRIGHTNESS)
+        self.dim_color = dim_color if dim_color else bright_color.copy().scale(PowerCardAnimation.DIM_BRIGHTNESS)
         self.string_mask = string_mask
         self.animation_duration = animation_duration
+        self._pixel_buffer = [Color((0, 0, 0)) for _ in range(CardAnimationHelpers.CARD_PIXEL_COUNT)]
 
-    def ColorBuffer(self, cycle_progress: float):
-        """Convert the card's string mask to a flat list of Colors, ordered in the serpentine layout
-        used by our NeoPixel grids.
-        """
-        return CardAnimationHelpers.color_buffer(self.string_mask, self.bright_color, self.dim_color, cycle_progress)
+    def ColorBuffer(self, cycle_progress: float, brightness: float = 1.0):
+        """Fill the pre-allocated pixel buffer from the card's string mask."""
+        return CardAnimationHelpers.color_buffer(self._pixel_buffer, self.string_mask, self.bright_color, self.dim_color, cycle_progress, brightness)
 
-    def PixelBuffer(self, cycle_progress: float):
-        """Convert the card's string mask to a flat list of (r, g, b) tuples, ordered in the serpentine layout
-        used by our NeoPixel grids.
-        """
-        return self.ColorBuffer(cycle_progress)
+    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0):
+        """Fill the pre-allocated pixel buffer from the card's string mask."""
+        return self.ColorBuffer(cycle_progress, brightness)
 
 
 CARD_ANIMATION_DEFS = {

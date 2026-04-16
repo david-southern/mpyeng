@@ -70,9 +70,9 @@ class PowerCard:
     def VoltageMatches(self, cardVoltage) -> bool:
         return abs(self.__voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
 
-    def PixelBuffer(self, animationProgress: float) -> list[Color]:
+    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> list[Color]:
         if self.__cardAnimation is not None:
-            return self.__cardAnimation.PixelBuffer(animationProgress)
+            return self.__cardAnimation.PixelBuffer(animationProgress, brightness)
         else:
             return [BLACK] * CardAnimationHelpers.CARD_PIXEL_COUNT
         

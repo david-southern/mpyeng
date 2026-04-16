@@ -58,6 +58,9 @@ class Color:
         self.G = self.clamp(self.G * factor)
         self.B = self.clamp(self.B * factor)
         return self
+
+    def copy(self) -> Color:
+        return Color((self.R, self.G, self.B))
     
     def to_neopixel(self) -> int:
         """Convert the color to a single integer in the format expected by NeoPixel libraries."""

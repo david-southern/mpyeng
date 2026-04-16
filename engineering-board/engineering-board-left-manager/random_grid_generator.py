@@ -2,7 +2,7 @@ import time
 
 from eng_utils import check_timer, register_timer
 
-from color_utils import BLUE, GREEN, RED, YELLOW
+from color_utils import BLUE, GREEN, RED, YELLOW, Color
 from power_card import CardAnimationHelpers
 from power_card_tray import BLACK
 
@@ -25,10 +25,10 @@ SAFE_POWER_LEVEL_5 = 2
 WARNING_POWER_LEVEL_5 = 4
 
 GRID_BRIGHTNESS = 0.1
-LOW_COLOR = BLUE.scale(GRID_BRIGHTNESS)
-SAFE_COLOR = GREEN.scale(GRID_BRIGHTNESS)
-WARNING_COLOR = YELLOW.scale(GRID_BRIGHTNESS)
-DANGER_COLOR = RED.scale(GRID_BRIGHTNESS)
+LOW_COLOR = Color(BLUE).scale(GRID_BRIGHTNESS)
+SAFE_COLOR = Color(GREEN).scale(GRID_BRIGHTNESS)
+WARNING_COLOR = Color(YELLOW).scale(GRID_BRIGHTNESS)
+DANGER_COLOR = Color(RED).scale(GRID_BRIGHTNESS)
 
 class RandomGridGenerator:
     def __init__(self, gridSize):
