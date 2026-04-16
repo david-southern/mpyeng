@@ -1,12 +1,11 @@
 import random
-import time
 import board
 import digitalio
 from adafruit_debouncer import Debouncer  # pyright: ignore[reportMissingImports]
 
-from eng_utils import logger
+from eng_utils import check_timer, register_timer, logger
 
-from power_card_tray import TestPowerCardTrays
+from power_card_tray import CARD_TRAY_COLORS, TestPowerCardTrays
 from power_display_manager import PowerDisplayManager
 from protocol_resources import (
     LEFT_WING,
@@ -42,6 +41,9 @@ FAKE_SYSTEM_POWER_DATA = [
 ]
 
 RANDOM_POWER_UPDATE_FREQ = 1
+TIMER_FAKE_DATA = "fake_data"
+
+register_timer(TIMER_FAKE_DATA, RANDOM_POWER_UPDATE_FREQ)
 
 ENABLE_TEST_BUTTONS = False
 
@@ -88,7 +90,6 @@ def set_shield_power(power: int):
 
 
 class FakeDataManager:
-    __nextRandomUpdate = 0
     __firstUpdate = True
 
     @staticmethod
@@ -116,7 +117,7 @@ class FakeDataManager:
                 logger.info("FAKES: Shield Power to 0")
                 set_shield_power(0)
         else:
-            if time.monotonic() < FakeDataManager.__nextRandomUpdate:
+            if not check_timer(TIMER_FAKE_DATA):
                 return
 
             if FakeDataManager.__firstUpdate:
@@ -133,12 +134,8 @@ class FakeDataManager:
                         transformer.Name, transformer.MaxPower
                     )
 
-            FakeDataManager.__nextRandomUpdate = (
-                time.monotonic() + RANDOM_POWER_UPDATE_FREQ
-            )
-
             for tray in TestPowerCardTrays:
-                tray.TargetLevel = random.randint(0, 100)
+                tray.PowerState = random.choice(list(CARD_TRAY_COLORS.keys()))
 
             for power_resource in FAKE_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import time
 import board
 
 from color_utils import Color, to_neopixel
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
-from eng_utils import SlowLog, disabledString, logger, ENABLE_PIXELS
+from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
@@ -27,6 +26,7 @@ PIXEL_BRIGHTNESS = 0.9
 # strip data at a regular interval in case of interference or other issues causing the strip to lose
 # data.
 PIXEL_REFRESH_SECONDS = 0.1
+TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 class PixelStripManager:
 
@@ -34,7 +34,7 @@ class PixelStripManager:
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
-        self.__nextPixelUpdate = time.monotonic() + PIXEL_REFRESH_SECONDS
+        register_timer((id(self), TIMER_PIXEL_REFRESH), PIXEL_REFRESH_SECONDS)
 
         logger.info(
             f"Creating PixelStripManager{disabledString(ENABLE_PIXELS)} on LED_DATA_PIN {LED_DATA_PIN} with {TOTAL_LED_COUNT} pixels"
@@ -115,8 +115,7 @@ class PixelStripManager:
         if not ENABLE_PIXELS:
             return
 
-        if time.monotonic() > self.__nextPixelUpdate:
-            self.__nextPixelUpdate = time.monotonic() + PIXEL_REFRESH_SECONDS
+        if check_timer((id(self), TIMER_PIXEL_REFRESH)):
             self.ShowPixels()
 
     def __str__(self):

@@ -1,10 +1,13 @@
 import time
 
+from eng_utils import check_timer, register_timer
+
 from color_utils import BLUE, GREEN, RED, YELLOW
 from power_card import CardAnimationHelpers
 from power_card_tray import BLACK
 
 GRID_SCROLL_SECONDS = 1
+TIMER_GRID_SCROLL = "grid_scroll"
 POWER_VALUE_LERP_PER_SECOND = 0.6
 ANIMATION_SPEED_MS = 5
 STEP_SPEED_MS = 100
@@ -43,7 +46,7 @@ class RandomGridGenerator:
 
         self.__gridScrollSeconds = GRID_SCROLL_SECONDS / self.__gridSize
         self.__lastScrollTime = time.monotonic()
-        self.__nextGridScrollTime = self.__lastScrollTime + self.__gridScrollSeconds
+        register_timer((id(self), TIMER_GRID_SCROLL), self.__gridScrollSeconds)
 
 
     @property
@@ -75,10 +78,9 @@ class RandomGridGenerator:
     def UpdateGridState(self):
         simTime = time.monotonic()
 
-        if simTime > self.__nextGridScrollTime:
+        if check_timer((id(self), TIMER_GRID_SCROLL)):
             elapsedTime = simTime - self.__lastScrollTime
             self.__lastScrollTime = simTime
-            self.__nextGridScrollTime = self.__lastScrollTime + self.__gridScrollSeconds
 
             delta = abs(self.__curLevel - self.__targetLevel)
             if delta > 0:

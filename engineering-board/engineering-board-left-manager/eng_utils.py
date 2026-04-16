@@ -41,12 +41,38 @@ if board.board_id == "adafruit_feather_rp2040":
     ENABLE_RIGHT_PIXELS = True
 
 SLOW_LOG_FREQUENCY = 1
-nextSlowLog = time.monotonic() + SLOW_LOG_FREQUENCY
 slowLogCount = {}
+
+TIMER_SLOW_LOG = "slow_log"
+
+_timers = {}
+_timer_intervals = {}
+
+
+def register_timer(key, interval_sec: float):
+    """Registers a timer with the given key and interval. Must be called before check_timer.
+    key: any hashable value (str, tuple, etc.) to identify this timer."""
+    _timer_intervals[key] = interval_sec
+    _timers[key] = time.monotonic() + interval_sec
+
+
+def check_timer(key) -> bool:
+    """Returns True if the registered interval has elapsed for the given key, resetting the timer.
+    Returns False if the interval has not yet elapsed.
+    Raises ValueError if the key has not been registered with register_timer."""
+    if key not in _timer_intervals:
+        raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
+    now = time.monotonic()
+    if now >= _timers[key]:
+        _timers[key] = now + _timer_intervals[key]
+        return True
+    return False
+
+
+register_timer(TIMER_SLOW_LOG, SLOW_LOG_FREQUENCY)
 
 
 def SlowLog(message: str):
-    global nextSlowLog
     global slowLogCount
 
     if not ENABLE_SLOW_LOG:
@@ -56,7 +82,7 @@ def SlowLog(message: str):
         slowLogCount[message] = 0
     slowLogCount[message] += 1
 
-    if time.monotonic() < nextSlowLog:
+    if not check_timer(TIMER_SLOW_LOG):
         return
 
     for logMessage, logCount in slowLogCount.items():
@@ -64,7 +90,6 @@ def SlowLog(message: str):
             f"PixelManager{disabledString(ENABLE_PIXELS)}: (rpt: {logCount}) {logMessage}"
         )
     slowLogCount = {}
-    nextSlowLog = time.monotonic() + SLOW_LOG_FREQUENCY
 
 
 def disabledString(enabled: bool):
