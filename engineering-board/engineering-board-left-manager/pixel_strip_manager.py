@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import board
 
+from color_utils import Color, to_neopixel
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import SlowLog, disabledString, logger, ENABLE_PIXELS
 
@@ -27,12 +28,6 @@ PIXEL_BRIGHTNESS = 0.9
 # data.
 PIXEL_REFRESH_SECONDS = 0.1
 
-BLACK: tuple[int, int, int] = (0, 0, 0)
-RED: tuple[int, int, int] = (255, 0, 0)
-YELLOW: tuple[int, int, int] = (255, 150, 0)
-GREEN: tuple[int, int, int] = (0, 255, 0)
-BLUE: tuple[int, int, int] = (0, 0, 255)
-
 class PixelStripManager:
 
     def __init__(self, LED_DATA_PIN: board.Pin, TOTAL_LED_COUNT: int):
@@ -40,7 +35,6 @@ class PixelStripManager:
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
         self.__nextPixelUpdate = time.monotonic() + PIXEL_REFRESH_SECONDS
-        self.heartbeatColor = RED
 
         logger.info(
             f"Creating PixelStripManager{disabledString(ENABLE_PIXELS)} on LED_DATA_PIN {LED_DATA_PIN} with {TOTAL_LED_COUNT} pixels"
@@ -60,7 +54,7 @@ class PixelStripManager:
                 f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels"
             )
 
-            self.pixels.fill(BLACK)
+            self.pixels.fill(0)
             self.pixels.show()
 
     def ReservePixelRange(self, pixelCount: int) -> int:
@@ -78,8 +72,16 @@ class PixelStripManager:
 
         return reservedPixelIndex
 
-    def SetPixelData(self, startIndex: int, pixelCount: int, pixelData: list[tuple[int, int, int]]):
+    def SetPixelData(self, startIndex: int, pixelCount: int, pixelData: list[Color] | list[int] | list[tuple[int, int, int]]):
         if not ENABLE_PIXELS:
+            return
+
+        if(pixelCount < 1):
+            logger.error(f"SetPixelRangeColor: pixelCount {pixelCount} is invalid.")
+            return
+
+        if pixelCount != len(pixelData):
+            logger.error(f"SetPixelRangeColor: pixelCount {pixelCount} does not match length of pixelData {len(pixelData)}.")
             return
 
         if startIndex < 0 or startIndex >= self.TOTAL_LED_COUNT:
@@ -91,6 +93,8 @@ class PixelStripManager:
         if endIndex < 0 or endIndex >= self.TOTAL_LED_COUNT:
             logger.error(f"SetPixelRangeColor: Pixel end index {endIndex} is out of range.")
             return
+
+        pixelData = [to_neopixel(color) for color in pixelData]
 
         SlowLog(
             f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Pixel range {startIndex}-{endIndex}"

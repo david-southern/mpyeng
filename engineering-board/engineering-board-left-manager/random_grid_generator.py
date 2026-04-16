@@ -1,8 +1,8 @@
-import random
 import time
 
-from eng_utils import ENABLE_POWER_GRID, SlowLog, scaledColor
-from pixel_strip_manager import BLACK, BLUE, GREEN, RED, YELLOW
+from color_utils import BLUE, GREEN, RED, YELLOW
+from power_card import CardAnimationHelpers
+from power_card_tray import BLACK
 
 GRID_SCROLL_SECONDS = 1
 POWER_VALUE_LERP_PER_SECOND = 0.6
@@ -22,10 +22,10 @@ SAFE_POWER_LEVEL_5 = 2
 WARNING_POWER_LEVEL_5 = 4
 
 GRID_BRIGHTNESS = 0.1
-LOW_COLOR = scaledColor(BLUE, GRID_BRIGHTNESS)
-SAFE_COLOR = scaledColor(GREEN, GRID_BRIGHTNESS)
-WARNING_COLOR = scaledColor(YELLOW, GRID_BRIGHTNESS)
-DANGER_COLOR = scaledColor(RED, GRID_BRIGHTNESS)
+LOW_COLOR = BLUE.scale(GRID_BRIGHTNESS)
+SAFE_COLOR = GREEN.scale(GRID_BRIGHTNESS)
+WARNING_COLOR = YELLOW.scale(GRID_BRIGHTNESS)
+DANGER_COLOR = RED.scale(GRID_BRIGHTNESS)
 
 class RandomGridGenerator:
     def __init__(self, gridSize):
@@ -48,7 +48,7 @@ class RandomGridGenerator:
 
     @property
     def PixelColors(self):
-        return self.__pixelColors
+        return CardAnimationHelpers.pixel_buffer(self.__pixelColors)
 
     @property
     def TargetLevel(self):
@@ -79,16 +79,6 @@ class RandomGridGenerator:
             elapsedTime = simTime - self.__lastScrollTime
             self.__lastScrollTime = simTime
             self.__nextGridScrollTime = self.__lastScrollTime + self.__gridScrollSeconds
-
-            # for y in range(self.__gridSize):
-            #     for x in range(self.__gridSize):
-            #         pixelColor = ( random.randint(0, 255), random.randint(0, 255), random.randint(0, 255) )
-            #         pixelIndex = y * self.__gridSize + x
-            #         self.__pixelColors[pixelIndex] = pixelColor
-
-            # SlowLog(f"RandomGridGenerator: Updated pixel 7: {self.__pixelColors[7]}")
-            
-            # return
 
             delta = abs(self.__curLevel - self.__targetLevel)
             if delta > 0:

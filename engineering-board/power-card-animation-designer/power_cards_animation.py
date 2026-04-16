@@ -6,12 +6,10 @@ Each animation is a tuple of 3-9 frames, where each frame is also an 8x8
 tuple-of-tuples of (r, g, b) tuples.
 """
 
-from coloraide import Color
-
 import math
 import random
 
-from color_utils import lerp_color, ok_to_css
+from color_utils import Color
 
 class CardCategories:
     OFF_COLOR = Color("#000000")
@@ -118,6 +116,63 @@ class CardSpecHelpers:
         return CARD_SPECS[spec_id]
 
     @classmethod
+    def color_buffer(cls, static_string_mask: list[str], bright_color: Color, dim_color: Color, cycle_progress: float) -> list[Color]:
+        """Convert a string mask to a flat list of Colors, ordered in the serpentine layout
+        used by our NeoPixel grids.
+        """
+        mask_height = len(static_string_mask)
+        mask_width = len(static_string_mask[0]) if mask_height > 0 else 0
+        result: list[Color] = [CardCategories.OFF_COLOR] * (mask_width * mask_height)
+        for y in range(mask_height):
+            for x in range(mask_width):
+                ch = static_string_mask[y][x]
+                idx = cls.xy_to_index(x, y, width=mask_width, height=mask_height)
+                if ch == cls.COLOR_MASK_BLACK:
+                    result[idx] = CardCategories.OFF_COLOR
+                elif ch == cls.COLOR_MASK_WAVE:
+                    # Smooth ping-pong between bright and dim
+                    wave_t = 0.5 - 0.5 * math.cos(cycle_progress * 2 * math.pi)
+                    result[idx] = bright_color.lerp(dim_color, wave_t)
+                elif ch == cls.COLOR_MASK_RANDOM_BRIGHTNESS:
+                    # Random value between dim and bright each frame
+                    t = random.random()
+                    result[idx] = dim_color.lerp(bright_color, t)
+                elif ch == cls.COLOR_MASK_RANDOM_COLOR:
+                    # Random RGB flash, biased toward black
+                    if random.random() < 0.6:
+                        result[idx] = CardCategories.OFF_COLOR
+                    else:
+                        result[idx] = Color(
+                            (int(random.random() * 255), int(random.random() * 255), int(random.random() * 255))
+                        )
+                elif ch == cls.COLOR_MASK_FADE_OUT:
+                    # Bright -> black over the cycle
+                    result[idx] = bright_color.lerp(CardCategories.OFF_COLOR, cycle_progress)
+                elif ch == cls.COLOR_MASK_FADE_IN:
+                    # Black -> bright over the cycle
+                    result[idx] = CardCategories.OFF_COLOR.lerp(bright_color, cycle_progress)
+                elif ch == cls.COLOR_MASK_LIGHTNING:
+                    # Immediate random flicker, biased toward bright
+                    if random.random() < 0.75:
+                        result[idx] = bright_color
+                    else:
+                        result[idx] = CardCategories.OFF_COLOR
+                elif "a" <= ch <= "z":
+                    # Delay pixel: stay black until delay%, then fade to bright
+                    delay_fraction = (ord(ch) - ord("a")) / (ord("z") - ord("a"))
+                    if cycle_progress >= delay_fraction:
+                        result[idx] = bright_color
+                    else:
+                        t = (cycle_progress / delay_fraction)
+                        result[idx] = CardCategories.OFF_COLOR.lerp(bright_color, t)
+                elif "0" <= ch <= "9":
+                    brightness = (ord(ch) - ord("0")) / 9
+                    result[idx] = dim_color.lerp(bright_color, brightness)
+                else:
+                    result[idx] = CardCategories.OFF_COLOR
+        return result
+
+    @classmethod
     def xy_to_index(cls, x, y, flip_y = True, width=None, height=None, layout="serpentine"):
         """Map x,y to a NeoPixel index.
 
@@ -143,111 +198,34 @@ class CardSpecHelpers:
             return x * height + y
         raise ValueError("Unknown layout: {}".format(layout))
 
-    @classmethod
-    def string_mask_to_color_mask(
-        cls,
-        mask: list[str],
-        bright_color: Color,
-        dim_color: Color,
-        cycle_progress: float,
-    ) -> list[Color]:
-        """Convert an 8x8 string mask to a flat list of Colors.
-
-        Each character in the mask strings is mapped to a color based on the
-        COLOR_MASK_* constants.  ``cycle_progress`` (0.0 - 1.0) drives all
-        animated mask types.
-        """
-        mask_height = len(mask)
-        mask_width = len(mask[0]) if mask_height > 0 else 0
-        result: list[Color] = [CardCategories.OFF_COLOR] * (mask_width * mask_height)
-        for y in range(mask_height):
-            for x in range(mask_width):
-                ch = mask[y][x]
-                idx = cls.xy_to_index(x, y, width=mask_width, height=mask_height)
-                if ch == cls.COLOR_MASK_BLACK:
-                    result[idx] = CardCategories.OFF_COLOR
-                elif ch == cls.COLOR_MASK_WAVE:
-                    # Smooth ping-pong between bright and dim
-                    wave_t = 0.5 - 0.5 * math.cos(cycle_progress * 2 * math.pi)
-                    result[idx] = lerp_color(bright_color, dim_color, wave_t)
-                elif ch == cls.COLOR_MASK_RANDOM_BRIGHTNESS:
-                    # Random value between dim and bright each frame
-                    t = random.random()
-                    result[idx] = lerp_color(dim_color, bright_color, t)
-                elif ch == cls.COLOR_MASK_RANDOM_COLOR:
-                    # Random RGB flash, biased toward black
-                    if random.random() < 0.6:
-                        result[idx] = CardCategories.OFF_COLOR
-                    else:
-                        result[idx] = Color(
-                            "srgb",
-                            [random.random(), random.random(), random.random()],
-                        )
-                elif ch == cls.COLOR_MASK_FADE_OUT:
-                    # Bright -> black over the cycle
-                    result[idx] = lerp_color(bright_color, CardCategories.OFF_COLOR, cycle_progress)
-                elif ch == cls.COLOR_MASK_FADE_IN:
-                    # Black -> bright over the cycle
-                    result[idx] = lerp_color(CardCategories.OFF_COLOR, bright_color, cycle_progress)
-                elif ch == cls.COLOR_MASK_LIGHTNING:
-                    # Immediate random flicker, biased toward bright
-                    if random.random() < 0.75:
-                        result[idx] = bright_color
-                    else:
-                        result[idx] = CardCategories.OFF_COLOR
-                elif "a" <= ch <= "z":
-                    # Delay pixel: stay black until delay%, then fade to bright
-                    delay_fraction = (ord(ch) - ord("a")) / (ord("z") - ord("a"))
-                    if cycle_progress >= delay_fraction:
-                        result[idx] = bright_color
-                    else:
-                        t = (cycle_progress / delay_fraction)
-                        result[idx] = lerp_color(CardCategories.OFF_COLOR, bright_color, t)
-                elif "0" <= ch <= "9":
-                    brightness = (ord(ch) - ord("0")) / 9
-                    result[idx] = lerp_color(dim_color, bright_color, brightness)
-                else:
-                    result[idx] = CardCategories.OFF_COLOR
-        return result
-
 
 class PowerCardSpec:
     DIM_BRIGHTNESS = 0.25
     
-    def __init__(self, id: str, name: str, category: str, bright_color: Color, static_string_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardSpecHelpers.DEFAULT_ANIMATION_DURATION):
-        self.id = id
+    def __init__(self, uid: str, name: str, category: str, bright_color: Color, string_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardSpecHelpers.DEFAULT_ANIMATION_DURATION):
+        self.id = uid
         self.name = name
         self.category = category
         self.bright_color = bright_color
-        self.dim_color = dim_color if dim_color else lerp_color(bright_color, CardCategories.OFF_COLOR, PowerCardSpec.DIM_BRIGHTNESS)
-        self.static_string_mask = static_string_mask
+        self.dim_color = dim_color if dim_color else bright_color.lerp(CardCategories.OFF_COLOR, PowerCardSpec.DIM_BRIGHTNESS)
+        self.string_mask = string_mask
         self.animation_duration = animation_duration
 
-    def render_frame(self, cycle_progress: float):
-        """Render one 8x8 RGB tuple frame to a NeoPixel object."""
-        frame_mask = CardSpecHelpers.string_mask_to_color_mask(self.static_string_mask, self.bright_color, self.dim_color, cycle_progress)
+    def color_buffer(self, cycle_progress: float):
+        """Convert the card's string mask to a flat list of Colors, ordered in the serpentine layout
+        used by our NeoPixel grids.
+        """
+        return CardSpecHelpers.color_buffer(self.string_mask, self.bright_color, self.dim_color, cycle_progress)
 
-        color_tuples:list[tuple[int, int, int]] = [(0, 0, 0)] * len(frame_mask)
-        
-        for idx, color in enumerate(frame_mask):
-            rgbColor = ok_to_css(color)
-            rgbDict = rgbColor.to_dict()
-            color_tuples[idx] = (
-                int(rgbDict["coords"][0] * 255),
-                int(rgbDict["coords"][1] * 255),
-                int(rgbDict["coords"][2] * 255),
-            )
-
-        return color_tuples
 
 
 CARD_SPECS = {
     CardSpecHelpers.FUSION_ENGINES_ID: PowerCardSpec(
-        id=CardSpecHelpers.FUSION_ENGINES_ID,
+        uid=CardSpecHelpers.FUSION_ENGINES_ID,
         name="Fusion Engines",
         category=CardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '.2....2.',
             '..2..2..',
@@ -260,11 +238,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.WARP_FIELD_ID: PowerCardSpec(
-        id=CardSpecHelpers.WARP_FIELD_ID,
+        uid=CardSpecHelpers.WARP_FIELD_ID,
         name="Warp Field",
         category=CardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..~~~~..',
             '.~....~.',
             '~..99..~',
@@ -277,11 +255,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.MAIN_COMPUTER_ID: PowerCardSpec(
-        id=CardSpecHelpers.MAIN_COMPUTER_ID,
+        uid=CardSpecHelpers.MAIN_COMPUTER_ID,
         name="Main Computer",
         category=CardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..9999..',
             '.9....9.',
             '9.%%%%.9',
@@ -294,11 +272,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.FORE_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.FORE_SHIELDS_ID,
+        uid=CardSpecHelpers.FORE_SHIELDS_ID,
         name="Fore Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..~~~~..',
             '.3....3.',
             '...99...',
@@ -311,11 +289,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.AFT_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.AFT_SHIELDS_ID,
+        uid=CardSpecHelpers.AFT_SHIELDS_ID,
         name="Aft Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '........',
             '...99...',
@@ -328,11 +306,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.PORT_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.PORT_SHIELDS_ID,
+        uid=CardSpecHelpers.PORT_SHIELDS_ID,
         name="Port Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '.3......',
             '~..99...',
@@ -345,11 +323,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.STARBOARD_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.STARBOARD_SHIELDS_ID,
+        uid=CardSpecHelpers.STARBOARD_SHIELDS_ID,
         name="Starboard Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '......3.',
             '...99..~',
@@ -362,11 +340,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.DORSAL_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.DORSAL_SHIELDS_ID,
+        uid=CardSpecHelpers.DORSAL_SHIELDS_ID,
         name="Dorsal Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '..~~~~..',
             '.~~~~~~.',
@@ -379,11 +357,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.VENTRAL_SHIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.VENTRAL_SHIELDS_ID,
+        uid=CardSpecHelpers.VENTRAL_SHIELDS_ID,
         name="Ventral Shields",
         category=CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '..~~~~..',
             '.~~99~~.',
@@ -396,11 +374,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.LASER_CANNON_ID: PowerCardSpec(
-        id=CardSpecHelpers.LASER_CANNON_ID,
+        uid=CardSpecHelpers.LASER_CANNON_ID,
         name="Laser Cannon",
         category=CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '.....999',
             '.....999',
             '......99',
@@ -413,11 +391,11 @@ CARD_SPECS = {
         animation_duration=1.5
     ),
     CardSpecHelpers.TRACTOR_BEAM_ID: PowerCardSpec(
-        id=CardSpecHelpers.TRACTOR_BEAM_ID,
+        uid=CardSpecHelpers.TRACTOR_BEAM_ID,
         name="Tractor Beam",
         category=CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..9999..',
             '...99...',
             '...**...',
@@ -429,11 +407,11 @@ CARD_SPECS = {
         ],
     ),
     CardSpecHelpers.STEALTH_FIELDS_ID: PowerCardSpec(
-        id=CardSpecHelpers.STEALTH_FIELDS_ID,
+        uid=CardSpecHelpers.STEALTH_FIELDS_ID,
         name="Stealth Fields",
         category=CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '..@@@@..',
             '.@@@@@@.',
@@ -446,11 +424,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.TARGETING_ID: PowerCardSpec(
-        id=CardSpecHelpers.TARGETING_ID,
+        uid=CardSpecHelpers.TARGETING_ID,
         name="Targeting",
         category=CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '..999...',
             '...2....',
@@ -463,11 +441,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.SIGNAL_JAMMER_ID: PowerCardSpec(
-        id=CardSpecHelpers.SIGNAL_JAMMER_ID,
+        uid=CardSpecHelpers.SIGNAL_JAMMER_ID,
         name="Signal Jammer",
         category=CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '%%%%%%%%',
             '%%%%%%%%',
             '%%%%%%%%',
@@ -480,11 +458,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.ALCUBIERRE_WARP_DRIVE_ID: PowerCardSpec(
-        id=CardSpecHelpers.ALCUBIERRE_WARP_DRIVE_ID,
+        uid=CardSpecHelpers.ALCUBIERRE_WARP_DRIVE_ID,
         name="Alcubierre Warp Drive",
         category=CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..9999..',
             '.9.yy.9.',
             '9..xx..9',
@@ -497,11 +475,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.THRUSTERS_ID: PowerCardSpec(
-        id=CardSpecHelpers.THRUSTERS_ID,
+        uid=CardSpecHelpers.THRUSTERS_ID,
         name="Thrusters",
         category=CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..3333..',
             '...33...',
             '...99...',
@@ -514,11 +492,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.NAVIGATION_ID: PowerCardSpec(
-        id=CardSpecHelpers.NAVIGATION_ID,
+        uid=CardSpecHelpers.NAVIGATION_ID,
         name="Navigation",
         category=CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '........',
             '..9.....',
@@ -531,11 +509,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.EXTERNAL_SENSORS_ID: PowerCardSpec(
-        id=CardSpecHelpers.EXTERNAL_SENSORS_ID,
+        uid=CardSpecHelpers.EXTERNAL_SENSORS_ID,
         name="External Sensors",
         category=CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..@@@@..',
             '.@....@.',
             '@......@',
@@ -548,11 +526,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.INTERNAL_SENSORS_ID: PowerCardSpec(
-        id=CardSpecHelpers.INTERNAL_SENSORS_ID,
+        uid=CardSpecHelpers.INTERNAL_SENSORS_ID,
         name="Internal Sensors",
         category=CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '........',
             '...99...',
@@ -565,11 +543,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.LONG_RANGE_COMMS_ID: PowerCardSpec(
-        id=CardSpecHelpers.LONG_RANGE_COMMS_ID,
+        uid=CardSpecHelpers.LONG_RANGE_COMMS_ID,
         name="Long Range Comms",
         category=CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..6996..',
             '.3....3.',
             '........',
@@ -582,11 +560,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.RADIO_COMMUNICATIONS_ID: PowerCardSpec(
-        id=CardSpecHelpers.RADIO_COMMUNICATIONS_ID,
+        uid=CardSpecHelpers.RADIO_COMMUNICATIONS_ID,
         name="Radio Communications",
         category=CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '........',
             '........',
             '........',
@@ -599,11 +577,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.TRANSPORTERS_ID: PowerCardSpec(
-        id=CardSpecHelpers.TRANSPORTERS_ID,
+        uid=CardSpecHelpers.TRANSPORTERS_ID,
         name="Transporters",
         category=CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '...999..',
             '...777..',
             '....5...',
@@ -616,11 +594,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.CO2_SCRUBBERS_ID: PowerCardSpec(
-        id=CardSpecHelpers.CO2_SCRUBBERS_ID,
+        uid=CardSpecHelpers.CO2_SCRUBBERS_ID,
         name="CO2 Scrubbers",
         category=CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '@7@7@7@7',
             '.....9..',
             '........',
@@ -633,11 +611,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.OXYGEN_GENERATORS_ID: PowerCardSpec(
-        id=CardSpecHelpers.OXYGEN_GENERATORS_ID,
+        uid=CardSpecHelpers.OXYGEN_GENERATORS_ID,
         name="Oxygen Generators",
         category=CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '...99...',
             '..9@@9..',
             '.555555.',
@@ -650,11 +628,11 @@ CARD_SPECS = {
 
     ),
     CardSpecHelpers.GRAVITY_FIELD_ID: PowerCardSpec(
-        id=CardSpecHelpers.GRAVITY_FIELD_ID,
+        uid=CardSpecHelpers.GRAVITY_FIELD_ID,
         name="Gravity Field",
         category=CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=CardCategories.CATEGORY_COLORS[CardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        static_string_mask=[
+        string_mask=[
             '..9999..',
             '.9~~~~9.',
             '9~~~~~~9',

@@ -1,29 +1,26 @@
-from coloraide import Color
+import webcolors
+from typing import Self
 
-def css_to_ok(color: Color) -> Color:
-    return color.convert("oklch")
+class Color:
+    def __init__(self, input_color: str | tuple[int, int, int] | Self):
+        if isinstance(input_color, str):
+            rgb = webcolors.hex_to_rgb(input_color)
+            self.R = max(0, min(255, rgb[0]))
+            self.G = max(0, min(255, rgb[1]))
+            self.B = max(0, min(255, rgb[2]))
+        elif isinstance(input_color, tuple):
+            self.R = max(0, min(255, input_color[0]))
+            self.G = max(0, min(255, input_color[1]))
+            self.B = max(0, min(255, input_color[2]))
+        elif isinstance(input_color, Color):
+            self.R = input_color.R
+            self.G = input_color.G
+            self.B = input_color.B 
 
-def ok_to_css(color: Color) -> Color:
-    return color.convert("srgb")
-
-
-def lerp_color(start: Color, end: Color, progress: float) -> Color:
-    lerp_func = Color.interpolate([start, end], space="oklch")
-    return lerp_func(progress)
-
-def steps(start: Color, end: Color, num_steps: int):
-    return Color.steps([start, end], steps=num_steps)
-
-def example():
-    magenta = css_to_ok(Color("#ff00ff"))
-    yellow = css_to_ok(Color("#ffff00"))
-
-    print(f"Interpolation:")
-    for i in range(10):
-        t = i / 9
-        color = lerp_color(magenta, yellow, t)
-        print(f"Step {i:2d} (t={t:.1f}): {ok_to_css(color)}")
-
-    print(f"Steps:")
-    for i, color in enumerate(steps(magenta, yellow, 10)):
-        print(f"Step {i:2d}: {ok_to_css(color)}")
+    def lerp(self, end: Self, progress: float) -> Self:
+        new_color = (
+            int(self.R + (end.R - self.R) * progress),
+            int(self.G + (end.G - self.G) * progress),
+            int(self.B + (end.B - self.B) * progress)
+        )
+        return type(self)(new_color)

@@ -37,7 +37,7 @@ class CardReader:
         return self.lastCard
 
     @property
-    def CardID(self) -> int | None:
+    def CardID(self) -> str | None:
         card = self.CardPresent
         return card.UID if card else None
 
@@ -106,7 +106,7 @@ class CardReaderManagerClass:
     def AllReaders(self) -> list[CardReader]:
         return self._ALL_CARD_READERS
 
-    def ReaderStatus(self) -> list[int]:
+    def ReaderStatus(self) -> list[str]:
         return [
             reader.CardID
             for reader in self._ALL_CARD_READERS

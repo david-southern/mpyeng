@@ -1,8 +1,7 @@
 import time
 import tkinter as tk
 from tkinter import ttk
-from power_cards_presentation_specs import CardSpecHelpers, CardCategories
-from color_utils import ok_to_css
+from power_cards_animation import CardSpecHelpers
 
 PIXEL_SIZE = 50
 GRID_BORDER = 20
@@ -90,27 +89,22 @@ for y in range(CardSpecHelpers.HEIGHT):
 start_time = time.monotonic()
 
 def color_to_hex(color):
-    rgb = ok_to_css(color).to_dict()
-    return "#{:02x}{:02x}{:02x}".format(
-        int(rgb["coords"][0] * 255),
-        int(rgb["coords"][1] * 255),
-        int(rgb["coords"][2] * 255),
-    )
+    return "#{:02x}{:02x}{:02x}".format(color.R, color.G, color.B)
 
 def update_frame():
     elapsed = time.monotonic() - start_time
     progress = (elapsed % animation_duration_s) / animation_duration_s
-    pixels = spec.render_frame(progress)
+    pixels = spec.color_buffer(progress)
 
     for y in range(CardSpecHelpers.HEIGHT):
         for x in range(CardSpecHelpers.WIDTH):
             idx = CardSpecHelpers.xy_to_index(x, y)
-            r, g, b = pixels[idx]
+            r, g, b = pixels[idx].R, pixels[idx].G, pixels[idx].B
             canvas.itemconfig(rect_ids[(x, y)], fill=f"#{r:02x}{g:02x}{b:02x}")
 
     # Update legend swatches using the current spec's colors
     for swatch_canvas, rect_id, mask_char in legend_swatch_ids:
-        colors = CardSpecHelpers.string_mask_to_color_mask(
+        colors = CardSpecHelpers.color_buffer(
             [mask_char], spec.bright_color, spec.dim_color, progress
         )
         swatch_canvas.itemconfig(rect_id, fill=color_to_hex(colors[0]))
@@ -145,8 +139,8 @@ def on_right_click(event):
     popup.tk_popup(event.x_root, event.y_root)
 
 def set_mask_char(x, y, ch):
-    row_str = spec.static_string_mask[y]
-    spec.static_string_mask[y] = row_str[:x] + ch + row_str[x + 1:]
+    row_str = spec.string_mask[y]
+    spec.string_mask[y] = row_str[:x] + ch + row_str[x + 1:]
 
 canvas.bind("<Button-3>", on_right_click)
 root.mainloop()

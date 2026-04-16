@@ -8,7 +8,7 @@ logger.setLevel(
     logging.INFO  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
 )
 
-ENABLE_SLOW_LOG = True
+ENABLE_SLOW_LOG = False
 
 # Running the TM1637 displays when the board is does not have an external +5V supply causes the
 # Arduino to crash erratically. Not sure why, but it definitely happens. Providing the external +5V
@@ -89,10 +89,3 @@ def format_hex(val):
 
 def format_hex_list(listVal, delimiter=", "):
     return delimiter.join(f"{format_hex(val)}" for val in listVal)
-
-def scaledColor(color: tuple[int, int, int], brightness: float) -> tuple[int, int, int]:
-    return (
-        int(color[0] * brightness),
-        int(color[1] * brightness),
-        int(color[2] * brightness),
-    )

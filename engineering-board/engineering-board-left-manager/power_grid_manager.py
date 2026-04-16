@@ -1,9 +1,10 @@
+import random
 import time
 import board
+from color_utils import Color
 from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString, logger
 from power_card_tray import PixelStripManager
 from protocol_resources import LEFT_WING, RIGHT_WING, TRANS1, TRANS2, TRANS3, TRANS4
-from random_grid_generator import RandomGridGenerator
 
 GRID_REFRESH_SECONDS = 0.1
 
@@ -30,17 +31,15 @@ class PowerGrid:
         self.pixelCount = self.__gridSize * self.__gridSize
         self.__pixelIndex = self.__pixelStripManager.ReservePixelRange(self.pixelCount)
 
-        self.__randomGridGenerator = RandomGridGenerator(self.__gridSize)
         self.__nextUpdate = time.monotonic() + GRID_REFRESH_SECONDS
 
     def Update(self):
         SlowLog(f"Updating Power Card Tray {self.UID} state")
-        self.__randomGridGenerator.UpdateGridState()
 
         self.__pixelStripManager.SetPixelData(
             self.__pixelIndex,
             self.pixelCount - 1,
-            self.__randomGridGenerator.PixelColors,
+            [Color((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))).to_neopixel() for pixIndex in range(self.pixelCount - 1)],
         )
         
         simTime = time.monotonic()
@@ -179,7 +178,7 @@ class PowerGridManagerClass:
 
     def UpdateGridState(self):
         for grid in self._ALL_POWER_GRIDS:
-            grid.UpdateGridState()
+            grid.Update()
 
     def SetGridMaxLevel(self, gridIndex: int, maxLevel: int):
         if not ENABLE_POWER_GRID:

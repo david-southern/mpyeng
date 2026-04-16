@@ -1,83 +1,108 @@
 from __future__ import annotations
+import random
+from color_utils import Color
+from power_card_animation import CardAnimationHelpers
+from power_card_ids import PowerCardIds
+from power_card_tray import BLACK
 
-_ALL_POWER_CARDS: list[PowerCard]
 CARD_VOLTAGE_THRESHOLD = 0.05
 
-
 class PowerCard:
+    __ALL_POWER_CARDS = []
+
+    @classmethod
+    def GetAllPowerCards(cls) -> list[PowerCard]:
+        return PowerCard.__ALL_POWER_CARDS
+
     @classmethod
     def FindCard(cls, cardVoltage) -> PowerCard | None:
-        if _ALL_POWER_CARDS is None:
-            InitializePowerCards()
-
         matchingCards = [
-            card for card in _ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)
+            card for card in PowerCard.__ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)
         ]
         return matchingCards[0] if len(matchingCards) > 0 else None
 
-    def __init__(self, uid, cardVoltage, requiredPower, cardName=None):
-        duplicates = [card for card in _ALL_POWER_CARDS if card.UID == uid]
+    @classmethod
+    def RandomCard(cls) -> PowerCard | None:
+        return PowerCard.__ALL_POWER_CARDS[random.randint(0, len(PowerCard.__ALL_POWER_CARDS) - 1)]
+
+    def __init__(self, cardId:str, cardVoltage:float, requiredPower:int):
+        if not PowerCardIds.validate_id(cardId):
+            raise Exception(
+                f"PowerCard: unknown card_id: {cardId}"
+            )
+
+        self.__cardAnimation = CardAnimationHelpers.getCardAnimation(cardId)
+
+        if not self.__cardAnimation:
+            raise Exception(
+                f"PowerCard({cardId}): no animation found for card id {cardId}"
+            )
+
+        self.__cardId = cardId
+        self.__cardName =self.__cardAnimation.name
+        
+        duplicates = [card for card in PowerCard.__ALL_POWER_CARDS if card.UID == cardId]
 
         if len(duplicates) > 0:
             raise Exception(
-                f"PowerCard({uid}/{cardName}): duplicate UID with card {duplicates[0].UID}/{duplicates[0].CardName}"
+                f"PowerCard({cardId}/{self.__cardName}): duplicate UID with card {duplicates[0].UID}/{duplicates[0].CardName}"
             )
 
-        self.uid = int(uid)
-        self.voltage = cardVoltage
-        self.requiredPower = int(requiredPower)
-        self.cardName = cardName if cardName else f"C{uid:02d}"
+        self.__voltage = cardVoltage
+        self.__requiredPower = int(requiredPower)
 
     @property
-    def UID(self) -> int:
-        return self.uid
+    def UID(self) -> str:
+        return self.__cardId
 
     @property
     def CardName(self) -> str:
-        return self.cardName
+        return self.__cardName
+
+    @property
+    def CardAnimation(self):
+        return self.__cardAnimation
 
     @property
     def RequiredPower(self):
-        return self.requiredPower
+        return self.__requiredPower
 
     def VoltageMatches(self, cardVoltage) -> bool:
-        return abs(self.voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
+        return abs(self.__voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
 
+    def PixelBuffer(self, animationProgress: float) -> list[Color]:
+        if self.__cardAnimation is not None:
+            return self.__cardAnimation.PixelBuffer(animationProgress)
+        else:
+            return [BLACK] * CardAnimationHelpers.CARD_PIXEL_COUNT
+        
     def __str__(self):
-        return f"{self.UID}/{self.CardName}({self.voltage:.2f}V)"
+        return f"{self.UID}/{self.CardName}({self.__voltage:.2f}V)"
 
 
-def InitializePowerCards():
-    global _ALL_POWER_CARDS
-    _ALL_POWER_CARDS = []
-    _ALL_POWER_CARDS.append(PowerCard(1, 0.10, 50))
-    _ALL_POWER_CARDS.append(PowerCard(2, 0.20, 80))
-    _ALL_POWER_CARDS.append(PowerCard(3, 0.30, 50))
-    _ALL_POWER_CARDS.append(PowerCard(4, 0.40, 40))
-    _ALL_POWER_CARDS.append(PowerCard(5, 0.50, 90))
-    _ALL_POWER_CARDS.append(PowerCard(6, 0.60, 10))
-    _ALL_POWER_CARDS.append(PowerCard(7, 0.70, 10))
-    _ALL_POWER_CARDS.append(PowerCard(8, 0.80, 60))
-    _ALL_POWER_CARDS.append(PowerCard(9, 0.90, 30))
-    _ALL_POWER_CARDS.append(PowerCard(10, 1.00, 30))
-    _ALL_POWER_CARDS.append(PowerCard(11, 1.10, 30))
-    _ALL_POWER_CARDS.append(PowerCard(12, 1.20, 60))
-    _ALL_POWER_CARDS.append(PowerCard(13, 1.30, 70))
-    _ALL_POWER_CARDS.append(PowerCard(14, 1.40, 70))
-    _ALL_POWER_CARDS.append(PowerCard(15, 1.50, 50))
-    _ALL_POWER_CARDS.append(PowerCard(16, 1.60, 50))
-    _ALL_POWER_CARDS.append(PowerCard(17, 1.70, 40))
-    _ALL_POWER_CARDS.append(PowerCard(18, 1.80, 90))
-    _ALL_POWER_CARDS.append(PowerCard(19, 1.90, 40))
-    _ALL_POWER_CARDS.append(PowerCard(20, 2.00, 50))
-    _ALL_POWER_CARDS.append(PowerCard(21, 2.10, 80))
-    _ALL_POWER_CARDS.append(PowerCard(22, 2.20, 80))
-    _ALL_POWER_CARDS.append(PowerCard(23, 2.30, 40))
-    _ALL_POWER_CARDS.append(PowerCard(24, 2.40, 30))
-    _ALL_POWER_CARDS.append(PowerCard(25, 2.50, 20))
-    _ALL_POWER_CARDS.append(PowerCard(26, 2.60, 20))
-    _ALL_POWER_CARDS.append(PowerCard(27, 2.70, 20))
-    _ALL_POWER_CARDS.append(PowerCard(28, 2.80, 70))
-    _ALL_POWER_CARDS.append(PowerCard(29, 2.90, 60))
-    _ALL_POWER_CARDS.append(PowerCard(30, 3.00, 20))
-    _ALL_POWER_CARDS.append(PowerCard(31, 3.10, 70))
+
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FUSION_ENGINES_ID, 0.10, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.WARP_FIELD_ID, 0.20, 80))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.MAIN_COMPUTER_ID, 0.30, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FORE_SHIELDS_ID, 0.40, 40))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.AFT_SHIELDS_ID, 0.50, 90))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.PORT_SHIELDS_ID, 0.60, 10))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.STARBOARD_SHIELDS_ID, 0.70, 10))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.DORSAL_SHIELDS_ID, 0.80, 60))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.VENTRAL_SHIELDS_ID, 0.90, 30))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.LASER_CANNON_ID, 1.00, 30))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TRACTOR_BEAM_ID, 1.10, 30))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.STEALTH_FIELDS_ID, 1.20, 60))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TARGETING_ID, 1.30, 70))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.SIGNAL_JAMMER_ID, 1.40, 70))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.ALCUBIERRE_WARP_DRIVE_ID, 1.50, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.THRUSTERS_ID, 1.60, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.NAVIGATION_ID, 1.70, 40))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.EXTERNAL_SENSORS_ID, 1.80, 90))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.INTERNAL_SENSORS_ID, 1.90, 40))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.LONG_RANGE_COMMS_ID, 2.00, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.RADIO_COMMUNICATIONS_ID, 2.10, 80))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TRANSPORTERS_ID, 2.20, 80))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.CO2_SCRUBBERS_ID, 2.30, 40))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.OXYGEN_GENERATORS_ID, 2.40, 30))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.GRAVITY_FIELD_ID, 2.50, 20))
