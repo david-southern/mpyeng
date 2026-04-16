@@ -2,11 +2,14 @@
 # managing the various components of the client, including the USB serial
 # connection to receive commands from the server
 
+from profiling import log_free_ram
+log_free_ram("power-on")
+
 from power_card_tray import RightPixelStrip, TestPowerCardTrays
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import check_timer, register_timer, logger
-from profiling import register_profile, start_profile, stop_profile, report_all_profiles, log_free_ram
+from profiling import register_profile, start_profile, stop_profile, report_all_profiles
 from fake_data_manager import FakeDataManager
 
 from power_grid_manager import LeftPixelStrip, PowerGridManager
@@ -19,8 +22,6 @@ from switchboard_manager import SwitchboardManager
 ENABLE_HEARTBEAT_LOGGING = False
 
 logger.info("Initializing USB Client")
-
-log_free_ram("power-on")
 
 # Only check the serial line this often so we don't use up all the client's cycles
 SERIAL_READ_FREQUENCY_SEC = 0.01
