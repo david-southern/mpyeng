@@ -122,7 +122,7 @@ class PowerCardTray:
                     pixel_buffer = [0] * PIXEL_CARD_TRAY_GRID_LEDS
                 else:
                     cardAnimation = self.CurrentPowerCard.CardAnimation
-                    animationProgress = (time.monotonic() - self.__currentCardChangedTime) % cardAnimation.animation_duration
+                    animationProgress = ((time.monotonic() - self.__currentCardChangedTime) % cardAnimation.animation_duration) / cardAnimation.animation_duration
 
                     pixel_buffer = self.CurrentPowerCard.PixelBuffer(animationProgress, TRAY_BRIGHTNESS)
 

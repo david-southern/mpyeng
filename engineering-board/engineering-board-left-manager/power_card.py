@@ -78,9 +78,9 @@ class PowerCard:
         return f"{self.UID}/{self.CardName}({self.__voltage:.2f}V)"
 
 
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.WARP_FIELD_ID, 0.20, 80))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FUSION_ENGINES_ID, 0.10, 50))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TRANSPORTERS_ID, 2.20, 80))
-PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.WARP_FIELD_ID, 0.20, 80))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.MAIN_COMPUTER_ID, 0.30, 50))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FORE_SHIELDS_ID, 0.40, 40))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.AFT_SHIELDS_ID, 0.50, 90))

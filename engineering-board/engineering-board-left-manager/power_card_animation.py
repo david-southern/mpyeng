@@ -48,10 +48,9 @@ class CardAnimationHelpers:
     #   '<' = fade in (black → bright over the cycle)
     #   '*' = lightning (random flicker, biased toward bright)
     #   '0'-'9' = static brightness (digit/9 interpolation from dim to bright)
-    #   'a'-'z' = delay (black → bright over a delay fraction of the cycle)
 
     ANIMATED_MASK_CHARS = frozenset('~@%><*')
-    DEFAULT_ANIMATION_DURATION = 3.0
+    DEFAULT_ANIMATION_DURATION = 1.0
 
     # Pre-computed cosine LUT for wave animation (64 entries, 0-256 scale)
     __COS_LUT_SIZE = 64
@@ -145,8 +144,73 @@ class CardAnimationHelpers:
 
 class PowerCardAnimation:
     DIM_BRIGHTNESS = 0.25
-    
-    def __init__(self, uid: str, name: str, category: str, bright_color: Color, pixel_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION, color_mask: list[str] | None = None):
+
+    # -------------------------------------------------------------------------
+    # Animation Definition Guide
+    # -------------------------------------------------------------------------
+    #
+    # Each animation is defined by up to three parallel 8×8 character grids,
+    # all the same shape as each other:
+    #
+    #   pixel_mask   — required — what each pixel does each frame
+    #   color_mask   — optional — per-pixel color category override
+    #   frame_mask   — optional — which frames each pixel is visible in
+    #
+    # ----- pixel_mask characters -----
+    #   '.' = always black (off)
+    #   '~' = smooth wave  (cosine ping-pong, dim → bright → dim)
+    #   '@' = random brightness (different random level each frame)
+    #   '%' = random color      (random hue each frame, biased toward black)
+    #   '>' = fade out          (bright → black across the full cycle)
+    #   '<' = fade in           (black → bright across the full cycle)
+    #   '*' = lightning         (random flicker, strongly biased toward bright)
+    #   '0'–'9' = fixed brightness (0 = dim, 9 = bright)
+    #
+    # ----- color_mask characters -----
+    #   '.' = own category color (default)
+    #   'P' = Power Systems  (green)     'D' = Defensive  (blue)
+    #   'W' = Weapons        (red)       'R' = Propulsion (orange)
+    #   'I' = Information    (purple)    'U' = Utility    (beige)
+    #   '?' = random color palette
+    #
+    # ----- frame_mask cells -----
+    # frame_mask is a list[list[str]] — same 8 rows × 8 columns as pixel_mask,
+    # but each cell is a STRING OF DIGIT CHARACTERS ('0'–'9') that lists the
+    # frame indices on which that pixel is visible.  A pixel that is not
+    # scheduled for a given frame renders black regardless of pixel_mask.
+    #
+    #   '.'      — visible in all frames (default)
+    #   '0'      — visible only on frame 0
+    #   '024'    — visible on frames 0, 2, and 4 (even frames)
+    #   '13579'  — visible on frames 1, 3, 5, 7, 9 (odd frames)
+    #   '012'    — visible on frames 0, 1, and 2 only
+    #
+    # Frame count is determined automatically:
+    #   • 10  if any animated pixel_mask char is present (~, @, %, >, <, *)
+    #   • Otherwise: (highest digit found anywhere in frame_mask) + 1
+    #   • Minimum: 1 (fully static, no frame_mask)
+    #
+    # Example — two pixel groups that alternate on every frame (2 frames total):
+    #
+    #   pixel_mask=[                  frame_mask=[
+    #       '9999....',                   ['0','0','0','0','.','.','.','.'],
+    #       '....9999',                   ['.','.','.','.',  '1','1','1','1'],
+    #       '9999....',                   ['0','0','0','0','.','.','.','.'],
+    #       '....9999',                   ['.','.','.','.',  '1','1','1','1'],
+    #       ...                           ...
+    #   ],                            ],
+    #
+    # Example — 4 groups lighting up in sequence (frames 0→1→2→3):
+    #
+    #   pixel_mask=[                  frame_mask=[
+    #       '99999999',                   ['0','0','0','0','1','1','1','1'],
+    #       '99999999',                   ['2','2','2','2','3','3','3','3'],
+    #       ...                           ...
+    #   ],                            ],
+    #
+    # -------------------------------------------------------------------------
+
+    def __init__(self, uid: str, name: str, category: str, bright_color: Color, pixel_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION, color_mask: list[str] | None = None, frame_mask: list[list[str]] | None = None):
         self.id = uid
         self.name = name
         self.category = category
@@ -154,6 +218,7 @@ class PowerCardAnimation:
         self.dim_color = dim_color if dim_color else bright_color.copy().scale(PowerCardAnimation.DIM_BRIGHTNESS)
         self.pixel_mask = pixel_mask
         self.color_mask = color_mask
+        self.frame_mask = frame_mask
         self.animation_duration = animation_duration
 
         # Register category for shared palette generation
@@ -182,16 +247,37 @@ class PowerCardAnimation:
                         idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
                         self.__pixel_offsets[idx] = cat_offsets[color_mask_chars[cm_ch]]
 
-        # Determine frame count: 1 for fully static masks, 10 for animated
-        has_animated = False
-        for row in pixel_mask:
-            for ch in row:
-                if ch in CardAnimationHelpers.ANIMATED_MASK_CHARS or ('a' <= ch <= 'z'):
-                    has_animated = True
-                    break
-            if has_animated:
-                break
+        # Determine frame count: 10 if any animated char present; otherwise
+        # extend to cover the highest frame index found in frame_mask.
+        has_animated = any(ch in CardAnimationHelpers.ANIMATED_MASK_CHARS for row in pixel_mask for ch in row)
         num_frames = 10 if has_animated else 1
+        if frame_mask:
+            for _fm_row in frame_mask:
+                for _cell in _fm_row:
+                    for _ch in _cell:
+                        if '0' <= _ch <= '9':
+                            _f = int(_ch) + 1
+                            if _f > num_frames:
+                                num_frames = _f
+
+        # Pre-compute per-pixel active-frame bitmasks from frame_mask.
+        # frame_active_masks[pixel_idx] is a bitmask: bit i set = pixel visible
+        # in frame i.  (1 << num_frames) - 1 means active in every frame.
+        _all_active = (1 << num_frames) - 1
+        frame_active_masks: list[int] = [_all_active] * (mask_w * mask_h)
+        if frame_mask:
+            for y in range(mask_h):
+                for x in range(mask_w):
+                    cell = frame_mask[y][x]
+                    if cell == '.':
+                        continue
+                    idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                    bitmask = 0
+                    for ch in cell:
+                        if '0' <= ch <= '9':
+                            bitmask |= (1 << int(ch))
+                    frame_active_masks[idx] = bitmask
+        self.__frame_active_masks: list[int] = frame_active_masks
 
         # Bake frame bytes (each is 64 bytes in serpentine pixel order)
         # Byte values are direct indices into the global LUT
@@ -226,6 +312,8 @@ class PowerCardAnimation:
         _randint = random.randint
         _i2pi = PowerCardAnimation.__intensity_to_palette_index
         pixel_offsets = self.__pixel_offsets
+        frame_active = self.__frame_active_masks
+        frame_bit = 1 << frame_index
         rp_offset = CardAnimationHelpers.RANDOM_PALETTE_OFFSET
         black = CardAnimationHelpers.BLACK_BYTE
 
@@ -235,6 +323,8 @@ class PowerCardAnimation:
                 if ch == '.':
                     continue  # stays BLACK_BYTE (0)
                 idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                if not (frame_active[idx] & frame_bit):
+                    continue  # pixel off in this frame, stays BLACK_BYTE
                 offset = pixel_offsets[idx]
                 if ch == '~':
                     frame[idx] = offset + wave_pal_idx
@@ -254,15 +344,10 @@ class PowerCardAnimation:
                     if _random() < 0.75:
                         frame[idx] = offset + 25  # brightest
                     # else stays BLACK_BYTE
-                elif 'a' <= ch <= 'z':
-                    delay_fraction = (ord(ch) - 97) / 25
-                    if delay_fraction <= 0 or cycle_progress >= delay_fraction:
-                        frame[idx] = offset + 25  # brightest
-                    else:
-                        pi = _i2pi(cycle_progress / delay_fraction)
-                        frame[idx] = (offset + pi) if pi >= 0 else black
                 elif '0' <= ch <= '9':
                     frame[idx] = offset + min(25, int((ord(ch) - 48) / 9 * 25))
+                else:
+                    frame[idx] = offset + 25  # unrecognised char = max brightness
 
         return bytes(frame)
 
@@ -306,25 +391,36 @@ CARD_ANIMATION_DEFS = {
         name="Fusion Engines",
         category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
+        animation_duration=2.0,
         pixel_mask=[
-            '........',
+            '2......2',
             '.2....2.',
             '..2..2..',
-            '...44...',
-            '...77...',
             '...99...',
             '...99...',
-            '........',
+            '...55...',
+            '...55...',
+            '...55...',
         ],
         color_mask=[
-            '........',
+            'P......P',
             '.P....P.',
             '..P..P..',
-            '...PP...',
-            '...PP...',
-            '...PP...',
-            '...PP...',
-            '........',
+            '...WW...',
+            '...WW...',
+            '...DD...',
+            '...DD...',
+            '...DD...',
+        ],
+        frame_mask=[
+            ['0', '.', '.', '.', '.', '.', '.', '0'],
+            ['.', '1', '.', '.', '.', '.', '1', '.'],
+            ['.', '.', '2', '.', '.', '2', '.', '.'],
+            ['.', '.', '.', '34', '34', '.', '.', '.'],
+            ['.', '.', '.', '345', '345', '.', '.', '.'],
+            ['.', '.', '.', '56', '56', '.', '.', '.'],
+            ['.', '.', '.', '67', '67', '.', '.', '.'],
+            ['.', '.', '.', '78', '78', '.', '.', '.'],
         ],
 
     ),
@@ -888,8 +984,8 @@ CARD_ANIMATION_DEFS = {
             '....W...',
             '.UWWWWWU',
             '....W...',
-            '...U.U..',
-            '..U...U.',
+            '...D.D..',
+            '..D...D.',
             '..U...U.',
         ],
 
