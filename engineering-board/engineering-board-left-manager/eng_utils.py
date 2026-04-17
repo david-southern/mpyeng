@@ -114,3 +114,10 @@ def format_hex(val):
 
 def format_hex_list(listVal, delimiter=", "):
     return delimiter.join(f"{format_hex(val)}" for val in listVal)
+
+
+def _xy_to_index(x: int, y: int, width: int = 8, height: int = 8) -> int:
+    """ Convert an x, y grid coordinate the the Serpentine layout with y-flip that our NeoPixel
+    grids use."""
+    y = height - 1 - y
+    return y * width + (x if y % 2 == 0 else (width - 1 - x))

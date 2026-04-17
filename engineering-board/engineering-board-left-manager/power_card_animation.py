@@ -1,95 +1,100 @@
-import math
-import random
-
-from color_utils import Color
-from power_card_categories import PowerCardCategories
 from power_card_ids import PowerCardIds
 
 class CardAnimationHelpers:
     WIDTH = 8
     HEIGHT = 8
     CARD_PIXEL_COUNT = WIDTH * HEIGHT
-    PALETTE_SIZE = 26
+    PALETTE_SIZE = 20
 
-    # Global LUT layout (256 bytes):
-    #   Byte 0 = black
-    #   Bytes 1-26   = category 0 palette (dim→bright, 26 levels)
-    #   Bytes 27-52  = category 1 palette
-    #   ...up to 6 categories (bytes 1-156)
-    #   Bytes 157-182 = random color palette (26 entries)
-    #   Bytes 183-255 = reserved
-    BLACK_BYTE = 0
-    RANDOM_PALETTE_OFFSET = 157
+    # Global LUT layout (256 entries):
+    #   Bytes   0–19:  Grey ramp (0 = black, 19 = bright white)
+    #   Bytes  20–39:  Weapons Systems    (red    #FF2814)
+    #   Bytes  40–59:  Propulsion Systems (orange #FF9600)
+    #   Bytes  60–79:  Utility Systems    (beige  #E8B998)
+    #   Bytes  80–99:  Yellow Systems     (yellow #FFE000)  — new
+    #   Bytes 100–119: Power Systems      (green  #00B428)
+    #   Bytes 120–139: Teal Systems       (teal   #00C8B4)  — new
+    #   Bytes 140–159: Defensive Systems  (blue   #005AFF)
+    #   Bytes 160–179: Information Systems (purple #8C28FF)
+    #   Bytes 180–229: Spectrum hues — deterministic HSV 0°–352.8° in 7.2° steps
+    #   Bytes 230–249: Special spots (see constants below)
+    #   Bytes 250–255: Reserved (black / TBD)
+    GREY_OFFSET = 0
+    WEAPONS_OFFSET = 20
+    PROPULSION_OFFSET = 40
+    UTILITY_OFFSET = 60
+    YELLOW_OFFSET = 80
+    POWER_OFFSET = 100
+    TEAL_OFFSET = 120
+    DEFENSIVE_OFFSET = 140
+    INFORMATION_OFFSET = 160
+    SPECTRUM_OFFSET = 180
+    SPECTRUM_COUNT = 50
+    SPECIAL_OFFSET = 230
 
-    POWER_SYSTEMS_COLOR = Color("#00B428")
-    DEFENSIVE_SYSTEMS_COLOR = Color("#005AFF")
-    WEAPONS_SYSTEMS_COLOR = Color("#FF2814")
-    PROPULSION_SYSTEMS_COLOR = Color("#FF9600")
-    INFORMATION_SYSTEMS_COLOR = Color("#8C28FF")
-    UTILITY_SYSTEMS_COLOR = Color("#E8B998")
-    
-    # Color mask characters for cross-category pixels:
-    # * '.' in color_mask = own category (default)
-    # * 'P'= Power (green)
-    # * 'D'= Defensive (blue)
-    # * 'W'= Weapons (red)
-    # * 'R'= Propulsion (orange)
-    # * 'I'= Information (purple)
-    # * 'U'= Utility (beige)
-    #   '?'=random palette
-    COLOR_MASK_CHARS: dict = {}  # char -> category_name (populated by register)
+    # Special spot color constants (indices 230–249):
+    # Alerts (230–234):
+    ALERT_RED = 230
+    WARNING_ORANGE = 231
+    CAUTION_YELLOW = 232
+    READY_GREEN = 233
+    BRIGHT_WHITE = 234
+    # Sci-fi accents (235–239):
+    SCIFI_CYAN = 235
+    ELECTRIC_BLUE = 236
+    SCIFI_TEAL = 237
+    HOT_PINK = 238
+    MAGENTA = 239
+    # Warm accents (240–244):
+    GOLD = 240
+    DEEP_ORANGE = 241
+    CORAL = 242
+    PEACH = 243
+    DEEP_CRIMSON = 244
+    # Neutrals (245–249):
+    SILVER = 245
+    WARM_GREY = 246
+    STEEL_BLUE = 247
+    SLATE = 248
+    ICE_BLUE = 249
 
-    # Original mask character types (resolved during frame baking):
-    #   '.' = black
-    #   '~' = wave (smooth ping-pong between bright and dim)
-    #   '@' = random brightness (random category palette entry each frame)
-    #   '%' = random color (random entry from shared random palette, biased toward black)
-    #   '>' = fade out (bright → black over the cycle)
-    #   '<' = fade in (black → bright over the cycle)
-    #   '*' = lightning (random flicker, biased toward bright)
-    #   '0'-'9' = static brightness (digit/9 interpolation from dim to bright)
-
-    ANIMATED_MASK_CHARS = frozenset('~@%><*')
     DEFAULT_ANIMATION_DURATION = 1.0
 
-    # Pre-computed cosine LUT for wave animation (64 entries, 0-256 scale)
-    __COS_LUT_SIZE = 64
-    __COS_LUT = [int(128 - 128 * math.cos(i * 2 * math.pi / 64)) for i in range(64)]
-
     # Shared render buffer (single pre-allocated list, reused every frame)
-    __render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
+    _render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
 
     # Palette / LUT caches (regenerated when brightness changes)
-    __global_lut: list[int] = [0] * 256
+    _global_lut: list[int] = [0] * 256
     __palette_brightness: float = -1.0
-    __category_color_defs: dict = {}    # category_name -> (bright_Color, dim_Color)
-    __category_offsets: dict = {}       # category_name -> int (byte offset into global LUT)
-    __next_category_offset: int = 1     # next available byte offset (0 reserved for black)
-
-    @classmethod
-    def register_category_colors(cls, category: str, bright_color: Color, dim_color: Color, color_mask_char: str = ''):
-        if category not in cls.__category_color_defs:
-            cls.__category_color_defs[category] = (bright_color, dim_color)
-            cls.__category_offsets[category] = cls.__next_category_offset
-            cls.__next_category_offset += cls.PALETTE_SIZE
-            if color_mask_char:
-                cls.COLOR_MASK_CHARS[color_mask_char] = category
-
-    @classmethod
-    def get_category_offset(cls, category: str) -> int:
-        return cls.__category_offsets[category]
 
     @classmethod
     def __regenerate_palettes(cls, brightness: float):
         ps = cls.PALETTE_SIZE
         ps_1 = ps - 1
-        lut = cls.__global_lut
-        lut[0] = 0  # black
+        lut = cls._global_lut
 
-        for cat_name, (bright, dim) in cls.__category_color_defs.items():
-            offset = cls.__category_offsets[cat_name]
-            br, bg, bb = bright.R, bright.G, bright.B
-            dr, dg, db = dim.R, dim.G, dim.B
+        # Grey ramp (0–19): index 0 = black, index 19 = bright white
+        for i in range(ps):
+            v = int(i / ps_1 * 255 * brightness)
+            lut[i] = (v << 16) | (v << 8) | v
+
+        # Color categories — 8 blocks of 20, each lerped dim→bright × brightness.
+        # Order matches palette layout: Weapons, Propulsion, Utility, Yellow, Power,
+        # Teal, Defensive, Information.
+        dim_factor = 0.25
+        for offset, (br, bg, bb) in [
+            (cls.WEAPONS_OFFSET,     (0xFF, 0x28, 0x14)),
+            (cls.PROPULSION_OFFSET,  (0xFF, 0x96, 0x00)),
+            (cls.UTILITY_OFFSET,     (0xE8, 0xB9, 0x98)),
+            (cls.YELLOW_OFFSET,      (0xFF, 0xE0, 0x00)),
+            (cls.POWER_OFFSET,       (0x00, 0xB4, 0x28)),
+            (cls.TEAL_OFFSET,        (0x00, 0xC8, 0xB4)),
+            (cls.DEFENSIVE_OFFSET,   (0x00, 0x5A, 0xFF)),
+            (cls.INFORMATION_OFFSET, (0x8C, 0x28, 0xFF)),
+        ]:
+            dr = int(br * dim_factor)
+            dg = int(bg * dim_factor)
+            db = int(bb * dim_factor)
             for i in range(ps):
                 t = i / ps_1
                 r = int((dr + (br - dr) * t) * brightness)
@@ -97,12 +102,64 @@ class CardAnimationHelpers:
                 b = int((db + (bb - db) * t) * brightness)
                 lut[offset + i] = (r << 16) | (g << 8) | b
 
-        rp_offset = cls.RANDOM_PALETTE_OFFSET
-        for i in range(ps):
-            r = int(random.random() * 255 * brightness)
-            g = int(random.random() * 255 * brightness)
-            b = int(random.random() * 255 * brightness)
-            lut[rp_offset + i] = (r << 16) | (g << 8) | b
+        # Spectrum hues (180–229): 50 deterministic HSV entries, full S+V, scaled by
+        # brightness. Manual HSV→RGB — colorsys is not available on CircuitPython.
+        sp_offset = cls.SPECTRUM_OFFSET
+        v_val = int(255 * brightness)
+        for i in range(cls.SPECTRUM_COUNT):
+            hue = i / cls.SPECTRUM_COUNT
+            h6 = hue * 6.0
+            sector = int(h6)
+            frac = h6 - sector
+            q = int((1.0 - frac) * 255 * brightness)
+            t_val = int(frac * 255 * brightness)
+            if sector == 0:
+                r, g, b = v_val, t_val, 0
+            elif sector == 1:
+                r, g, b = q, v_val, 0
+            elif sector == 2:
+                r, g, b = 0, v_val, t_val
+            elif sector == 3:
+                r, g, b = 0, q, v_val
+            elif sector == 4:
+                r, g, b = t_val, 0, v_val
+            else:
+                r, g, b = v_val, 0, q
+            lut[sp_offset + i] = (r << 16) | (g << 8) | b
+
+        # Special spots (230–249): pre-defined RGB values × brightness
+        _b = brightness
+        for index, (r, g, b) in [
+            # Alerts (230–234):
+            (cls.ALERT_RED,      (255,  40,  20)),
+            (cls.WARNING_ORANGE, (255, 140,   0)),
+            (cls.CAUTION_YELLOW, (255, 220,   0)),
+            (cls.READY_GREEN,    ( 40, 220,  40)),
+            (cls.BRIGHT_WHITE,   (255, 255, 255)),
+            # Sci-fi accents (235–239):
+            (cls.SCIFI_CYAN,     (  0, 240, 220)),
+            (cls.ELECTRIC_BLUE,  ( 50, 100, 255)),
+            (cls.SCIFI_TEAL,     (  0, 180, 160)),
+            (cls.HOT_PINK,       (255,  20, 140)),
+            (cls.MAGENTA,        (220,   0, 200)),
+            # Warm accents (240–244):
+            (cls.GOLD,           (255, 200,   0)),
+            (cls.DEEP_ORANGE,    (255,  70,   0)),
+            (cls.CORAL,          (255, 110,  80)),
+            (cls.PEACH,          (255, 180, 140)),
+            (cls.DEEP_CRIMSON,   (160,   0,  40)),
+            # Neutrals (245–249):
+            (cls.SILVER,         (200, 200, 210)),
+            (cls.WARM_GREY,      (180, 160, 140)),
+            (cls.STEEL_BLUE,     ( 70, 110, 150)),
+            (cls.SLATE,          ( 90, 100, 120)),
+            (cls.ICE_BLUE,       (180, 220, 255)),
+        ]:
+            lut[index] = (int(r * _b) << 16) | (int(g * _b) << 8) | int(b * _b)
+
+        # TBD entries (250–255): black
+        for i in range(250, 256):
+            lut[i] = 0
 
         cls.__palette_brightness = brightness
 
@@ -115,241 +172,19 @@ class CardAnimationHelpers:
     def getCardAnimation(cls, spec_id: str):
         return CARD_ANIMATION_DEFS[spec_id]
 
-    @classmethod
-    def xy_to_index(cls, x, y, flip_y = True, width=None, height=None, layout="serpentine"):
-        """Map x,y to a NeoPixel index.
-
-        layout options:
-          - "row-major": rows laid out left->right, top->bottom
-          - "serpentine": even rows left->right, odd rows right->left
-          - "column-major": columns laid out top->bottom, left->right
-
-        flip_y: will flip the y axis (so y=0 is the bottom row instead of the top) - our card
-          masks are laid out with y=0 at the top, but our NeoPixel grids have y=0 at the bottom, so this
-          makes it easy to convert between them.
-        """
-        if width is None: width = cls.WIDTH
-        if height is None: height = cls.HEIGHT
-
-        if(flip_y): y = height - 1 - y
-        
-        if layout == "row-major":
-            return y * width + x
-        if layout == "serpentine":
-            return y * width + (x if y % 2 == 0 else (width - 1 - x))
-        if layout == "column-major":
-            return x * height + y
-        raise ValueError("Unknown layout: {}".format(layout))
-
 
 class PowerCardAnimation:
-    DIM_BRIGHTNESS = 0.25
-
-    # -------------------------------------------------------------------------
-    # Animation Definition Guide
-    # -------------------------------------------------------------------------
-    #
-    # Each animation is defined by up to three parallel 8×8 character grids,
-    # all the same shape as each other:
-    #
-    #   pixel_mask   — required — what each pixel does each frame
-    #   color_mask   — optional — per-pixel color category override
-    #   frame_mask   — optional — which frames each pixel is visible in
-    #
-    # ----- pixel_mask characters -----
-    #   '.' = always black (off)
-    #   '~' = smooth wave  (cosine ping-pong, dim → bright → dim)
-    #   '@' = random brightness (different random level each frame)
-    #   '%' = random color      (random hue each frame, biased toward black)
-    #   '>' = fade out          (bright → black across the full cycle)
-    #   '<' = fade in           (black → bright across the full cycle)
-    #   '*' = lightning         (random flicker, strongly biased toward bright)
-    #   '0'–'9' = fixed brightness (0 = dim, 9 = bright)
-    #
-    # ----- color_mask characters -----
-    #   '.' = own category color (default)
-    #   'P' = Power Systems  (green)     'D' = Defensive  (blue)
-    #   'W' = Weapons        (red)       'R' = Propulsion (orange)
-    #   'I' = Information    (purple)    'U' = Utility    (beige)
-    #   '?' = random color palette
-    #
-    # ----- frame_mask cells -----
-    # frame_mask is a list[list[str]] — same 8 rows × 8 columns as pixel_mask,
-    # but each cell is a STRING OF DIGIT CHARACTERS ('0'–'9') that lists the
-    # frame indices on which that pixel is visible.  A pixel that is not
-    # scheduled for a given frame renders black regardless of pixel_mask.
-    #
-    #   '.'      — visible in all frames (default)
-    #   '0'      — visible only on frame 0
-    #   '024'    — visible on frames 0, 2, and 4 (even frames)
-    #   '13579'  — visible on frames 1, 3, 5, 7, 9 (odd frames)
-    #   '012'    — visible on frames 0, 1, and 2 only
-    #
-    # Frame count is determined automatically:
-    #   • 10  if any animated pixel_mask char is present (~, @, %, >, <, *)
-    #   • Otherwise: (highest digit found anywhere in frame_mask) + 1
-    #   • Minimum: 1 (fully static, no frame_mask)
-    #
-    # Example — two pixel groups that alternate on every frame (2 frames total):
-    #
-    #   pixel_mask=[                  frame_mask=[
-    #       '9999....',                   ['0','0','0','0','.','.','.','.'],
-    #       '....9999',                   ['.','.','.','.',  '1','1','1','1'],
-    #       '9999....',                   ['0','0','0','0','.','.','.','.'],
-    #       '....9999',                   ['.','.','.','.',  '1','1','1','1'],
-    #       ...                           ...
-    #   ],                            ],
-    #
-    # Example — 4 groups lighting up in sequence (frames 0→1→2→3):
-    #
-    #   pixel_mask=[                  frame_mask=[
-    #       '99999999',                   ['0','0','0','0','1','1','1','1'],
-    #       '99999999',                   ['2','2','2','2','3','3','3','3'],
-    #       ...                           ...
-    #   ],                            ],
-    #
-    # -------------------------------------------------------------------------
-
-    def __init__(self, uid: str, name: str, category: str, bright_color: Color, pixel_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION, color_mask: list[str] | None = None, frame_mask: list[list[str]] | None = None):
+    def __init__(
+        self,
+        uid: str,
+        name: str,
+        frames: list[bytes],
+        animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION,
+    ):
         self.id = uid
         self.name = name
-        self.category = category
-        self.bright_color = bright_color
-        self.dim_color = dim_color if dim_color else bright_color.copy().scale(PowerCardAnimation.DIM_BRIGHTNESS)
-        self.pixel_mask = pixel_mask
-        self.color_mask = color_mask
-        self.frame_mask = frame_mask
+        self._frames = frames
         self.animation_duration = animation_duration
-
-        # Register category for shared palette generation
-        CardAnimationHelpers.register_category_colors(category, bright_color, self.dim_color)
-
-        # Pre-compute per-pixel palette offsets (64 ints in serpentine order)
-        # Each entry is the byte offset into the global LUT for that pixel's category
-        mask_h = len(pixel_mask)
-        mask_w = len(pixel_mask[0]) if mask_h > 0 else 0
-        own_offset = CardAnimationHelpers.get_category_offset(category)
-        rp_offset = CardAnimationHelpers.RANDOM_PALETTE_OFFSET
-        self.__pixel_offsets: list[int] = [own_offset] * (mask_w * mask_h)
-
-        if color_mask:
-            color_mask_chars = CardAnimationHelpers.COLOR_MASK_CHARS
-            cat_offsets = CardAnimationHelpers.__category_offsets
-            for y in range(mask_h):
-                for x in range(mask_w):
-                    cm_ch = color_mask[y][x]
-                    if cm_ch == '.':
-                        pass  # own category, already set
-                    elif cm_ch == '?':
-                        idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
-                        self.__pixel_offsets[idx] = rp_offset
-                    elif cm_ch in color_mask_chars:
-                        idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
-                        self.__pixel_offsets[idx] = cat_offsets[color_mask_chars[cm_ch]]
-
-        # Determine frame count: 10 if any animated char present; otherwise
-        # extend to cover the highest frame index found in frame_mask.
-        has_animated = any(ch in CardAnimationHelpers.ANIMATED_MASK_CHARS for row in pixel_mask for ch in row)
-        num_frames = 10 if has_animated else 1
-        if frame_mask:
-            for _fm_row in frame_mask:
-                for _cell in _fm_row:
-                    for _ch in _cell:
-                        if '0' <= _ch <= '9':
-                            _f = int(_ch) + 1
-                            if _f > num_frames:
-                                num_frames = _f
-
-        # Pre-compute per-pixel active-frame bitmasks from frame_mask.
-        # frame_active_masks[pixel_idx] is a bitmask: bit i set = pixel visible
-        # in frame i.  (1 << num_frames) - 1 means active in every frame.
-        _all_active = (1 << num_frames) - 1
-        frame_active_masks: list[int] = [_all_active] * (mask_w * mask_h)
-        if frame_mask:
-            for y in range(mask_h):
-                for x in range(mask_w):
-                    cell = frame_mask[y][x]
-                    if cell == '.':
-                        continue
-                    idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
-                    bitmask = 0
-                    for ch in cell:
-                        if '0' <= ch <= '9':
-                            bitmask |= (1 << int(ch))
-                    frame_active_masks[idx] = bitmask
-        self.__frame_active_masks: list[int] = frame_active_masks
-
-        # Bake frame bytes (each is 64 bytes in serpentine pixel order)
-        # Byte values are direct indices into the global LUT
-        self.__frame_bytes: list[bytes] = []
-        for fi in range(num_frames):
-            self.__frame_bytes.append(
-                self.__bake_frame(fi, num_frames, mask_w, mask_h)
-            )
-
-    @staticmethod
-    def __intensity_to_palette_index(f: float) -> int:
-        """Map intensity fraction (0.0-1.0) to a palette index (0-25).
-        Returns -1 for black (below DIM_BRIGHTNESS threshold).
-        """
-        dim = PowerCardAnimation.DIM_BRIGHTNESS
-        if f < dim:
-            return -1
-        return min(25, int((f - dim) / (1.0 - dim) * 25))
-
-    def __bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> bytes:
-        cycle_progress = frame_index / num_frames
-        n = mask_w * mask_h
-        frame = bytearray(n)  # all zeros = BLACK_BYTE
-
-        # Pre-compute wave palette index for this frame
-        cos_lut = CardAnimationHelpers.__COS_LUT
-        cos_size = CardAnimationHelpers.__COS_LUT_SIZE
-        wave_lut_val = cos_lut[int(cycle_progress * cos_size) % cos_size]
-        wave_pal_idx = 25 - min(25, (wave_lut_val * 25) >> 8)
-
-        _random = random.random
-        _randint = random.randint
-        _i2pi = PowerCardAnimation.__intensity_to_palette_index
-        pixel_offsets = self.__pixel_offsets
-        frame_active = self.__frame_active_masks
-        frame_bit = 1 << frame_index
-        rp_offset = CardAnimationHelpers.RANDOM_PALETTE_OFFSET
-        black = CardAnimationHelpers.BLACK_BYTE
-
-        for y in range(mask_h):
-            for x in range(mask_w):
-                ch = self.pixel_mask[y][x]
-                if ch == '.':
-                    continue  # stays BLACK_BYTE (0)
-                idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
-                if not (frame_active[idx] & frame_bit):
-                    continue  # pixel off in this frame, stays BLACK_BYTE
-                offset = pixel_offsets[idx]
-                if ch == '~':
-                    frame[idx] = offset + wave_pal_idx
-                elif ch == '@':
-                    frame[idx] = offset + _randint(0, 25)
-                elif ch == '%':
-                    if _random() >= 0.6:
-                        frame[idx] = rp_offset + _randint(0, 25)
-                    # else stays BLACK_BYTE
-                elif ch == '>':
-                    pi = _i2pi(1.0 - cycle_progress)
-                    frame[idx] = (offset + pi) if pi >= 0 else black
-                elif ch == '<':
-                    pi = _i2pi(cycle_progress)
-                    frame[idx] = (offset + pi) if pi >= 0 else black
-                elif ch == '*':
-                    if _random() < 0.75:
-                        frame[idx] = offset + 25  # brightest
-                    # else stays BLACK_BYTE
-                elif '0' <= ch <= '9':
-                    frame[idx] = offset + min(25, int((ord(ch) - 48) / 9 * 25))
-                else:
-                    frame[idx] = offset + 25  # unrecognised char = max brightness
-
-        return bytes(frame)
 
     def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
         """Translate baked frame bytes to packed neopixel ints via global LUT lookup.
@@ -357,12 +192,12 @@ class PowerCardAnimation:
         """
         CardAnimationHelpers.ensure_palettes(brightness)
 
-        nf = len(self.__frame_bytes)
+        nf = len(self._frames)
         frame_idx = int(cycle_progress * nf) % nf
-        frame = self.__frame_bytes[frame_idx]
+        frame = self._frames[frame_idx]
 
-        buf = CardAnimationHelpers.__render_buffer
-        lut = CardAnimationHelpers.__global_lut
+        buf = CardAnimationHelpers._render_buffer
+        lut = CardAnimationHelpers._global_lut
 
         for i in range(64):
             buf[i] = lut[frame[i]]
@@ -370,705 +205,412 @@ class PowerCardAnimation:
         return buf
 
 
-# Pre-register all categories with their color_mask characters so that
-# color_mask grids can reference any category by single letter.
-# DIM_BRIGHTNESS scaling applied automatically per category.
-_dim = PowerCardAnimation.DIM_BRIGHTNESS
-for _cat_name, _color, _char in [
-    (PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,       PowerCardCategories.POWER_SYSTEMS_COLOR,       'P'),
-    (PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,   PowerCardCategories.DEFENSIVE_SYSTEMS_COLOR,   'D'),
-    (PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,     PowerCardCategories.WEAPONS_SYSTEMS_COLOR,     'W'),
-    (PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,  PowerCardCategories.PROPULSION_SYSTEMS_COLOR,  'R'),
-    (PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME, PowerCardCategories.INFORMATION_SYSTEMS_COLOR, 'I'),
-    (PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,     PowerCardCategories.UTILITY_SYSTEMS_COLOR,     'U'),
-]:
-    CardAnimationHelpers.register_category_colors(_cat_name, _color, _color.copy().scale(_dim), _char)
-
-
 CARD_ANIMATION_DEFS = {
     PowerCardIds.FUSION_ENGINES_ID: PowerCardAnimation(
         uid=PowerCardIds.FUSION_ENGINES_ID,
         name="Fusion Engines",
-        category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
         animation_duration=2.0,
-        pixel_mask=[
-            '2......2',
-            '.2....2.',
-            '..2..2..',
-            '...99...',
-            '...99...',
-            '...55...',
-            '...55...',
-            '...55...',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 104, 0, 0, 0, 0, 0, 0, 104]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 104, 0, 0, 0, 0, 104, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 104, 0, 0, 104, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 150, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
         ],
-        color_mask=[
-            'P......P',
-            '.P....P.',
-            '..P..P..',
-            '...WW...',
-            '...WW...',
-            '...DD...',
-            '...DD...',
-            '...DD...',
-        ],
-        frame_mask=[
-            ['0', '.', '.', '.', '.', '.', '.', '0'],
-            ['.', '1', '.', '.', '.', '.', '1', '.'],
-            ['.', '.', '2', '.', '.', '2', '.', '.'],
-            ['.', '.', '.', '34', '34', '.', '.', '.'],
-            ['.', '.', '.', '345', '345', '.', '.', '.'],
-            ['.', '.', '.', '56', '56', '.', '.', '.'],
-            ['.', '.', '.', '67', '67', '.', '.', '.'],
-            ['.', '.', '.', '78', '78', '.', '.', '.'],
-        ],
-
     ),
     PowerCardIds.WARP_FIELD_ID: PowerCardAnimation(
         uid=PowerCardIds.WARP_FIELD_ID,
         name="Warp Field",
-        category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..~~~~..',
-            '.~....~.',
-            '~..99..~',
-            '~.9..9.~',
-            '~.9..9.~',
-            '~..99..~',
-            '.~....~.',
-            '..~~~~..',
+        frames=[
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 119, 119, 0, 0, 119, 119, 0, 119, 0, 0, 119, 0, 119, 119, 0, 119, 0, 0, 119, 0, 119, 119, 0, 0, 119, 119, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 0
+            bytes([0, 0, 118, 118, 118, 118, 0, 0, 0, 118, 0, 0, 0, 0, 118, 0, 118, 0, 0, 119, 119, 0, 0, 118, 118, 0, 119, 0, 0, 119, 0, 118, 118, 0, 119, 0, 0, 119, 0, 118, 118, 0, 0, 119, 119, 0, 0, 118, 0, 118, 0, 0, 0, 0, 118, 0, 0, 0, 118, 118, 118, 118, 0, 0]),  # frame 1
+            bytes([0, 0, 114, 114, 114, 114, 0, 0, 0, 114, 0, 0, 0, 0, 114, 0, 114, 0, 0, 119, 119, 0, 0, 114, 114, 0, 119, 0, 0, 119, 0, 114, 114, 0, 119, 0, 0, 119, 0, 114, 114, 0, 0, 119, 119, 0, 0, 114, 0, 114, 0, 0, 0, 0, 114, 0, 0, 0, 114, 114, 114, 114, 0, 0]),  # frame 2
+            bytes([0, 0, 107, 107, 107, 107, 0, 0, 0, 107, 0, 0, 0, 0, 107, 0, 107, 0, 0, 119, 119, 0, 0, 107, 107, 0, 119, 0, 0, 119, 0, 107, 107, 0, 119, 0, 0, 119, 0, 107, 107, 0, 0, 119, 119, 0, 0, 107, 0, 107, 0, 0, 0, 0, 107, 0, 0, 0, 107, 107, 107, 107, 0, 0]),  # frame 3
+            bytes([0, 0, 103, 103, 103, 103, 0, 0, 0, 103, 0, 0, 0, 0, 103, 0, 103, 0, 0, 119, 119, 0, 0, 103, 103, 0, 119, 0, 0, 119, 0, 103, 103, 0, 119, 0, 0, 119, 0, 103, 103, 0, 0, 119, 119, 0, 0, 103, 0, 103, 0, 0, 0, 0, 103, 0, 0, 0, 103, 103, 103, 103, 0, 0]),  # frame 4
+            bytes([0, 0, 100, 100, 100, 100, 0, 0, 0, 100, 0, 0, 0, 0, 100, 0, 100, 0, 0, 119, 119, 0, 0, 100, 100, 0, 119, 0, 0, 119, 0, 100, 100, 0, 119, 0, 0, 119, 0, 100, 100, 0, 0, 119, 119, 0, 0, 100, 0, 100, 0, 0, 0, 0, 100, 0, 0, 0, 100, 100, 100, 100, 0, 0]),  # frame 5
+            bytes([0, 0, 102, 102, 102, 102, 0, 0, 0, 102, 0, 0, 0, 0, 102, 0, 102, 0, 0, 119, 119, 0, 0, 102, 102, 0, 119, 0, 0, 119, 0, 102, 102, 0, 119, 0, 0, 119, 0, 102, 102, 0, 0, 119, 119, 0, 0, 102, 0, 102, 0, 0, 0, 0, 102, 0, 0, 0, 102, 102, 102, 102, 0, 0]),  # frame 6
+            bytes([0, 0, 106, 106, 106, 106, 0, 0, 0, 106, 0, 0, 0, 0, 106, 0, 106, 0, 0, 119, 119, 0, 0, 106, 106, 0, 119, 0, 0, 119, 0, 106, 106, 0, 119, 0, 0, 119, 0, 106, 106, 0, 0, 119, 119, 0, 0, 106, 0, 106, 0, 0, 0, 0, 106, 0, 0, 0, 106, 106, 106, 106, 0, 0]),  # frame 7
+            bytes([0, 0, 113, 113, 113, 113, 0, 0, 0, 113, 0, 0, 0, 0, 113, 0, 113, 0, 0, 119, 119, 0, 0, 113, 113, 0, 119, 0, 0, 119, 0, 113, 113, 0, 119, 0, 0, 119, 0, 113, 113, 0, 0, 119, 119, 0, 0, 113, 0, 113, 0, 0, 0, 0, 113, 0, 0, 0, 113, 113, 113, 113, 0, 0]),  # frame 8
+            bytes([0, 0, 117, 117, 117, 117, 0, 0, 0, 117, 0, 0, 0, 0, 117, 0, 117, 0, 0, 119, 119, 0, 0, 117, 117, 0, 119, 0, 0, 119, 0, 117, 117, 0, 119, 0, 0, 119, 0, 117, 117, 0, 0, 119, 119, 0, 0, 117, 0, 117, 0, 0, 0, 0, 117, 0, 0, 0, 117, 117, 117, 117, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '..PPPP..',
-            '.P....P.',
-            'P..PP..P',
-            'P.P..P.P',
-            'P.P..P.P',
-            'P..PP..P',
-            '.P....P.',
-            '..PPPP..',
-        ],
-
     ),
     PowerCardIds.MAIN_COMPUTER_ID: PowerCardAnimation(
         uid=PowerCardIds.MAIN_COMPUTER_ID,
         name="Main Computer",
-        category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..9999..',
-            '.9....9.',
-            '9.%%%%.9',
-            '9.%%%%.9',
-            '9.%%%%.9',
-            '9.%%%%.9',
-            '.9....9.',
-            '..9999..',
+        frames=[
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 214, 218, 199, 0, 0, 119, 119, 0, 0, 0, 0, 212, 0, 119, 119, 0, 0, 199, 202, 0, 0, 119, 119, 0, 0, 0, 182, 228, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 0
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 183, 0, 212, 0, 0, 119, 119, 0, 0, 221, 213, 0, 0, 119, 119, 0, 205, 229, 0, 214, 0, 119, 119, 0, 0, 207, 209, 191, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 1
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 185, 218, 0, 0, 0, 119, 119, 0, 0, 0, 0, 198, 0, 119, 119, 0, 0, 0, 0, 0, 0, 119, 119, 0, 0, 193, 221, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 2
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 227, 0, 0, 119, 119, 0, 223, 0, 193, 0, 0, 119, 119, 0, 184, 188, 0, 221, 0, 119, 119, 0, 0, 212, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 3
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 185, 194, 218, 0, 0, 119, 119, 0, 202, 0, 193, 0, 0, 119, 119, 0, 180, 0, 186, 0, 0, 119, 119, 0, 0, 213, 0, 205, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 4
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 185, 227, 0, 0, 0, 119, 119, 0, 0, 192, 0, 182, 0, 119, 119, 0, 0, 0, 0, 208, 0, 119, 119, 0, 0, 0, 201, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 5
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 0, 0, 119, 119, 0, 189, 199, 198, 190, 0, 119, 119, 0, 0, 0, 0, 0, 0, 119, 119, 0, 0, 0, 0, 191, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 6
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 198, 206, 0, 0, 0, 119, 119, 0, 0, 0, 0, 0, 0, 119, 119, 0, 198, 0, 0, 217, 0, 119, 119, 0, 0, 0, 202, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 7
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 218, 0, 119, 119, 0, 0, 221, 0, 0, 0, 119, 119, 0, 214, 200, 0, 208, 0, 119, 119, 0, 0, 0, 215, 218, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 8
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 182, 208, 0, 0, 0, 119, 119, 0, 225, 203, 0, 203, 0, 119, 119, 0, 205, 0, 0, 220, 0, 119, 119, 0, 0, 0, 0, 200, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 9
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 209, 206, 216, 0, 0, 119, 119, 0, 0, 222, 213, 0, 0, 119, 119, 0, 203, 0, 202, 0, 0, 119, 119, 0, 198, 190, 0, 209, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 10
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 0, 0, 119, 119, 0, 0, 0, 0, 222, 0, 119, 119, 0, 208, 0, 211, 0, 0, 119, 119, 0, 0, 0, 0, 204, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 11
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 197, 211, 188, 0, 119, 119, 0, 187, 220, 0, 205, 0, 119, 119, 0, 0, 0, 0, 199, 0, 119, 119, 0, 0, 0, 211, 184, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 12
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 181, 0, 0, 224, 0, 119, 119, 0, 0, 0, 187, 219, 0, 119, 119, 0, 0, 192, 0, 210, 0, 119, 119, 0, 212, 192, 0, 210, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 13
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 201, 0, 119, 119, 0, 0, 0, 0, 181, 0, 119, 119, 0, 222, 188, 181, 0, 0, 119, 119, 0, 222, 180, 0, 192, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 14
+            bytes([0, 0, 119, 119, 119, 119, 0, 0, 0, 119, 0, 0, 0, 0, 119, 0, 119, 0, 0, 0, 194, 188, 0, 119, 119, 0, 0, 218, 0, 199, 0, 119, 119, 0, 227, 0, 0, 0, 0, 119, 119, 0, 221, 186, 0, 0, 0, 119, 0, 119, 0, 0, 0, 0, 119, 0, 0, 0, 119, 119, 119, 119, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '..PPPP..',
-            '.P....P.',
-            'P.PPPP.P',
-            'P.PPPP.P',
-            'P.PPPP.P',
-            'P.PPPP.P',
-            '.P....P.',
-            '..PPPP..',
-        ],
-
     ),
     PowerCardIds.FORE_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.FORE_SHIELDS_ID,
         name="Fore Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..~~~~..',
-            '.3....3.',
-            '...99...',
-            '..9999..',
-            '..9999..',
-            '...99...',
-            '........',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 159, 159, 159, 159, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 158, 158, 158, 158, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 154, 154, 154, 154, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 147, 147, 147, 147, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 143, 143, 143, 143, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 140, 140, 140, 140, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 142, 142, 142, 142, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 146, 146, 146, 146, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 153, 153, 153, 153, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 157, 157, 157, 157, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '..DDDD..',
-            '.D....D.',
-            '...DD...',
-            '..DDDD..',
-            '..DDDD..',
-            '...DD...',
-            '........',
-            '........',
-        ],
-
     ),
     PowerCardIds.AFT_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.AFT_SHIELDS_ID,
         name="Aft Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '........',
-            '...99...',
-            '..9999..',
-            '..9999..',
-            '...99...',
-            '.3....3.',
-            '..~~~~..',
+        frames=[
+            bytes([0, 0, 159, 159, 159, 159, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 158, 158, 158, 158, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 154, 154, 154, 154, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 147, 147, 147, 147, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 143, 143, 143, 143, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 140, 140, 140, 140, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 142, 142, 142, 142, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 146, 146, 146, 146, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 153, 153, 153, 153, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 157, 157, 157, 157, 0, 0, 0, 146, 0, 0, 0, 0, 146, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '........',
-            '........',
-            '...DD...',
-            '..DDDD..',
-            '..DDDD..',
-            '...DD...',
-            '.D....D.',
-            '..DDDD..',
-        ],
-
     ),
     PowerCardIds.PORT_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.PORT_SHIELDS_ID,
         name="Port Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '.3......',
-            '~..99...',
-            '~.9999..',
-            '~.9999..',
-            '~..99...',
-            '.3......',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 159, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 159, 159, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 159, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 158, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 158, 158, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 158, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 154, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 154, 154, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 154, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 147, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 147, 147, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 147, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 143, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 143, 143, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 143, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 140, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 140, 140, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 140, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 142, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 142, 142, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 142, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 146, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 146, 146, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 146, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 153, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 153, 153, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 153, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 157, 0, 0, 159, 159, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 157, 157, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 159, 159, 0, 0, 157, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '........',
-            '.D......',
-            'D..DD...',
-            'D.DDDD..',
-            'D.DDDD..',
-            'D..DD...',
-            '.D......',
-            '........',
-        ],
-
     ),
     PowerCardIds.STARBOARD_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.STARBOARD_SHIELDS_ID,
         name="Starboard Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '......3.',
-            '...99..~',
-            '..9999.~',
-            '..9999.~',
-            '...99..~',
-            '......3.',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 159, 159, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 159, 159, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 158, 158, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 158, 158, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 154, 154, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 154, 154, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 147, 147, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 147, 147, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 143, 143, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 143, 143, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 140, 140, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 140, 140, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 142, 142, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 142, 142, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 146, 146, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 146, 146, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 153, 153, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 153, 153, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 0, 0, 157, 157, 0, 159, 159, 159, 159, 0, 0, 0, 0, 159, 159, 159, 159, 0, 157, 157, 0, 0, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '........',
-            '......D.',
-            '...DD..D',
-            '..DDDD.D',
-            '..DDDD.D',
-            '...DD..D',
-            '......D.',
-            '........',
-        ],
-
     ),
     PowerCardIds.DORSAL_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.DORSAL_SHIELDS_ID,
         name="Dorsal Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '..~~~~..',
-            '.~~~~~~.',
-            '.~~~~~~.',
-            '.~~~~~~.',
-            '.~~~~~~.',
-            '..~~~~..',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 158, 158, 158, 158, 0, 0, 0, 158, 158, 158, 158, 158, 158, 0, 0, 158, 158, 158, 158, 158, 158, 0, 0, 158, 158, 158, 158, 158, 158, 0, 0, 158, 158, 158, 158, 158, 158, 0, 0, 0, 158, 158, 158, 158, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 154, 154, 154, 154, 0, 0, 0, 154, 154, 154, 154, 154, 154, 0, 0, 154, 154, 154, 154, 154, 154, 0, 0, 154, 154, 154, 154, 154, 154, 0, 0, 154, 154, 154, 154, 154, 154, 0, 0, 0, 154, 154, 154, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 147, 147, 147, 147, 0, 0, 0, 147, 147, 147, 147, 147, 147, 0, 0, 147, 147, 147, 147, 147, 147, 0, 0, 147, 147, 147, 147, 147, 147, 0, 0, 147, 147, 147, 147, 147, 147, 0, 0, 0, 147, 147, 147, 147, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 143, 143, 143, 143, 0, 0, 0, 143, 143, 143, 143, 143, 143, 0, 0, 143, 143, 143, 143, 143, 143, 0, 0, 143, 143, 143, 143, 143, 143, 0, 0, 143, 143, 143, 143, 143, 143, 0, 0, 0, 143, 143, 143, 143, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 140, 140, 140, 140, 0, 0, 0, 140, 140, 140, 140, 140, 140, 0, 0, 140, 140, 140, 140, 140, 140, 0, 0, 140, 140, 140, 140, 140, 140, 0, 0, 140, 140, 140, 140, 140, 140, 0, 0, 0, 140, 140, 140, 140, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 142, 142, 142, 142, 0, 0, 0, 142, 142, 142, 142, 142, 142, 0, 0, 142, 142, 142, 142, 142, 142, 0, 0, 142, 142, 142, 142, 142, 142, 0, 0, 142, 142, 142, 142, 142, 142, 0, 0, 0, 142, 142, 142, 142, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 146, 146, 146, 0, 0, 0, 146, 146, 146, 146, 146, 146, 0, 0, 146, 146, 146, 146, 146, 146, 0, 0, 146, 146, 146, 146, 146, 146, 0, 0, 146, 146, 146, 146, 146, 146, 0, 0, 0, 146, 146, 146, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 153, 153, 153, 153, 0, 0, 0, 153, 153, 153, 153, 153, 153, 0, 0, 153, 153, 153, 153, 153, 153, 0, 0, 153, 153, 153, 153, 153, 153, 0, 0, 153, 153, 153, 153, 153, 153, 0, 0, 0, 153, 153, 153, 153, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 157, 157, 157, 157, 0, 0, 0, 157, 157, 157, 157, 157, 157, 0, 0, 157, 157, 157, 157, 157, 157, 0, 0, 157, 157, 157, 157, 157, 157, 0, 0, 157, 157, 157, 157, 157, 157, 0, 0, 0, 157, 157, 157, 157, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '........',
-            '..DDDD..',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '..DDDD..',
-            '........',
-        ],
-
     ),
     PowerCardIds.VENTRAL_SHIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.VENTRAL_SHIELDS_ID,
         name="Ventral Shields",
-        category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '..~~~~..',
-            '.~~99~~.',
-            '.~9999~.',
-            '.~9999~.',
-            '.~~99~~.',
-            '..~~~~..',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 159, 159, 159, 159, 159, 159, 0, 0, 0, 159, 159, 159, 159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 158, 158, 158, 158, 0, 0, 0, 158, 158, 159, 159, 158, 158, 0, 0, 158, 159, 159, 159, 159, 158, 0, 0, 158, 159, 159, 159, 159, 158, 0, 0, 158, 158, 159, 159, 158, 158, 0, 0, 0, 158, 158, 158, 158, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 154, 154, 154, 154, 0, 0, 0, 154, 154, 159, 159, 154, 154, 0, 0, 154, 159, 159, 159, 159, 154, 0, 0, 154, 159, 159, 159, 159, 154, 0, 0, 154, 154, 159, 159, 154, 154, 0, 0, 0, 154, 154, 154, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 147, 147, 147, 147, 0, 0, 0, 147, 147, 159, 159, 147, 147, 0, 0, 147, 159, 159, 159, 159, 147, 0, 0, 147, 159, 159, 159, 159, 147, 0, 0, 147, 147, 159, 159, 147, 147, 0, 0, 0, 147, 147, 147, 147, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 143, 143, 143, 143, 0, 0, 0, 143, 143, 159, 159, 143, 143, 0, 0, 143, 159, 159, 159, 159, 143, 0, 0, 143, 159, 159, 159, 159, 143, 0, 0, 143, 143, 159, 159, 143, 143, 0, 0, 0, 143, 143, 143, 143, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 140, 140, 140, 140, 0, 0, 0, 140, 140, 159, 159, 140, 140, 0, 0, 140, 159, 159, 159, 159, 140, 0, 0, 140, 159, 159, 159, 159, 140, 0, 0, 140, 140, 159, 159, 140, 140, 0, 0, 0, 140, 140, 140, 140, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 142, 142, 142, 142, 0, 0, 0, 142, 142, 159, 159, 142, 142, 0, 0, 142, 159, 159, 159, 159, 142, 0, 0, 142, 159, 159, 159, 159, 142, 0, 0, 142, 142, 159, 159, 142, 142, 0, 0, 0, 142, 142, 142, 142, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 146, 146, 146, 0, 0, 0, 146, 146, 159, 159, 146, 146, 0, 0, 146, 159, 159, 159, 159, 146, 0, 0, 146, 159, 159, 159, 159, 146, 0, 0, 146, 146, 159, 159, 146, 146, 0, 0, 0, 146, 146, 146, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 153, 153, 153, 153, 0, 0, 0, 153, 153, 159, 159, 153, 153, 0, 0, 153, 159, 159, 159, 159, 153, 0, 0, 153, 159, 159, 159, 159, 153, 0, 0, 153, 153, 159, 159, 153, 153, 0, 0, 0, 153, 153, 153, 153, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 157, 157, 157, 157, 0, 0, 0, 157, 157, 159, 159, 157, 157, 0, 0, 157, 159, 159, 159, 159, 157, 0, 0, 157, 159, 159, 159, 159, 157, 0, 0, 157, 157, 159, 159, 157, 157, 0, 0, 0, 157, 157, 157, 157, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '........',
-            '..DDDD..',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '.DDDDDD.',
-            '..DDDD..',
-            '........',
-        ],
-
     ),
     PowerCardIds.LASER_CANNON_ID: PowerCardAnimation(
         uid=PowerCardIds.LASER_CANNON_ID,
         name="Laser Cannon",
-        category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '.....999',
-            '.....999',
-            '......99',
-            '....a...',
-            '....a...',
-            'f..b....',
-            'edc.f...',
-            'dcde....',
+        animation_duration=1.5,
+        frames=[
+            bytes([39, 39, 39, 39, 0, 0, 0, 0, 0, 0, 0, 39, 0, 39, 39, 39, 39, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 39, 39, 39, 39, 0, 0, 0, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '.....WWW',
-            '.....WWW',
-            '......WW',
-            '....W...',
-            '....W...',
-            'W..W....',
-            'WWW.W...',
-            'WWWW....',
-        ],
-        animation_duration=1.5
     ),
     PowerCardIds.TRACTOR_BEAM_ID: PowerCardAnimation(
         uid=PowerCardIds.TRACTOR_BEAM_ID,
         name="Tractor Beam",
-        category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..9999..',
-            '...99...',
-            '...**...',
-            '..*33*..',
-            '..*44*..',
-            '..*55*..',
-            '.*6666*.',
-            '.*6666*.',
-        ],
-        color_mask=[
-            '..WWWW..',
-            '...WW...',
-            '...WW...',
-            '..WWWW..',
-            '..WWWW..',
-            '..WWWW..',
-            '.WWWWWW.',
-            '.WWWWWW.',
+        frames=[
+            bytes([0, 0, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 0, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 0
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 0, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 0, 0, 0, 0, 0, 0, 26, 26, 39, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 1
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 2
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 0, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 3
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 4
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 5
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 0, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 6
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 0, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 7
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 0, 0, 0, 0, 0, 0, 28, 28, 39, 0, 0, 0, 0, 0, 26, 26, 39, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 8
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 9
+            bytes([0, 0, 32, 32, 32, 32, 0, 0, 0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 10
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 0, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 11
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 12
+            bytes([0, 39, 32, 32, 32, 32, 0, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 0, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 13
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 0, 0, 0, 0, 39, 30, 30, 0, 0, 0, 0, 0, 39, 28, 28, 0, 0, 0, 0, 0, 39, 26, 26, 39, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 14
+            bytes([0, 39, 32, 32, 32, 32, 39, 0, 0, 39, 32, 32, 32, 32, 39, 0, 0, 0, 39, 30, 30, 39, 0, 0, 0, 0, 39, 28, 28, 39, 0, 0, 0, 0, 0, 26, 26, 39, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 0, 39, 39, 0, 0, 0, 0, 0, 39, 39, 39, 39, 0, 0]),  # frame 15
         ],
     ),
     PowerCardIds.STEALTH_FIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.STEALTH_FIELDS_ID,
         name="Stealth Fields",
-        category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '..@@@@..',
-            '.@@@@@@.',
-            '.@@@@@@.',
-            '.@@@@@@.',
-            '.@@@@@@.',
-            '..@@@@..',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 33, 31, 23, 0, 0, 0, 29, 23, 22, 30, 35, 37, 0, 0, 24, 39, 37, 28, 39, 23, 0, 0, 38, 26, 36, 24, 29, 24, 0, 0, 31, 35, 29, 32, 35, 36, 0, 0, 0, 32, 33, 21, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 24, 28, 20, 0, 0, 0, 31, 37, 20, 36, 39, 30, 0, 0, 21, 36, 28, 22, 36, 30, 0, 0, 37, 39, 27, 37, 23, 32, 0, 0, 37, 32, 30, 20, 21, 33, 0, 0, 0, 35, 25, 31, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 32, 27, 29, 0, 0, 0, 38, 22, 37, 39, 23, 22, 0, 0, 37, 26, 29, 38, 20, 29, 0, 0, 26, 32, 38, 23, 23, 21, 0, 0, 34, 30, 30, 23, 25, 26, 0, 0, 0, 24, 37, 39, 37, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 25, 39, 29, 0, 0, 0, 26, 28, 38, 35, 23, 29, 0, 0, 37, 24, 28, 26, 33, 28, 0, 0, 27, 30, 31, 26, 22, 29, 0, 0, 24, 22, 39, 22, 26, 22, 0, 0, 0, 34, 24, 36, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 36, 38, 29, 0, 0, 0, 39, 21, 39, 29, 22, 30, 0, 0, 27, 22, 31, 31, 28, 30, 0, 0, 23, 27, 27, 30, 26, 22, 0, 0, 23, 25, 20, 32, 31, 27, 0, 0, 0, 32, 35, 28, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 31, 38, 22, 0, 0, 0, 39, 22, 28, 21, 27, 26, 0, 0, 29, 37, 26, 24, 38, 21, 0, 0, 38, 31, 27, 32, 34, 23, 0, 0, 38, 38, 22, 38, 37, 32, 0, 0, 0, 38, 29, 24, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 24, 26, 38, 0, 0, 0, 28, 31, 30, 28, 39, 31, 0, 0, 34, 24, 31, 29, 29, 25, 0, 0, 28, 28, 37, 31, 29, 35, 0, 0, 31, 22, 32, 30, 29, 38, 0, 0, 0, 26, 25, 38, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 30, 27, 23, 0, 0, 0, 33, 22, 32, 22, 36, 35, 0, 0, 39, 29, 36, 24, 21, 33, 0, 0, 31, 27, 38, 34, 27, 38, 0, 0, 20, 28, 29, 29, 33, 24, 0, 0, 0, 20, 30, 31, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 34, 21, 26, 0, 0, 0, 28, 39, 32, 25, 32, 33, 0, 0, 27, 35, 35, 37, 27, 21, 0, 0, 20, 22, 34, 29, 27, 34, 0, 0, 30, 37, 23, 23, 35, 33, 0, 0, 0, 33, 39, 37, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 21, 30, 32, 0, 0, 0, 34, 36, 33, 26, 33, 32, 0, 0, 35, 21, 26, 35, 31, 36, 0, 0, 29, 31, 28, 20, 31, 35, 0, 0, 32, 32, 34, 30, 37, 31, 0, 0, 0, 30, 30, 23, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 38, 21, 29, 0, 0, 0, 24, 38, 35, 32, 31, 29, 0, 0, 33, 20, 34, 27, 36, 20, 0, 0, 39, 31, 38, 21, 36, 22, 0, 0, 35, 20, 31, 29, 29, 25, 0, 0, 0, 34, 27, 32, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 10
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 36, 38, 27, 0, 0, 0, 21, 21, 32, 37, 38, 30, 0, 0, 38, 37, 29, 28, 34, 21, 0, 0, 27, 35, 27, 29, 34, 27, 0, 0, 36, 34, 30, 39, 30, 39, 0, 0, 0, 32, 22, 26, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 11
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 34, 29, 31, 0, 0, 0, 24, 30, 24, 26, 35, 38, 0, 0, 35, 28, 38, 21, 23, 28, 0, 0, 24, 29, 31, 32, 33, 33, 0, 0, 37, 35, 30, 22, 28, 24, 0, 0, 0, 22, 39, 35, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 12
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 34, 22, 21, 0, 0, 0, 30, 35, 34, 26, 21, 24, 0, 0, 20, 32, 22, 29, 34, 23, 0, 0, 26, 35, 27, 35, 37, 39, 0, 0, 35, 27, 23, 36, 25, 26, 0, 0, 0, 29, 35, 21, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 13
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 23, 20, 21, 0, 0, 0, 28, 30, 32, 38, 21, 39, 0, 0, 30, 24, 39, 25, 30, 30, 0, 0, 20, 37, 32, 20, 22, 26, 0, 0, 24, 25, 28, 20, 31, 39, 0, 0, 0, 35, 26, 29, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 14
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 26, 37, 37, 0, 0, 0, 35, 37, 25, 24, 34, 24, 0, 0, 39, 36, 24, 27, 27, 20, 0, 0, 28, 25, 39, 32, 29, 22, 0, 0, 29, 20, 30, 32, 22, 24, 0, 0, 0, 26, 21, 23, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '........',
-            '..WWWW..',
-            '.WWWWWW.',
-            '.WWWWWW.',
-            '.WWWWWW.',
-            '.WWWWWW.',
-            '..WWWW..',
-            '........',
-        ],
-
     ),
     PowerCardIds.TARGETING_ID: PowerCardAnimation(
         uid=PowerCardIds.TARGETING_ID,
         name="Targeting",
-        category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '..999...',
-            '...2....',
-            '.92.29..',
-            '...2....',
-            '..999...',
-            '........',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 39, 39, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 39, 24, 0, 24, 39, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 39, 39, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '........',
-            '..WWW...',
-            '...W....',
-            '.WW.WW..',
-            '...W....',
-            '..WWW...',
-            '........',
-            '........',
-        ],
-
     ),
     PowerCardIds.SIGNAL_JAMMER_ID: PowerCardAnimation(
         uid=PowerCardIds.SIGNAL_JAMMER_ID,
         name="Signal Jammer",
-        category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
-            '%%%%%%%%',
+        frames=[
+            bytes([0, 222, 0, 0, 188, 182, 224, 214, 0, 0, 0, 200, 0, 0, 0, 218, 0, 0, 186, 0, 0, 0, 0, 193, 0, 0, 214, 0, 194, 192, 225, 195, 0, 0, 180, 0, 225, 222, 219, 0, 0, 210, 193, 0, 0, 0, 201, 0, 212, 0, 0, 0, 214, 218, 199, 0, 0, 202, 199, 0, 0, 0, 182, 228]),  # frame 0
+            bytes([0, 0, 0, 188, 0, 0, 0, 0, 193, 0, 0, 0, 201, 0, 0, 0, 0, 0, 0, 0, 0, 0, 224, 188, 183, 0, 0, 0, 0, 209, 0, 0, 229, 191, 187, 0, 224, 0, 198, 222, 0, 224, 0, 206, 0, 0, 188, 224, 0, 213, 221, 0, 183, 0, 212, 0, 214, 0, 229, 205, 0, 207, 209, 191]),  # frame 1
+            bytes([208, 0, 228, 0, 0, 0, 0, 0, 195, 0, 220, 186, 0, 191, 0, 0, 0, 216, 216, 211, 185, 0, 207, 0, 0, 0, 0, 0, 0, 213, 185, 190, 0, 0, 183, 0, 186, 229, 0, 216, 217, 0, 0, 202, 229, 223, 192, 0, 198, 0, 0, 0, 185, 218, 0, 0, 0, 0, 0, 0, 0, 193, 221, 0]),  # frame 2
+            bytes([188, 191, 213, 194, 224, 0, 0, 218, 195, 0, 0, 0, 0, 203, 182, 222, 0, 0, 201, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 199, 0, 0, 214, 0, 0, 191, 0, 228, 0, 0, 0, 0, 222, 0, 193, 0, 223, 0, 0, 227, 0, 221, 0, 188, 184, 0, 212, 0, 0]),  # frame 3
+            bytes([0, 0, 192, 224, 0, 214, 208, 212, 188, 189, 193, 0, 0, 0, 0, 218, 0, 0, 0, 0, 0, 200, 0, 0, 0, 203, 202, 0, 217, 217, 0, 0, 0, 0, 0, 0, 0, 180, 197, 190, 0, 224, 180, 0, 0, 0, 0, 0, 0, 193, 0, 202, 185, 194, 218, 0, 0, 186, 0, 180, 0, 213, 0, 205]),  # frame 4
+            bytes([0, 185, 0, 0, 192, 0, 0, 212, 0, 0, 0, 0, 0, 186, 0, 0, 205, 219, 0, 0, 194, 0, 0, 212, 0, 0, 0, 207, 0, 218, 0, 0, 0, 215, 0, 0, 0, 0, 182, 0, 188, 0, 208, 202, 223, 226, 185, 0, 182, 0, 192, 0, 185, 227, 0, 0, 208, 0, 0, 0, 0, 0, 201, 0]),  # frame 5
+            bytes([206, 227, 0, 198, 0, 0, 0, 192, 0, 209, 0, 0, 200, 188, 210, 0, 0, 0, 203, 0, 188, 0, 182, 189, 191, 191, 0, 0, 0, 196, 0, 0, 0, 222, 211, 0, 0, 180, 228, 0, 219, 0, 0, 0, 0, 0, 0, 202, 190, 198, 199, 189, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 191]),  # frame 6
+            bytes([0, 0, 217, 205, 0, 0, 198, 208, 0, 0, 214, 189, 0, 181, 0, 0, 0, 195, 0, 0, 189, 183, 0, 197, 191, 0, 0, 0, 0, 0, 222, 226, 201, 0, 0, 0, 228, 213, 0, 0, 216, 201, 200, 0, 185, 194, 187, 210, 0, 0, 0, 0, 198, 206, 0, 0, 217, 0, 0, 198, 0, 0, 202, 0]),  # frame 7
+            bytes([211, 224, 0, 216, 0, 184, 194, 214, 225, 0, 0, 186, 224, 0, 186, 0, 217, 0, 0, 0, 217, 0, 208, 199, 218, 185, 0, 219, 0, 0, 0, 0, 227, 0, 0, 0, 0, 227, 223, 0, 187, 184, 196, 195, 0, 0, 0, 205, 0, 0, 221, 0, 0, 0, 0, 218, 208, 0, 200, 214, 0, 0, 215, 218]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 194, 0, 0, 0, 193, 221, 0, 226, 184, 0, 227, 206, 194, 185, 0, 0, 0, 0, 192, 227, 0, 215, 0, 0, 0, 205, 197, 0, 0, 0, 0, 0, 226, 193, 183, 0, 0, 0, 0, 0, 0, 204, 203, 0, 203, 225, 182, 208, 0, 0, 220, 0, 0, 205, 0, 0, 0, 200]),  # frame 9
+            bytes([0, 0, 192, 0, 205, 189, 188, 0, 0, 0, 0, 0, 206, 0, 220, 219, 0, 0, 186, 0, 0, 0, 0, 207, 0, 0, 0, 0, 0, 215, 0, 0, 217, 0, 201, 213, 0, 0, 0, 184, 204, 204, 0, 0, 0, 0, 0, 0, 0, 213, 222, 0, 209, 206, 216, 0, 0, 202, 0, 203, 198, 190, 0, 209]),  # frame 10
+            bytes([0, 222, 0, 0, 0, 0, 212, 180, 210, 0, 184, 0, 0, 0, 181, 215, 0, 0, 199, 195, 0, 219, 0, 0, 221, 0, 186, 0, 0, 217, 190, 194, 193, 0, 182, 199, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 227, 222, 0, 0, 0, 0, 0, 0, 0, 0, 211, 0, 208, 0, 0, 0, 204]),  # frame 11
+            bytes([0, 0, 0, 0, 0, 0, 214, 224, 195, 0, 0, 0, 203, 226, 199, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 205, 0, 0, 0, 216, 226, 0, 0, 0, 192, 221, 215, 219, 0, 226, 0, 0, 0, 0, 200, 205, 0, 220, 187, 0, 197, 211, 188, 199, 0, 0, 0, 0, 0, 211, 184]),  # frame 12
+            bytes([0, 0, 192, 0, 216, 201, 0, 200, 213, 0, 202, 0, 225, 221, 219, 218, 204, 0, 226, 0, 0, 0, 216, 0, 201, 209, 0, 0, 218, 0, 181, 0, 0, 0, 222, 0, 0, 0, 225, 0, 180, 228, 0, 0, 185, 0, 229, 0, 219, 187, 0, 0, 181, 0, 0, 224, 210, 0, 192, 0, 212, 192, 0, 210]),  # frame 13
+            bytes([0, 0, 0, 193, 219, 202, 0, 0, 0, 0, 0, 207, 195, 0, 0, 198, 187, 0, 0, 0, 186, 0, 205, 0, 0, 0, 0, 0, 0, 0, 0, 202, 0, 0, 0, 216, 0, 0, 0, 0, 0, 203, 0, 0, 181, 229, 0, 0, 181, 0, 0, 0, 0, 0, 0, 201, 0, 181, 188, 222, 222, 180, 0, 192]),  # frame 14
+            bytes([201, 224, 0, 213, 0, 187, 0, 0, 0, 0, 0, 189, 0, 0, 0, 0, 0, 0, 199, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 203, 0, 206, 0, 0, 185, 0, 0, 0, 0, 185, 0, 215, 214, 0, 188, 0, 0, 199, 0, 218, 0, 0, 0, 194, 188, 0, 0, 0, 227, 221, 186, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-            'WWWWWWWW',
-        ],
-
     ),
     PowerCardIds.ALCUBIERRE_WARP_DRIVE_ID: PowerCardAnimation(
         uid=PowerCardIds.ALCUBIERRE_WARP_DRIVE_ID,
         name="Alcubierre Warp Drive",
-        category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..9999..',
-            '.9.yy.9.',
-            '9..xx..9',
-            '9..vv..9',
-            '9..ss..9',
-            '9..mm..9',
-            '.9.aa.9.',
-            '..9999..',
+        frames=[
+            bytes([0, 0, 59, 59, 59, 59, 0, 0, 0, 59, 0, 59, 59, 0, 59, 0, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 59, 0, 0, 59, 0, 59, 0, 59, 59, 0, 59, 0, 0, 0, 59, 59, 59, 59, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '..RRRR..',
-            '.R.RR.R.',
-            'R..RR..R',
-            'R..RR..R',
-            'R..RR..R',
-            'R..RR..R',
-            '.R.RR.R.',
-            '..RRRR..',
-        ],
-
     ),
     PowerCardIds.THRUSTERS_ID: PowerCardAnimation(
         uid=PowerCardIds.THRUSTERS_ID,
         name="Thrusters",
-        category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..3333..',
-            '...33...',
-            '...99...',
-            '...99...',
-            '..@66@..',
-            '.@@33@@.',
-            '@@@@@@@@',
-            '...@@...',
+        frames=[
+            bytes([0, 0, 0, 49, 44, 0, 0, 0, 44, 56, 46, 58, 51, 55, 49, 52, 0, 41, 48, 46, 46, 56, 55, 0, 0, 0, 53, 52, 52, 52, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 43, 52, 0, 0, 0, 57, 47, 59, 57, 57, 52, 50, 40, 0, 51, 54, 46, 46, 53, 41, 0, 0, 0, 45, 52, 52, 55, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 43, 41, 0, 0, 0, 43, 58, 52, 46, 54, 50, 50, 43, 0, 59, 57, 46, 46, 46, 45, 0, 0, 0, 57, 52, 52, 44, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 42, 49, 0, 0, 0, 46, 51, 50, 47, 44, 42, 59, 42, 0, 56, 45, 46, 46, 42, 46, 0, 0, 0, 44, 52, 52, 54, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 46, 42, 0, 0, 0, 50, 47, 47, 43, 43, 45, 40, 52, 0, 48, 56, 46, 46, 47, 51, 0, 0, 0, 55, 52, 52, 52, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 54, 43, 0, 0, 0, 52, 47, 51, 58, 58, 58, 42, 58, 0, 44, 50, 46, 46, 52, 57, 0, 0, 0, 49, 52, 52, 58, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 49, 55, 0, 0, 0, 51, 57, 48, 48, 51, 42, 52, 50, 0, 58, 47, 46, 46, 58, 49, 0, 0, 0, 45, 52, 52, 46, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 47, 58, 0, 0, 0, 54, 58, 47, 51, 40, 48, 49, 49, 0, 51, 54, 46, 46, 44, 53, 0, 0, 0, 50, 52, 52, 40, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 47, 54, 0, 0, 0, 49, 54, 42, 40, 50, 57, 43, 43, 0, 57, 56, 46, 46, 53, 55, 0, 0, 0, 59, 52, 52, 53, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 51, 55, 0, 0, 0, 40, 48, 51, 49, 52, 52, 54, 50, 0, 43, 47, 46, 46, 51, 57, 0, 0, 0, 50, 52, 52, 50, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 9
+            bytes([0, 0, 0, 56, 42, 0, 0, 0, 41, 58, 51, 59, 55, 40, 51, 49, 0, 52, 46, 46, 46, 45, 49, 0, 0, 0, 47, 52, 52, 54, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 10
+            bytes([0, 0, 0, 54, 47, 0, 0, 0, 49, 47, 55, 47, 56, 54, 50, 59, 0, 46, 53, 46, 46, 59, 50, 0, 0, 0, 42, 52, 52, 52, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 11
+            bytes([0, 0, 0, 53, 53, 0, 0, 0, 52, 51, 49, 44, 57, 55, 50, 42, 0, 55, 48, 46, 46, 44, 48, 0, 0, 0, 59, 52, 52, 42, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 12
+            bytes([0, 0, 0, 57, 59, 0, 0, 0, 55, 47, 55, 46, 55, 47, 43, 56, 0, 41, 59, 46, 46, 46, 45, 0, 0, 0, 55, 52, 52, 49, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 13
+            bytes([0, 0, 0, 42, 46, 0, 0, 0, 40, 52, 57, 40, 44, 45, 48, 40, 0, 49, 58, 46, 46, 59, 51, 0, 0, 0, 46, 52, 52, 55, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 14
+            bytes([0, 0, 0, 49, 42, 0, 0, 0, 52, 59, 45, 48, 49, 40, 50, 52, 0, 43, 47, 46, 46, 44, 42, 0, 0, 0, 41, 52, 52, 46, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 59, 59, 0, 0, 0, 0, 0, 0, 46, 46, 0, 0, 0, 0, 0, 46, 46, 46, 46, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '..RRRR..',
-            '...RR...',
-            '...RR...',
-            '...RR...',
-            '..RRRR..',
-            '.RRRRRR.',
-            'RRRRRRRR',
-            '...RR...',
-        ],
-
     ),
     PowerCardIds.NAVIGATION_ID: PowerCardAnimation(
         uid=PowerCardIds.NAVIGATION_ID,
         name="Navigation",
-        category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '........',
-            '..9.....',
-            '.929....',
-            '..2.....',
-            '..2..1..',
-            '..22221.',
-            '.....1..',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 42, 0, 0, 0, 42, 44, 44, 44, 44, 0, 0, 0, 0, 44, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 59, 44, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '........',
-            '........',
-            '..R.....',
-            '.RRR....',
-            '..R.....',
-            '..R..R..',
-            '..RRRRR.',
-            '.....R..',
-        ],
-
     ),
     PowerCardIds.EXTERNAL_SENSORS_ID: PowerCardAnimation(
         uid=PowerCardIds.EXTERNAL_SENSORS_ID,
         name="External Sensors",
-        category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..@@@@..',
-            '.@....@.',
-            '@......@',
-            '@..99..@',
-            '@..99..@',
-            '@......@',
-            '.@....@.',
-            '..@@@@..',
+        frames=[
+            bytes([0, 0, 163, 179, 168, 177, 0, 0, 0, 164, 0, 0, 0, 0, 169, 0, 176, 0, 0, 0, 0, 0, 0, 164, 166, 0, 0, 179, 179, 0, 0, 178, 175, 0, 0, 179, 179, 0, 0, 171, 169, 0, 0, 0, 0, 0, 0, 172, 0, 176, 0, 0, 0, 0, 175, 0, 0, 0, 168, 161, 173, 172, 0, 0]),  # frame 0
+            bytes([0, 0, 170, 176, 162, 168, 0, 0, 0, 172, 0, 0, 0, 0, 163, 0, 167, 0, 0, 0, 0, 0, 0, 177, 179, 0, 0, 179, 179, 0, 0, 177, 172, 0, 0, 179, 179, 0, 0, 177, 170, 0, 0, 0, 0, 0, 0, 160, 0, 173, 0, 0, 0, 0, 161, 0, 0, 0, 174, 171, 165, 175, 0, 0]),  # frame 1
+            bytes([0, 0, 169, 160, 178, 169, 0, 0, 0, 161, 0, 0, 0, 0, 163, 0, 178, 0, 0, 0, 0, 0, 0, 163, 172, 0, 0, 179, 179, 0, 0, 166, 170, 0, 0, 179, 179, 0, 0, 174, 170, 0, 0, 0, 0, 0, 0, 163, 0, 166, 0, 0, 0, 0, 165, 0, 0, 0, 177, 179, 177, 164, 0, 0]),  # frame 2
+            bytes([0, 0, 168, 173, 166, 168, 0, 0, 0, 169, 0, 0, 0, 0, 162, 0, 171, 0, 0, 0, 0, 0, 0, 166, 170, 0, 0, 179, 179, 0, 0, 167, 162, 0, 0, 179, 179, 0, 0, 164, 179, 0, 0, 0, 0, 0, 0, 162, 0, 162, 0, 0, 0, 0, 166, 0, 0, 0, 165, 176, 164, 174, 0, 0]),  # frame 3
+            bytes([0, 0, 170, 168, 171, 171, 0, 0, 0, 162, 0, 0, 0, 0, 166, 0, 167, 0, 0, 0, 0, 0, 0, 170, 167, 0, 0, 179, 179, 0, 0, 163, 165, 0, 0, 179, 179, 0, 0, 163, 160, 0, 0, 0, 0, 0, 0, 172, 0, 167, 0, 0, 0, 0, 171, 0, 0, 0, 176, 168, 175, 172, 0, 0]),  # frame 4
+            bytes([0, 0, 161, 178, 164, 166, 0, 0, 0, 163, 0, 0, 0, 0, 174, 0, 167, 0, 0, 0, 0, 0, 0, 172, 171, 0, 0, 179, 179, 0, 0, 178, 178, 0, 0, 179, 179, 0, 0, 178, 162, 0, 0, 0, 0, 0, 0, 178, 0, 172, 0, 0, 0, 0, 177, 0, 0, 0, 170, 164, 169, 178, 0, 0]),  # frame 5
+            bytes([0, 0, 165, 169, 169, 171, 0, 0, 0, 175, 0, 0, 0, 0, 169, 0, 177, 0, 0, 0, 0, 0, 0, 171, 168, 0, 0, 179, 179, 0, 0, 168, 162, 0, 0, 179, 179, 0, 0, 171, 172, 0, 0, 0, 0, 0, 0, 170, 0, 178, 0, 0, 0, 0, 169, 0, 0, 0, 167, 178, 165, 166, 0, 0]),  # frame 6
+            bytes([0, 0, 173, 161, 164, 176, 0, 0, 0, 178, 0, 0, 0, 0, 167, 0, 178, 0, 0, 0, 0, 0, 0, 174, 167, 0, 0, 179, 179, 0, 0, 171, 168, 0, 0, 179, 179, 0, 0, 160, 169, 0, 0, 0, 0, 0, 0, 169, 0, 164, 0, 0, 0, 0, 173, 0, 0, 0, 174, 171, 170, 160, 0, 0]),  # frame 7
+            bytes([0, 0, 161, 167, 177, 175, 0, 0, 0, 174, 0, 0, 0, 0, 167, 0, 174, 0, 0, 0, 0, 0, 0, 169, 162, 0, 0, 179, 179, 0, 0, 160, 177, 0, 0, 179, 179, 0, 0, 170, 163, 0, 0, 0, 0, 0, 0, 163, 0, 173, 0, 0, 0, 0, 175, 0, 0, 0, 176, 177, 179, 173, 0, 0]),  # frame 8
+            bytes([0, 0, 176, 171, 175, 166, 0, 0, 0, 175, 0, 0, 0, 0, 171, 0, 168, 0, 0, 0, 0, 0, 0, 160, 171, 0, 0, 179, 179, 0, 0, 169, 172, 0, 0, 179, 179, 0, 0, 172, 174, 0, 0, 0, 0, 0, 0, 170, 0, 171, 0, 0, 0, 0, 177, 0, 0, 0, 167, 163, 170, 170, 0, 0]),  # frame 9
+            bytes([0, 0, 160, 176, 167, 174, 0, 0, 0, 162, 0, 0, 0, 0, 176, 0, 178, 0, 0, 0, 0, 0, 0, 161, 171, 0, 0, 179, 179, 0, 0, 179, 160, 0, 0, 179, 179, 0, 0, 175, 171, 0, 0, 0, 0, 0, 0, 169, 0, 165, 0, 0, 0, 0, 169, 0, 0, 0, 166, 172, 167, 174, 0, 0]),  # frame 10
+            bytes([0, 0, 161, 174, 168, 169, 0, 0, 0, 167, 0, 0, 0, 0, 174, 0, 167, 0, 0, 0, 0, 0, 0, 169, 175, 0, 0, 179, 179, 0, 0, 167, 174, 0, 0, 179, 179, 0, 0, 176, 170, 0, 0, 0, 0, 0, 0, 179, 0, 179, 0, 0, 0, 0, 170, 0, 0, 0, 173, 166, 162, 172, 0, 0]),  # frame 11
+            bytes([0, 0, 168, 163, 161, 178, 0, 0, 0, 173, 0, 0, 0, 0, 173, 0, 171, 0, 0, 0, 0, 0, 0, 172, 169, 0, 0, 179, 179, 0, 0, 164, 175, 0, 0, 179, 179, 0, 0, 177, 170, 0, 0, 0, 0, 0, 0, 162, 0, 164, 0, 0, 0, 0, 168, 0, 0, 0, 168, 175, 179, 162, 0, 0]),  # frame 12
+            bytes([0, 0, 163, 174, 169, 162, 0, 0, 0, 179, 0, 0, 0, 0, 177, 0, 167, 0, 0, 0, 0, 0, 0, 175, 175, 0, 0, 179, 179, 0, 0, 166, 167, 0, 0, 179, 179, 0, 0, 175, 163, 0, 0, 0, 0, 0, 0, 176, 0, 166, 0, 0, 0, 0, 165, 0, 0, 0, 179, 161, 175, 169, 0, 0]),  # frame 13
+            bytes([0, 0, 170, 170, 165, 179, 0, 0, 0, 166, 0, 0, 0, 0, 162, 0, 172, 0, 0, 0, 0, 0, 0, 160, 177, 0, 0, 179, 179, 0, 0, 160, 165, 0, 0, 179, 179, 0, 0, 164, 168, 0, 0, 0, 0, 0, 0, 160, 0, 179, 0, 0, 0, 0, 171, 0, 0, 0, 178, 169, 166, 175, 0, 0]),  # frame 14
+            bytes([0, 0, 160, 167, 167, 164, 0, 0, 0, 162, 0, 0, 0, 0, 169, 0, 179, 0, 0, 0, 0, 0, 0, 172, 165, 0, 0, 179, 179, 0, 0, 168, 160, 0, 0, 179, 179, 0, 0, 169, 170, 0, 0, 0, 0, 0, 0, 172, 0, 164, 0, 0, 0, 0, 162, 0, 0, 0, 167, 163, 161, 166, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '..IIII..',
-            '.I....I.',
-            'I......I',
-            'I..II..I',
-            'I..II..I',
-            'I......I',
-            '.I....I.',
-            '..IIII..',
-        ],
-
     ),
     PowerCardIds.INTERNAL_SENSORS_ID: PowerCardAnimation(
         uid=PowerCardIds.INTERNAL_SENSORS_ID,
         name="Internal Sensors",
-        category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '........',
-            '...99...',
-            '..9@@9..',
-            '..9@@9..',
-            '...99...',
-            '........',
-            '........',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 168, 161, 179, 0, 0, 0, 0, 179, 172, 173, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 174, 171, 179, 0, 0, 0, 0, 179, 175, 165, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 177, 179, 179, 0, 0, 0, 0, 179, 164, 177, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 165, 176, 179, 0, 0, 0, 0, 179, 174, 164, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 176, 168, 179, 0, 0, 0, 0, 179, 172, 175, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 170, 164, 179, 0, 0, 0, 0, 179, 178, 169, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 167, 178, 179, 0, 0, 0, 0, 179, 166, 165, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 174, 171, 179, 0, 0, 0, 0, 179, 160, 170, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 176, 177, 179, 0, 0, 0, 0, 179, 173, 179, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 167, 163, 179, 0, 0, 0, 0, 179, 170, 170, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 9
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 166, 172, 179, 0, 0, 0, 0, 179, 174, 167, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 10
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 173, 166, 179, 0, 0, 0, 0, 179, 172, 162, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 11
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 168, 175, 179, 0, 0, 0, 0, 179, 162, 179, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 12
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 179, 161, 179, 0, 0, 0, 0, 179, 169, 175, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 13
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 178, 169, 179, 0, 0, 0, 0, 179, 175, 166, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 14
+            bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 179, 167, 163, 179, 0, 0, 0, 0, 179, 166, 161, 179, 0, 0, 0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '........',
-            '........',
-            '...II...',
-            '..IIII..',
-            '..IIII..',
-            '...II...',
-            '........',
-            '........',
-        ],
-
     ),
     PowerCardIds.LONG_RANGE_COMMS_ID: PowerCardAnimation(
         uid=PowerCardIds.LONG_RANGE_COMMS_ID,
         name="Long Range Comms",
-        category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..6996..',
-            '.3....3.',
-            '........',
-            '...77...',
-            '..5..5..',
-            '........',
-            '...55...',
-            '...99...',
+        frames=[
+            bytes([0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 0, 170, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 170, 0, 0, 170, 0, 0, 0, 0, 0, 174, 174, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 166, 0, 0, 0, 0, 166, 0, 0, 0, 172, 179, 179, 172, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '..IIII..',
-            '.I....I.',
-            '........',
-            '...II...',
-            '..I..I..',
-            '........',
-            '...II...',
-            '...II...',
-        ],
-
     ),
     PowerCardIds.RADIO_COMMUNICATIONS_ID: PowerCardAnimation(
         uid=PowerCardIds.RADIO_COMMUNICATIONS_ID,
         name="Radio Communications",
-        category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '........',
-            '........',
-            '........',
-            '..7997..',
-            '.5....5.',
-            '...66...',
-            '..2442..',
-            '...99...',
+        frames=[
+            bytes([0, 0, 0, 179, 179, 0, 0, 0, 0, 0, 164, 168, 168, 164, 0, 0, 0, 0, 0, 172, 172, 0, 0, 0, 0, 170, 0, 0, 0, 0, 170, 0, 0, 0, 174, 179, 179, 174, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),  # frame 0
         ],
-        color_mask=[
-            '........',
-            '........',
-            '........',
-            '..IIII..',
-            '.I....I.',
-            '...II...',
-            '..IIII..',
-            '...II...',
-        ],
-
     ),
     PowerCardIds.TRANSPORTERS_ID: PowerCardAnimation(
         uid=PowerCardIds.TRANSPORTERS_ID,
         name="Transporters",
-        category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '...999..',
-            '...777..',
-            '....5...',
-            '.@@333@@',
-            '....@...',
-            '...@.@..',
-            '..@...@.',
-            '..@...@.',
+        frames=[
+            bytes([0, 0, 71, 0, 0, 0, 78, 0, 0, 155, 0, 0, 0, 149, 0, 0, 0, 0, 0, 155, 0, 152, 0, 0, 0, 0, 0, 36, 0, 0, 0, 0, 0, 72, 33, 26, 26, 26, 21, 68, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 77, 0, 0, 0, 77, 0, 0, 152, 0, 0, 0, 150, 0, 0, 0, 0, 0, 141, 0, 140, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 75, 25, 26, 26, 26, 31, 74, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 74, 0, 0, 0, 66, 0, 0, 150, 0, 0, 0, 150, 0, 0, 0, 0, 0, 145, 0, 143, 0, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 64, 37, 26, 26, 26, 39, 77, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 64, 0, 0, 0, 67, 0, 0, 142, 0, 0, 0, 159, 0, 0, 0, 0, 0, 146, 0, 142, 0, 0, 0, 0, 0, 22, 0, 0, 0, 0, 0, 74, 24, 26, 26, 26, 36, 65, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 63, 0, 0, 0, 63, 0, 0, 145, 0, 0, 0, 140, 0, 0, 0, 0, 0, 151, 0, 152, 0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 72, 35, 26, 26, 26, 28, 76, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 78, 0, 0, 0, 78, 0, 0, 158, 0, 0, 0, 142, 0, 0, 0, 0, 0, 157, 0, 158, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 78, 29, 26, 26, 26, 24, 70, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 71, 0, 0, 0, 68, 0, 0, 142, 0, 0, 0, 152, 0, 0, 0, 0, 0, 149, 0, 150, 0, 0, 0, 0, 0, 38, 0, 0, 0, 0, 0, 66, 25, 26, 26, 26, 38, 67, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 60, 0, 0, 0, 71, 0, 0, 148, 0, 0, 0, 149, 0, 0, 0, 0, 0, 153, 0, 149, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 60, 30, 26, 26, 26, 31, 74, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 70, 0, 0, 0, 60, 0, 0, 157, 0, 0, 0, 143, 0, 0, 0, 0, 0, 155, 0, 143, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 73, 39, 26, 26, 26, 37, 76, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 72, 0, 0, 0, 69, 0, 0, 152, 0, 0, 0, 154, 0, 0, 0, 0, 0, 157, 0, 150, 0, 0, 0, 0, 0, 31, 0, 0, 0, 0, 0, 70, 30, 26, 26, 26, 23, 67, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 9
+            bytes([0, 0, 75, 0, 0, 0, 79, 0, 0, 140, 0, 0, 0, 151, 0, 0, 0, 0, 0, 149, 0, 149, 0, 0, 0, 0, 0, 25, 0, 0, 0, 0, 0, 74, 27, 26, 26, 26, 32, 66, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 10
+            bytes([0, 0, 76, 0, 0, 0, 67, 0, 0, 154, 0, 0, 0, 150, 0, 0, 0, 0, 0, 150, 0, 159, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 72, 22, 26, 26, 26, 26, 73, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 11
+            bytes([0, 0, 77, 0, 0, 0, 64, 0, 0, 155, 0, 0, 0, 150, 0, 0, 0, 0, 0, 148, 0, 142, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 62, 39, 26, 26, 26, 35, 68, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 12
+            bytes([0, 0, 75, 0, 0, 0, 66, 0, 0, 147, 0, 0, 0, 143, 0, 0, 0, 0, 0, 145, 0, 156, 0, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 69, 35, 26, 26, 26, 21, 79, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 13
+            bytes([0, 0, 64, 0, 0, 0, 60, 0, 0, 145, 0, 0, 0, 148, 0, 0, 0, 0, 0, 151, 0, 140, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 75, 26, 26, 26, 26, 29, 78, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 14
+            bytes([0, 0, 69, 0, 0, 0, 68, 0, 0, 140, 0, 0, 0, 150, 0, 0, 0, 0, 0, 142, 0, 152, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 66, 21, 26, 26, 26, 23, 67, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 74, 74, 74, 0, 0, 0, 0, 59, 59, 59, 0, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '...RRR..',
-            '...UUU..',
-            '....W...',
-            '.UWWWWWU',
-            '....W...',
-            '...D.D..',
-            '..D...D.',
-            '..U...U.',
-        ],
-
     ),
     PowerCardIds.CO2_SCRUBBERS_ID: PowerCardAnimation(
         uid=PowerCardIds.CO2_SCRUBBERS_ID,
         name="CO2 Scrubbers",
-        category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '@7@7@7@7',
-            '.....9..',
-            '........',
-            '3@3@39..',
-            '........',
-            '3@3@39..',
-            '@7@7@7@7',
-            '.....9..',
+        frames=[
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 66, 74, 78, 74, 71, 74, 75, 66, 72, 66, 69, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 76, 66, 75, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 68, 74, 61, 74, 73, 74, 72]),  # frame 0
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 79, 74, 77, 74, 77, 74, 72, 66, 60, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 73, 66, 61, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 74, 74, 71, 74, 65, 74, 75]),  # frame 1
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 72, 74, 66, 74, 74, 74, 70, 66, 63, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 66, 66, 65, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 77, 74, 79, 74, 77, 74, 64]),  # frame 2
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 70, 74, 67, 74, 64, 74, 62, 66, 62, 66, 79, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 62, 66, 66, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 65, 74, 76, 74, 64, 74, 74]),  # frame 3
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 67, 74, 63, 74, 63, 74, 65, 66, 72, 66, 60, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 67, 66, 71, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 76, 74, 68, 74, 75, 74, 72]),  # frame 4
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 71, 74, 78, 74, 78, 74, 78, 66, 78, 66, 62, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 72, 66, 77, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 70, 74, 64, 74, 69, 74, 78]),  # frame 5
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 68, 74, 68, 74, 71, 74, 62, 66, 70, 66, 72, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 78, 66, 69, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 67, 74, 78, 74, 65, 74, 66]),  # frame 6
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 67, 74, 71, 74, 60, 74, 68, 66, 69, 66, 69, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 64, 66, 73, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 74, 74, 71, 74, 70, 74, 60]),  # frame 7
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 62, 74, 60, 74, 70, 74, 77, 66, 63, 66, 63, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 73, 66, 75, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 76, 74, 77, 74, 79, 74, 73]),  # frame 8
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 71, 74, 69, 74, 72, 74, 72, 66, 70, 66, 74, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 71, 66, 77, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 67, 74, 63, 74, 70, 74, 70]),  # frame 9
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 71, 74, 79, 74, 75, 74, 60, 66, 69, 66, 71, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 65, 66, 69, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 66, 74, 72, 74, 67, 74, 74]),  # frame 10
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 75, 74, 67, 74, 76, 74, 74, 66, 79, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 79, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 73, 74, 66, 74, 62, 74, 72]),  # frame 11
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 69, 74, 64, 74, 77, 74, 75, 66, 62, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 64, 66, 68, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 68, 74, 75, 74, 79, 74, 62]),  # frame 12
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 75, 74, 66, 74, 75, 74, 67, 66, 76, 66, 63, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 66, 66, 65, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 79, 74, 61, 74, 75, 74, 69]),  # frame 13
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 77, 74, 60, 74, 64, 74, 65, 66, 60, 66, 68, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 79, 66, 71, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 78, 74, 69, 74, 66, 74, 75]),  # frame 14
+            bytes([0, 0, 0, 0, 0, 79, 0, 0, 74, 65, 74, 68, 74, 69, 74, 60, 66, 72, 66, 70, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 64, 66, 62, 66, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 0, 0, 74, 67, 74, 63, 74, 61, 74, 66]),  # frame 15
         ],
-        color_mask=[
-            'UUUUUUUU',
-            '.....U..',
-            '........',
-            'UUUUUU..',
-            '........',
-            'UUUUUU..',
-            'UUUUUUUU',
-            '.....U..',
-        ],
-
     ),
     PowerCardIds.OXYGEN_GENERATORS_ID: PowerCardAnimation(
         uid=PowerCardIds.OXYGEN_GENERATORS_ID,
         name="Oxygen Generators",
-        category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '...99...',
-            '..9@@9..',
-            '.555555.',
-            '..9@@9..',
-            '..9@@9..',
-            '.555555.',
-            '..9@@9..',
-            '...99...',
+        frames=[
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 69, 72, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 75, 76, 79, 0, 0, 0, 0, 79, 61, 68, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 72, 73, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 0
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 70, 60, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 61, 73, 79, 0, 0, 0, 0, 79, 71, 74, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 75, 65, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 1
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 70, 63, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 65, 66, 79, 0, 0, 0, 0, 79, 79, 77, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 64, 77, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 2
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 79, 62, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 66, 62, 79, 0, 0, 0, 0, 79, 76, 65, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 74, 64, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 3
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 60, 72, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 71, 67, 79, 0, 0, 0, 0, 79, 68, 76, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 72, 75, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 4
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 62, 78, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 77, 72, 79, 0, 0, 0, 0, 79, 64, 70, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 78, 69, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 5
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 72, 70, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 69, 78, 79, 0, 0, 0, 0, 79, 78, 67, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 66, 65, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 6
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 69, 69, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 73, 64, 79, 0, 0, 0, 0, 79, 71, 74, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 60, 70, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 7
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 63, 63, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 75, 73, 79, 0, 0, 0, 0, 79, 77, 76, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 73, 79, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 8
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 74, 70, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 77, 71, 79, 0, 0, 0, 0, 79, 63, 67, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 70, 70, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 9
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 71, 69, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 69, 65, 79, 0, 0, 0, 0, 79, 72, 66, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 74, 67, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 10
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 70, 79, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 70, 79, 79, 0, 0, 0, 0, 79, 66, 73, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 72, 62, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 11
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 70, 62, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 68, 64, 79, 0, 0, 0, 0, 79, 75, 68, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 62, 79, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 12
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 63, 76, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 65, 66, 79, 0, 0, 0, 0, 79, 61, 79, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 69, 75, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 13
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 68, 60, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 71, 79, 79, 0, 0, 0, 0, 79, 69, 78, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 75, 66, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 14
+            bytes([0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 79, 70, 72, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 62, 64, 79, 0, 0, 0, 0, 79, 63, 67, 79, 0, 0, 0, 70, 70, 70, 70, 70, 70, 0, 0, 0, 79, 66, 61, 79, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0]),  # frame 15
         ],
-        color_mask=[
-            '...UU...',
-            '..UUUU..',
-            '.UUUUUU.',
-            '..UUUU..',
-            '..UUUU..',
-            '.UUUUUU.',
-            '..UUUU..',
-            '...UU...',
-        ],
-
     ),
     PowerCardIds.GRAVITY_FIELD_ID: PowerCardAnimation(
         uid=PowerCardIds.GRAVITY_FIELD_ID,
         name="Gravity Field",
-        category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
-        bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        pixel_mask=[
-            '..9999..',
-            '.9~~~~9.',
-            '9~~~~~~9',
-            '9~~~~~~9',
-            '9~~~~~~9',
-            '9~~~~~~9',
-            '.9~~~~9.',
-            '..9999..',
+        frames=[
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 79, 79, 79, 79, 79, 0, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 0, 79, 79, 79, 79, 79, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 0
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 78, 78, 78, 78, 79, 0, 79, 78, 78, 78, 78, 78, 78, 79, 79, 78, 78, 78, 78, 78, 78, 79, 79, 78, 78, 78, 78, 78, 78, 79, 79, 78, 78, 78, 78, 78, 78, 79, 0, 79, 78, 78, 78, 78, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 1
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 74, 74, 74, 74, 79, 0, 79, 74, 74, 74, 74, 74, 74, 79, 79, 74, 74, 74, 74, 74, 74, 79, 79, 74, 74, 74, 74, 74, 74, 79, 79, 74, 74, 74, 74, 74, 74, 79, 0, 79, 74, 74, 74, 74, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 2
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 67, 67, 67, 67, 79, 0, 79, 67, 67, 67, 67, 67, 67, 79, 79, 67, 67, 67, 67, 67, 67, 79, 79, 67, 67, 67, 67, 67, 67, 79, 79, 67, 67, 67, 67, 67, 67, 79, 0, 79, 67, 67, 67, 67, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 3
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 63, 63, 63, 63, 79, 0, 79, 63, 63, 63, 63, 63, 63, 79, 79, 63, 63, 63, 63, 63, 63, 79, 79, 63, 63, 63, 63, 63, 63, 79, 79, 63, 63, 63, 63, 63, 63, 79, 0, 79, 63, 63, 63, 63, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 4
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 60, 60, 60, 60, 79, 0, 79, 60, 60, 60, 60, 60, 60, 79, 79, 60, 60, 60, 60, 60, 60, 79, 79, 60, 60, 60, 60, 60, 60, 79, 79, 60, 60, 60, 60, 60, 60, 79, 0, 79, 60, 60, 60, 60, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 5
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 62, 62, 62, 62, 79, 0, 79, 62, 62, 62, 62, 62, 62, 79, 79, 62, 62, 62, 62, 62, 62, 79, 79, 62, 62, 62, 62, 62, 62, 79, 79, 62, 62, 62, 62, 62, 62, 79, 0, 79, 62, 62, 62, 62, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 6
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 66, 66, 66, 66, 79, 0, 79, 66, 66, 66, 66, 66, 66, 79, 79, 66, 66, 66, 66, 66, 66, 79, 79, 66, 66, 66, 66, 66, 66, 79, 79, 66, 66, 66, 66, 66, 66, 79, 0, 79, 66, 66, 66, 66, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 7
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 73, 73, 73, 73, 79, 0, 79, 73, 73, 73, 73, 73, 73, 79, 79, 73, 73, 73, 73, 73, 73, 79, 79, 73, 73, 73, 73, 73, 73, 79, 79, 73, 73, 73, 73, 73, 73, 79, 0, 79, 73, 73, 73, 73, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 8
+            bytes([0, 0, 79, 79, 79, 79, 0, 0, 0, 79, 77, 77, 77, 77, 79, 0, 79, 77, 77, 77, 77, 77, 77, 79, 79, 77, 77, 77, 77, 77, 77, 79, 79, 77, 77, 77, 77, 77, 77, 79, 79, 77, 77, 77, 77, 77, 77, 79, 0, 79, 77, 77, 77, 77, 79, 0, 0, 0, 79, 79, 79, 79, 0, 0]),  # frame 9
         ],
-        color_mask=[
-            '..UUUU..',
-            '.UUUUUU.',
-            'UUUUUUUU',
-            'UUUUUUUU',
-            'UUUUUUUU',
-            'UUUUUUUU',
-            '.UUUUUU.',
-            '..UUUU..',
-        ],
-
     ),
 }
