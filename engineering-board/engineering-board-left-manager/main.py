@@ -10,7 +10,7 @@ import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import check_timer, register_timer, logger
 from profiling import register_profile, start_profile, stop_profile, report_all_profiles
-from fake_data_manager import FakeDataManager
+from demo_data_manager import DemoDataManager
 
 from power_grid_manager import LeftPixelStrip, PowerGridManager
 from power_display_manager import PowerDisplayManager
@@ -30,14 +30,15 @@ HEARTBEAT_FREQUENCY_SEC = 2
 TIMER_HEARTBEAT = "heartbeat"
 PROFILE_REPORT_FREQUENCY_SEC = 10.0
 TIMER_PROFILE_REPORT = "profile_report"
+DEMO_DATA_FREQUENCY_SEC = 0.25
+TIMER_DEMO_DATA = "demo_data"
 
-PROFILE_COMMS = "comms"
-PROFILE_FAKE_DATA = "fake_data"
-PROFILE_GRID = "grid"
-PROFILE_TRAYS = "trays"
-PROFILE_LEFT_PIXELS = "left_pixels"
-PROFILE_RIGHT_PIXELS = "right_pixels"
-PROFILE_HEARTBEAT = "heartbeat"
+PROFILE_COMMS         = register_profile("comms")
+PROFILE_DEMO_DATA     = register_profile("demo_data")
+PROFILE_TRAYS         = register_profile("trays")
+PROFILE_LEFT_PIXELS   = register_profile("left_pixels")
+PROFILE_RIGHT_PIXELS  = register_profile("right_pixels")
+PROFILE_HEARTBEAT     = register_profile("heartbeat")
 
 if usb_cdc.data is None:
     raise ConnectionError("Unable to open USB_cdc.data Serial connection")
@@ -47,11 +48,12 @@ showSerialStats = False
 
 showCardReaderDiags = False
 showSwitchboardDiags = False
-showFakeData = True
+showDemoData = False
 
 register_timer(TIMER_HEARTBEAT, HEARTBEAT_FREQUENCY_SEC)
 register_timer(TIMER_PROFILE_REPORT, PROFILE_REPORT_FREQUENCY_SEC)
 register_timer(TIMER_SERIAL_READ, SERIAL_READ_FREQUENCY_SEC)
+register_timer(TIMER_DEMO_DATA, DEMO_DATA_FREQUENCY_SEC)
 
 def log_heartbeat():
     if not ENABLE_HEARTBEAT_LOGGING:
@@ -74,12 +76,12 @@ def log_heartbeat():
     if showSwitchboardDiags:
         logString += f": Switchboard: {SwitchboardManager.ConnectionStatus()}"
 
-    if showFakeData:
+    if showDemoData:
         powerDiag = [
             f"{power.Name}: {power.Power}"
-            for power in FakeDataManager.GetSystemPowerData()
+            for power in DemoDataManager.GetSystemPowerData()
         ]
-        logString += f", FakeData: {powerDiag}"
+        logString += f", DemoData: {powerDiag}"
 
     if showCardReaderDiags:
         cardLog = ", ".join(CardReaderManager.ReaderCards())
@@ -97,30 +99,20 @@ def initialize():
     for powerDisplay in PowerDisplayManager.AllDisplays():
         powerDisplay.Value = 888
 
-    register_profile(PROFILE_COMMS)
-    register_profile(PROFILE_FAKE_DATA)
-    register_profile(PROFILE_GRID)
-    register_profile(PROFILE_TRAYS)
-    register_profile(PROFILE_LEFT_PIXELS)
-    register_profile(PROFILE_RIGHT_PIXELS)
-    register_profile(PROFILE_HEARTBEAT)
-
 def mainLoop():
     initialize()
 
     while True:
-        start_profile(PROFILE_COMMS)
         if check_timer(TIMER_SERIAL_READ):
+            start_profile(PROFILE_COMMS)
             ProtocolManager.HandleComms()
-        stop_profile(PROFILE_COMMS)
+            stop_profile(PROFILE_COMMS)
 
-        start_profile(PROFILE_FAKE_DATA)
-        FakeDataManager.update_fake_data()
-        stop_profile(PROFILE_FAKE_DATA)
-
-        start_profile(PROFILE_GRID)
-        PowerGridManager.UpdateGridState()
-        stop_profile(PROFILE_GRID)
+        if check_timer(TIMER_DEMO_DATA):
+            start_profile(PROFILE_DEMO_DATA)
+            DemoDataManager.update_demo_data()
+            PowerGridManager.UpdateGridState()
+            stop_profile(PROFILE_DEMO_DATA)
 
         start_profile(PROFILE_TRAYS)
         for tray in TestPowerCardTrays:
@@ -135,13 +127,12 @@ def mainLoop():
         RightPixelStrip.Update()
         stop_profile(PROFILE_RIGHT_PIXELS)
 
-        start_profile(PROFILE_HEARTBEAT)
         if check_timer(TIMER_HEARTBEAT):
+            start_profile(PROFILE_HEARTBEAT)
             log_heartbeat()
-        stop_profile(PROFILE_HEARTBEAT)
+            stop_profile(PROFILE_HEARTBEAT)
 
         if check_timer(TIMER_PROFILE_REPORT):
             report_all_profiles()
-
 
 mainLoop()

@@ -2,7 +2,7 @@ import json
 import time
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
-from fake_data_manager import FakeDataManager
+from demo_data_manager import DemoDataManager
 
 from protocol_resources import EnginePower, SystemPower, TransformerPower, json_string
 
@@ -117,7 +117,7 @@ class ProtocolManagerClass:
                 logger.info("Received ENGINE POWER QUERY command")
 
             self.__SendPacket(
-                SER_PROTO_ENGINE_POWER_RESPONSE, FakeDataManager.GetEnginePowerData()
+                SER_PROTO_ENGINE_POWER_RESPONSE, DemoDataManager.GetEnginePowerData()
             )
             self.__total_commands_handled += 1
             return
@@ -128,7 +128,7 @@ class ProtocolManagerClass:
 
             self.__SendPacket(
                 SER_PROTO_TRANSFORMER_POWER_RESPONSE,
-                FakeDataManager.GetTransformerPowerData(),
+                DemoDataManager.GetTransformerPowerData(),
             )
             self.__total_commands_handled += 1
             return
@@ -138,7 +138,7 @@ class ProtocolManagerClass:
                 logger.info("Received SYSTEM POWER QUERY command")
 
             self.__SendPacket(
-                SER_PROTO_SYSTEM_POWER_RESPONSE, FakeDataManager.GetSystemPowerData()
+                SER_PROTO_SYSTEM_POWER_RESPONSE, DemoDataManager.GetSystemPowerData()
             )
             self.__total_commands_handled += 1
             return
@@ -152,11 +152,11 @@ class ProtocolManagerClass:
                 logger.info(f"Received SET ENGINE POWER command: {shortString(data)}")
 
             try:
-                FakeDataManager.ClearEnginePowerData()
+                DemoDataManager.ClearEnginePowerData()
                 for power_dict in data:
                     power_resource = EnginePower.from_json_dict(power_dict)
                     logger.info(f"Adding ENGINE POWER: {power_resource}")
-                    FakeDataManager.AddEnginePowerResource(power_resource)
+                    DemoDataManager.AddEnginePowerResource(power_resource)
 
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
@@ -179,11 +179,11 @@ class ProtocolManagerClass:
                 )
 
             try:
-                FakeDataManager.ClearTransformerPowerData()
+                DemoDataManager.ClearTransformerPowerData()
                 for power_dict in data:
                     power_resource = TransformerPower.from_json_dict(power_dict)
                     logger.info(f"Adding TRANSFORMER POWER: {power_resource}")
-                    FakeDataManager.AddTransformerPowerResource(power_resource)
+                    DemoDataManager.AddTransformerPowerResource(power_resource)
 
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:
@@ -204,11 +204,11 @@ class ProtocolManagerClass:
                 logger.info(f"Received SET SYSTEM POWER command: {shortString(data)}")
 
             try:
-                FakeDataManager.ClearSystemPowerData()
+                DemoDataManager.ClearSystemPowerData()
                 for power_dict in data:
                     power_resource = SystemPower.from_json_dict(power_dict)
                     logger.info(f"Adding SYSTEM POWER: {power_resource}")
-                    FakeDataManager.AddSystemPowerResource(power_resource)
+                    DemoDataManager.AddSystemPowerResource(power_resource)
 
                 self.__SendPacket(SER_PROTO_OK)
             except TypeError as ex:

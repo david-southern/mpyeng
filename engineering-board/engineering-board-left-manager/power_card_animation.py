@@ -4,13 +4,6 @@ import random
 from color_utils import Color
 from power_card_categories import PowerCardCategories
 from power_card_ids import PowerCardIds
-from profiling import register_profile, start_profile, stop_profile
-
-PROFILE_ANIM_ENSURE_PAL = "anim_ensure_pal"
-PROFILE_ANIM_RENDER = "anim_render"
-
-register_profile(PROFILE_ANIM_ENSURE_PAL)
-register_profile(PROFILE_ANIM_RENDER)
 
 class CardAnimationHelpers:
     WIDTH = 8
@@ -18,11 +11,34 @@ class CardAnimationHelpers:
     CARD_PIXEL_COUNT = WIDTH * HEIGHT
     PALETTE_SIZE = 26
 
-    # Baked frame string character classes:
-    #   '.' = black (0x000000)
-    #   'a'-'z' = category palette index (a=dim, z=bright, 26 levels)
-    #   'A'-'Z' = random color palette index (26 pre-computed random colors)
-    #
+    # Global LUT layout (256 bytes):
+    #   Byte 0 = black
+    #   Bytes 1-26   = category 0 palette (dim→bright, 26 levels)
+    #   Bytes 27-52  = category 1 palette
+    #   ...up to 6 categories (bytes 1-156)
+    #   Bytes 157-182 = random color palette (26 entries)
+    #   Bytes 183-255 = reserved
+    BLACK_BYTE = 0
+    RANDOM_PALETTE_OFFSET = 157
+
+    POWER_SYSTEMS_COLOR = Color("#00B428")
+    DEFENSIVE_SYSTEMS_COLOR = Color("#005AFF")
+    WEAPONS_SYSTEMS_COLOR = Color("#FF2814")
+    PROPULSION_SYSTEMS_COLOR = Color("#FF9600")
+    INFORMATION_SYSTEMS_COLOR = Color("#8C28FF")
+    UTILITY_SYSTEMS_COLOR = Color("#E8B998")
+    
+    # Color mask characters for cross-category pixels:
+    # * '.' in color_mask = own category (default)
+    # * 'P'= Power (green)
+    # * 'D'= Defensive (blue)
+    # * 'W'= Weapons (red)
+    # * 'R'= Propulsion (orange)
+    # * 'I'= Information (purple)
+    # * 'U'= Utility (beige)
+    #   '?'=random palette
+    COLOR_MASK_CHARS: dict = {}  # char -> category_name (populated by register)
+
     # Original mask character types (resolved during frame baking):
     #   '.' = black
     #   '~' = wave (smooth ping-pong between bright and dim)
@@ -38,31 +54,41 @@ class CardAnimationHelpers:
     DEFAULT_ANIMATION_DURATION = 3.0
 
     # Pre-computed cosine LUT for wave animation (64 entries, 0-256 scale)
-    _COS_LUT_SIZE = 64
-    _COS_LUT = [int(128 - 128 * math.cos(i * 2 * math.pi / 64)) for i in range(64)]
+    __COS_LUT_SIZE = 64
+    __COS_LUT = [int(128 - 128 * math.cos(i * 2 * math.pi / 64)) for i in range(64)]
 
     # Shared render buffer (single pre-allocated list, reused every frame)
-    _render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
+    __render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
 
-    # Palette caches (regenerated when brightness changes)
-    _category_palettes: dict = {}      # category_name -> list[int] (26 entries)
-    _random_palette: list[int] = [0] * PALETTE_SIZE
-    _palette_brightness: float = -1.0
-    _category_color_defs: dict = {}    # category_name -> (bright_Color, dim_Color)
-    _category_luts: dict = {}          # category_name -> list[int] (123 entries: byte value -> packed int)
-    # LUT layout: index 46='.' -> 0, 65-90='A'-'Z' -> random palette, 97-122='a'-'z' -> category palette
-
-    @classmethod
-    def register_category_colors(cls, category: str, bright_color: Color, dim_color: Color):
-        if category not in cls._category_color_defs:
-            cls._category_color_defs[category] = (bright_color, dim_color)
+    # Palette / LUT caches (regenerated when brightness changes)
+    __global_lut: list[int] = [0] * 256
+    __palette_brightness: float = -1.0
+    __category_color_defs: dict = {}    # category_name -> (bright_Color, dim_Color)
+    __category_offsets: dict = {}       # category_name -> int (byte offset into global LUT)
+    __next_category_offset: int = 1     # next available byte offset (0 reserved for black)
 
     @classmethod
-    def _regenerate_palettes(cls, brightness: float):
+    def register_category_colors(cls, category: str, bright_color: Color, dim_color: Color, color_mask_char: str = ''):
+        if category not in cls.__category_color_defs:
+            cls.__category_color_defs[category] = (bright_color, dim_color)
+            cls.__category_offsets[category] = cls.__next_category_offset
+            cls.__next_category_offset += cls.PALETTE_SIZE
+            if color_mask_char:
+                cls.COLOR_MASK_CHARS[color_mask_char] = category
+
+    @classmethod
+    def get_category_offset(cls, category: str) -> int:
+        return cls.__category_offsets[category]
+
+    @classmethod
+    def __regenerate_palettes(cls, brightness: float):
         ps = cls.PALETTE_SIZE
         ps_1 = ps - 1
-        for cat_name, (bright, dim) in cls._category_color_defs.items():
-            palette = [0] * ps
+        lut = cls.__global_lut
+        lut[0] = 0  # black
+
+        for cat_name, (bright, dim) in cls.__category_color_defs.items():
+            offset = cls.__category_offsets[cat_name]
             br, bg, bb = bright.R, bright.G, bright.B
             dr, dg, db = dim.R, dim.G, dim.B
             for i in range(ps):
@@ -70,34 +96,21 @@ class CardAnimationHelpers:
                 r = int((dr + (br - dr) * t) * brightness)
                 g = int((dg + (bg - dg) * t) * brightness)
                 b = int((db + (bb - db) * t) * brightness)
-                palette[i] = (r << 16) | (g << 8) | b
-            cls._category_palettes[cat_name] = palette
+                lut[offset + i] = (r << 16) | (g << 8) | b
 
-        rp = cls._random_palette
+        rp_offset = cls.RANDOM_PALETTE_OFFSET
         for i in range(ps):
             r = int(random.random() * 255 * brightness)
             g = int(random.random() * 255 * brightness)
             b = int(random.random() * 255 * brightness)
-            rp[i] = (r << 16) | (g << 8) | b
+            lut[rp_offset + i] = (r << 16) | (g << 8) | b
 
-        # Build per-category render LUTs: byte value -> packed int (no branching at render time)
-        for cat_name, palette in cls._category_palettes.items():
-            lut = [0] * 123  # covers ord('.') through ord('z')
-            # 'A'-'Z' (65-90): random palette
-            for i in range(ps):
-                lut[65 + i] = rp[i]
-            # 'a'-'z' (97-122): category palette
-            for i in range(ps):
-                lut[97 + i] = palette[i]
-            # index 46 ('.') stays 0 (black)
-            cls._category_luts[cat_name] = lut
-
-        cls._palette_brightness = brightness
+        cls.__palette_brightness = brightness
 
     @classmethod
     def ensure_palettes(cls, brightness: float):
-        if cls._palette_brightness != brightness:
-            cls._regenerate_palettes(brightness)
+        if cls.__palette_brightness != brightness:
+            cls.__regenerate_palettes(brightness)
 
     @classmethod
     def getCardAnimation(cls, spec_id: str):
@@ -133,23 +146,45 @@ class CardAnimationHelpers:
 class PowerCardAnimation:
     DIM_BRIGHTNESS = 0.25
     
-    def __init__(self, uid: str, name: str, category: str, bright_color: Color, string_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION):
+    def __init__(self, uid: str, name: str, category: str, bright_color: Color, pixel_mask: list[str], dim_color: Color | None = None, animation_duration: float = CardAnimationHelpers.DEFAULT_ANIMATION_DURATION, color_mask: list[str] | None = None):
         self.id = uid
         self.name = name
         self.category = category
         self.bright_color = bright_color
         self.dim_color = dim_color if dim_color else bright_color.copy().scale(PowerCardAnimation.DIM_BRIGHTNESS)
-        self.string_mask = string_mask
+        self.pixel_mask = pixel_mask
+        self.color_mask = color_mask
         self.animation_duration = animation_duration
 
         # Register category for shared palette generation
         CardAnimationHelpers.register_category_colors(category, bright_color, self.dim_color)
 
+        # Pre-compute per-pixel palette offsets (64 ints in serpentine order)
+        # Each entry is the byte offset into the global LUT for that pixel's category
+        mask_h = len(pixel_mask)
+        mask_w = len(pixel_mask[0]) if mask_h > 0 else 0
+        own_offset = CardAnimationHelpers.get_category_offset(category)
+        rp_offset = CardAnimationHelpers.RANDOM_PALETTE_OFFSET
+        self.__pixel_offsets: list[int] = [own_offset] * (mask_w * mask_h)
+
+        if color_mask:
+            color_mask_chars = CardAnimationHelpers.COLOR_MASK_CHARS
+            cat_offsets = CardAnimationHelpers.__category_offsets
+            for y in range(mask_h):
+                for x in range(mask_w):
+                    cm_ch = color_mask[y][x]
+                    if cm_ch == '.':
+                        pass  # own category, already set
+                    elif cm_ch == '?':
+                        idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                        self.__pixel_offsets[idx] = rp_offset
+                    elif cm_ch in color_mask_chars:
+                        idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                        self.__pixel_offsets[idx] = cat_offsets[color_mask_chars[cm_ch]]
+
         # Determine frame count: 1 for fully static masks, 10 for animated
-        mask_h = len(string_mask)
-        mask_w = len(string_mask[0]) if mask_h > 0 else 0
         has_animated = False
-        for row in string_mask:
+        for row in pixel_mask:
             for ch in row:
                 if ch in CardAnimationHelpers.ANIMATED_MASK_CHARS or ('a' <= ch <= 'z'):
                     has_animated = True
@@ -158,98 +193,111 @@ class PowerCardAnimation:
                 break
         num_frames = 10 if has_animated else 1
 
-        # Bake frame strings (each is 64 bytes in serpentine pixel order)
-        self._frame_strings: list[bytes] = []
+        # Bake frame bytes (each is 64 bytes in serpentine pixel order)
+        # Byte values are direct indices into the global LUT
+        self.__frame_bytes: list[bytes] = []
         for fi in range(num_frames):
-            self._frame_strings.append(
-                self._bake_frame(fi, num_frames, mask_w, mask_h)
+            self.__frame_bytes.append(
+                self.__bake_frame(fi, num_frames, mask_w, mask_h)
             )
 
     @staticmethod
-    def _intensity_to_char(f: float) -> str:
-        """Map intensity fraction (0.0=black, 1.0=bright) to a frame char.
-        Returns '.' for black, 'a'-'z' for the category palette range (dim to bright).
-        Values below DIM_BRIGHTNESS map to '.' since the palette only covers dim-to-bright.
+    def __intensity_to_palette_index(f: float) -> int:
+        """Map intensity fraction (0.0-1.0) to a palette index (0-25).
+        Returns -1 for black (below DIM_BRIGHTNESS threshold).
         """
         dim = PowerCardAnimation.DIM_BRIGHTNESS
         if f < dim:
-            return '.'
-        idx = int((f - dim) / (1.0 - dim) * 25)
-        return chr(97 + min(25, idx))
+            return -1
+        return min(25, int((f - dim) / (1.0 - dim) * 25))
 
-    def _bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> bytes:
+    def __bake_frame(self, frame_index: int, num_frames: int, mask_w: int, mask_h: int) -> bytes:
         cycle_progress = frame_index / num_frames
         n = mask_w * mask_h
-        frame = ['.'] * n
+        frame = bytearray(n)  # all zeros = BLACK_BYTE
 
-        # Pre-compute wave char for this frame
-        cos_lut = CardAnimationHelpers._COS_LUT
-        cos_size = CardAnimationHelpers._COS_LUT_SIZE
+        # Pre-compute wave palette index for this frame
+        cos_lut = CardAnimationHelpers.__COS_LUT
+        cos_size = CardAnimationHelpers.__COS_LUT_SIZE
         wave_lut_val = cos_lut[int(cycle_progress * cos_size) % cos_size]
-        # LUT: 0 = bright end, 256 = dim end. Palette: a(0)=dim, z(25)=bright
-        wave_idx = 25 - min(25, (wave_lut_val * 25) >> 8)
-        wave_char = chr(97 + wave_idx)
+        wave_pal_idx = 25 - min(25, (wave_lut_val * 25) >> 8)
 
         _random = random.random
         _randint = random.randint
-        _i2c = PowerCardAnimation._intensity_to_char
+        _i2pi = PowerCardAnimation.__intensity_to_palette_index
+        pixel_offsets = self.__pixel_offsets
+        rp_offset = CardAnimationHelpers.RANDOM_PALETTE_OFFSET
+        black = CardAnimationHelpers.BLACK_BYTE
 
         for y in range(mask_h):
             for x in range(mask_w):
-                ch = self.string_mask[y][x]
-                idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                ch = self.pixel_mask[y][x]
                 if ch == '.':
-                    pass  # already '.'
-                elif ch == '~':
-                    frame[idx] = wave_char
+                    continue  # stays BLACK_BYTE (0)
+                idx = CardAnimationHelpers.xy_to_index(x, y, width=mask_w, height=mask_h)
+                offset = pixel_offsets[idx]
+                if ch == '~':
+                    frame[idx] = offset + wave_pal_idx
                 elif ch == '@':
-                    frame[idx] = chr(97 + _randint(0, 25))
+                    frame[idx] = offset + _randint(0, 25)
                 elif ch == '%':
-                    if _random() < 0.6:
-                        pass  # stays '.' (black)
-                    else:
-                        frame[idx] = chr(65 + _randint(0, 25))
+                    if _random() >= 0.6:
+                        frame[idx] = rp_offset + _randint(0, 25)
+                    # else stays BLACK_BYTE
                 elif ch == '>':
-                    frame[idx] = _i2c(1.0 - cycle_progress)
+                    pi = _i2pi(1.0 - cycle_progress)
+                    frame[idx] = (offset + pi) if pi >= 0 else black
                 elif ch == '<':
-                    frame[idx] = _i2c(cycle_progress)
+                    pi = _i2pi(cycle_progress)
+                    frame[idx] = (offset + pi) if pi >= 0 else black
                 elif ch == '*':
                     if _random() < 0.75:
-                        frame[idx] = 'z'
-                    # else stays '.' (black)
+                        frame[idx] = offset + 25  # brightest
+                    # else stays BLACK_BYTE
                 elif 'a' <= ch <= 'z':
                     delay_fraction = (ord(ch) - 97) / 25
                     if delay_fraction <= 0 or cycle_progress >= delay_fraction:
-                        frame[idx] = 'z'
+                        frame[idx] = offset + 25  # brightest
                     else:
-                        frame[idx] = _i2c(cycle_progress / delay_fraction)
+                        pi = _i2pi(cycle_progress / delay_fraction)
+                        frame[idx] = (offset + pi) if pi >= 0 else black
                 elif '0' <= ch <= '9':
-                    # Digits map directly to palette: 0→a (dim), 9→z (bright)
-                    frame[idx] = chr(97 + min(25, int((ord(ch) - 48) / 9 * 25)))
-                # else stays '.'
-        return bytes(''.join(frame), 'ascii')
+                    frame[idx] = offset + min(25, int((ord(ch) - 48) / 9 * 25))
+
+        return bytes(frame)
 
     def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
-        """Translate a baked frame string to packed neopixel ints via palette lookup.
+        """Translate baked frame bytes to packed neopixel ints via global LUT lookup.
         Returns the shared render buffer — caller must consume before the next PixelBuffer call.
         """
-        start_profile(PROFILE_ANIM_ENSURE_PAL)
         CardAnimationHelpers.ensure_palettes(brightness)
-        stop_profile(PROFILE_ANIM_ENSURE_PAL)
 
-        start_profile(PROFILE_ANIM_RENDER)
-        nf = len(self._frame_strings)
+        nf = len(self.__frame_bytes)
         frame_idx = int(cycle_progress * nf) % nf
-        frame = self._frame_strings[frame_idx]
+        frame = self.__frame_bytes[frame_idx]
 
-        buf = CardAnimationHelpers._render_buffer
-        lut = CardAnimationHelpers._category_luts[self.category]
+        buf = CardAnimationHelpers.__render_buffer
+        lut = CardAnimationHelpers.__global_lut
 
         for i in range(64):
             buf[i] = lut[frame[i]]
-        stop_profile(PROFILE_ANIM_RENDER)
 
         return buf
+
+
+# Pre-register all categories with their color_mask characters so that
+# color_mask grids can reference any category by single letter.
+# DIM_BRIGHTNESS scaling applied automatically per category.
+_dim = PowerCardAnimation.DIM_BRIGHTNESS
+for _cat_name, _color, _char in [
+    (PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,       PowerCardCategories.POWER_SYSTEMS_COLOR,       'P'),
+    (PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,   PowerCardCategories.DEFENSIVE_SYSTEMS_COLOR,   'D'),
+    (PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,     PowerCardCategories.WEAPONS_SYSTEMS_COLOR,     'W'),
+    (PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,  PowerCardCategories.PROPULSION_SYSTEMS_COLOR,  'R'),
+    (PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME, PowerCardCategories.INFORMATION_SYSTEMS_COLOR, 'I'),
+    (PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,     PowerCardCategories.UTILITY_SYSTEMS_COLOR,     'U'),
+]:
+    CardAnimationHelpers.register_category_colors(_cat_name, _color, _color.copy().scale(_dim), _char)
 
 
 CARD_ANIMATION_DEFS = {
@@ -258,7 +306,7 @@ CARD_ANIMATION_DEFS = {
         name="Fusion Engines",
         category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '.2....2.',
             '..2..2..',
@@ -268,6 +316,16 @@ CARD_ANIMATION_DEFS = {
             '...99...',
             '........',
         ],
+        color_mask=[
+            '........',
+            '.P....P.',
+            '..P..P..',
+            '...PP...',
+            '...PP...',
+            '...PP...',
+            '...PP...',
+            '........',
+        ],
 
     ),
     PowerCardIds.WARP_FIELD_ID: PowerCardAnimation(
@@ -275,7 +333,7 @@ CARD_ANIMATION_DEFS = {
         name="Warp Field",
         category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..~~~~..',
             '.~....~.',
             '~..99..~',
@@ -284,6 +342,16 @@ CARD_ANIMATION_DEFS = {
             '~..99..~',
             '.~....~.',
             '..~~~~..',
+        ],
+        color_mask=[
+            '..PPPP..',
+            '.P....P.',
+            'P..PP..P',
+            'P.P..P.P',
+            'P.P..P.P',
+            'P..PP..P',
+            '.P....P.',
+            '..PPPP..',
         ],
 
     ),
@@ -292,7 +360,7 @@ CARD_ANIMATION_DEFS = {
         name="Main Computer",
         category=PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.POWER_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..9999..',
             '.9....9.',
             '9.%%%%.9',
@@ -302,6 +370,16 @@ CARD_ANIMATION_DEFS = {
             '.9....9.',
             '..9999..',
         ],
+        color_mask=[
+            '..PPPP..',
+            '.P....P.',
+            'P.PPPP.P',
+            'P.PPPP.P',
+            'P.PPPP.P',
+            'P.PPPP.P',
+            '.P....P.',
+            '..PPPP..',
+        ],
 
     ),
     PowerCardIds.FORE_SHIELDS_ID: PowerCardAnimation(
@@ -309,13 +387,23 @@ CARD_ANIMATION_DEFS = {
         name="Fore Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..~~~~..',
             '.3....3.',
             '...99...',
             '..9999..',
             '..9999..',
             '...99...',
+            '........',
+            '........',
+        ],
+        color_mask=[
+            '..DDDD..',
+            '.D....D.',
+            '...DD...',
+            '..DDDD..',
+            '..DDDD..',
+            '...DD...',
             '........',
             '........',
         ],
@@ -326,7 +414,7 @@ CARD_ANIMATION_DEFS = {
         name="Aft Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '........',
             '...99...',
@@ -336,6 +424,16 @@ CARD_ANIMATION_DEFS = {
             '.3....3.',
             '..~~~~..',
         ],
+        color_mask=[
+            '........',
+            '........',
+            '...DD...',
+            '..DDDD..',
+            '..DDDD..',
+            '...DD...',
+            '.D....D.',
+            '..DDDD..',
+        ],
 
     ),
     PowerCardIds.PORT_SHIELDS_ID: PowerCardAnimation(
@@ -343,7 +441,7 @@ CARD_ANIMATION_DEFS = {
         name="Port Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '.3......',
             '~..99...',
@@ -351,6 +449,16 @@ CARD_ANIMATION_DEFS = {
             '~.9999..',
             '~..99...',
             '.3......',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '.D......',
+            'D..DD...',
+            'D.DDDD..',
+            'D.DDDD..',
+            'D..DD...',
+            '.D......',
             '........',
         ],
 
@@ -360,7 +468,7 @@ CARD_ANIMATION_DEFS = {
         name="Starboard Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '......3.',
             '...99..~',
@@ -368,6 +476,16 @@ CARD_ANIMATION_DEFS = {
             '..9999.~',
             '...99..~',
             '......3.',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '......D.',
+            '...DD..D',
+            '..DDDD.D',
+            '..DDDD.D',
+            '...DD..D',
+            '......D.',
             '........',
         ],
 
@@ -377,7 +495,7 @@ CARD_ANIMATION_DEFS = {
         name="Dorsal Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '..~~~~..',
             '.~~~~~~.',
@@ -385,6 +503,16 @@ CARD_ANIMATION_DEFS = {
             '.~~~~~~.',
             '.~~~~~~.',
             '..~~~~..',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '..DDDD..',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '..DDDD..',
             '........',
         ],
 
@@ -394,7 +522,7 @@ CARD_ANIMATION_DEFS = {
         name="Ventral Shields",
         category=PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.DEFENSIVE_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '..~~~~..',
             '.~~99~~.',
@@ -402,6 +530,16 @@ CARD_ANIMATION_DEFS = {
             '.~9999~.',
             '.~~99~~.',
             '..~~~~..',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '..DDDD..',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '.DDDDDD.',
+            '..DDDD..',
             '........',
         ],
 
@@ -411,7 +549,7 @@ CARD_ANIMATION_DEFS = {
         name="Laser Cannon",
         category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '.....999',
             '.....999',
             '......99',
@@ -421,6 +559,16 @@ CARD_ANIMATION_DEFS = {
             'edc.f...',
             'dcde....',
         ],
+        color_mask=[
+            '.....WWW',
+            '.....WWW',
+            '......WW',
+            '....W...',
+            '....W...',
+            'W..W....',
+            'WWW.W...',
+            'WWWW....',
+        ],
         animation_duration=1.5
     ),
     PowerCardIds.TRACTOR_BEAM_ID: PowerCardAnimation(
@@ -428,7 +576,7 @@ CARD_ANIMATION_DEFS = {
         name="Tractor Beam",
         category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..9999..',
             '...99...',
             '...**...',
@@ -438,13 +586,23 @@ CARD_ANIMATION_DEFS = {
             '.*6666*.',
             '.*6666*.',
         ],
+        color_mask=[
+            '..WWWW..',
+            '...WW...',
+            '...WW...',
+            '..WWWW..',
+            '..WWWW..',
+            '..WWWW..',
+            '.WWWWWW.',
+            '.WWWWWW.',
+        ],
     ),
     PowerCardIds.STEALTH_FIELDS_ID: PowerCardAnimation(
         uid=PowerCardIds.STEALTH_FIELDS_ID,
         name="Stealth Fields",
         category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '..@@@@..',
             '.@@@@@@.',
@@ -454,6 +612,16 @@ CARD_ANIMATION_DEFS = {
             '..@@@@..',
             '........',
         ],
+        color_mask=[
+            '........',
+            '..WWWW..',
+            '.WWWWWW.',
+            '.WWWWWW.',
+            '.WWWWWW.',
+            '.WWWWWW.',
+            '..WWWW..',
+            '........',
+        ],
 
     ),
     PowerCardIds.TARGETING_ID: PowerCardAnimation(
@@ -461,13 +629,23 @@ CARD_ANIMATION_DEFS = {
         name="Targeting",
         category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '..999...',
             '...2....',
             '.92.29..',
             '...2....',
             '..999...',
+            '........',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '..WWW...',
+            '...W....',
+            '.WW.WW..',
+            '...W....',
+            '..WWW...',
             '........',
             '........',
         ],
@@ -478,7 +656,7 @@ CARD_ANIMATION_DEFS = {
         name="Signal Jammer",
         category=PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.WEAPONS_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '%%%%%%%%',
             '%%%%%%%%',
             '%%%%%%%%',
@@ -488,6 +666,16 @@ CARD_ANIMATION_DEFS = {
             '%%%%%%%%',
             '%%%%%%%%',
         ],
+        color_mask=[
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+            'WWWWWWWW',
+        ],
 
     ),
     PowerCardIds.ALCUBIERRE_WARP_DRIVE_ID: PowerCardAnimation(
@@ -495,7 +683,7 @@ CARD_ANIMATION_DEFS = {
         name="Alcubierre Warp Drive",
         category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..9999..',
             '.9.yy.9.',
             '9..xx..9',
@@ -505,6 +693,16 @@ CARD_ANIMATION_DEFS = {
             '.9.aa.9.',
             '..9999..',
         ],
+        color_mask=[
+            '..RRRR..',
+            '.R.RR.R.',
+            'R..RR..R',
+            'R..RR..R',
+            'R..RR..R',
+            'R..RR..R',
+            '.R.RR.R.',
+            '..RRRR..',
+        ],
 
     ),
     PowerCardIds.THRUSTERS_ID: PowerCardAnimation(
@@ -512,7 +710,7 @@ CARD_ANIMATION_DEFS = {
         name="Thrusters",
         category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..3333..',
             '...33...',
             '...99...',
@@ -522,6 +720,16 @@ CARD_ANIMATION_DEFS = {
             '@@@@@@@@',
             '...@@...',
         ],
+        color_mask=[
+            '..RRRR..',
+            '...RR...',
+            '...RR...',
+            '...RR...',
+            '..RRRR..',
+            '.RRRRRR.',
+            'RRRRRRRR',
+            '...RR...',
+        ],
 
     ),
     PowerCardIds.NAVIGATION_ID: PowerCardAnimation(
@@ -529,7 +737,7 @@ CARD_ANIMATION_DEFS = {
         name="Navigation",
         category=PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.PROPULSION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '........',
             '..9.....',
@@ -539,6 +747,16 @@ CARD_ANIMATION_DEFS = {
             '..22221.',
             '.....1..',
         ],
+        color_mask=[
+            '........',
+            '........',
+            '..R.....',
+            '.RRR....',
+            '..R.....',
+            '..R..R..',
+            '..RRRRR.',
+            '.....R..',
+        ],
 
     ),
     PowerCardIds.EXTERNAL_SENSORS_ID: PowerCardAnimation(
@@ -546,7 +764,7 @@ CARD_ANIMATION_DEFS = {
         name="External Sensors",
         category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..@@@@..',
             '.@....@.',
             '@......@',
@@ -556,6 +774,16 @@ CARD_ANIMATION_DEFS = {
             '.@....@.',
             '..@@@@..',
         ],
+        color_mask=[
+            '..IIII..',
+            '.I....I.',
+            'I......I',
+            'I..II..I',
+            'I..II..I',
+            'I......I',
+            '.I....I.',
+            '..IIII..',
+        ],
 
     ),
     PowerCardIds.INTERNAL_SENSORS_ID: PowerCardAnimation(
@@ -563,13 +791,23 @@ CARD_ANIMATION_DEFS = {
         name="Internal Sensors",
         category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '........',
             '...99...',
             '..9@@9..',
             '..9@@9..',
             '...99...',
+            '........',
+            '........',
+        ],
+        color_mask=[
+            '........',
+            '........',
+            '...II...',
+            '..IIII..',
+            '..IIII..',
+            '...II...',
             '........',
             '........',
         ],
@@ -580,7 +818,7 @@ CARD_ANIMATION_DEFS = {
         name="Long Range Comms",
         category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..6996..',
             '.3....3.',
             '........',
@@ -590,6 +828,16 @@ CARD_ANIMATION_DEFS = {
             '...55...',
             '...99...',
         ],
+        color_mask=[
+            '..IIII..',
+            '.I....I.',
+            '........',
+            '...II...',
+            '..I..I..',
+            '........',
+            '...II...',
+            '...II...',
+        ],
 
     ),
     PowerCardIds.RADIO_COMMUNICATIONS_ID: PowerCardAnimation(
@@ -597,7 +845,7 @@ CARD_ANIMATION_DEFS = {
         name="Radio Communications",
         category=PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.INFORMATION_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '........',
             '........',
             '........',
@@ -607,6 +855,16 @@ CARD_ANIMATION_DEFS = {
             '..2442..',
             '...99...',
         ],
+        color_mask=[
+            '........',
+            '........',
+            '........',
+            '..IIII..',
+            '.I....I.',
+            '...II...',
+            '..IIII..',
+            '...II...',
+        ],
 
     ),
     PowerCardIds.TRANSPORTERS_ID: PowerCardAnimation(
@@ -614,7 +872,7 @@ CARD_ANIMATION_DEFS = {
         name="Transporters",
         category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '...999..',
             '...777..',
             '....5...',
@@ -624,6 +882,16 @@ CARD_ANIMATION_DEFS = {
             '..@...@.',
             '..@...@.',
         ],
+        color_mask=[
+            '...RRR..',
+            '...UUU..',
+            '....W...',
+            '.UWWWWWU',
+            '....W...',
+            '...U.U..',
+            '..U...U.',
+            '..U...U.',
+        ],
 
     ),
     PowerCardIds.CO2_SCRUBBERS_ID: PowerCardAnimation(
@@ -631,7 +899,7 @@ CARD_ANIMATION_DEFS = {
         name="CO2 Scrubbers",
         category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '@7@7@7@7',
             '.....9..',
             '........',
@@ -640,6 +908,16 @@ CARD_ANIMATION_DEFS = {
             '3@3@39..',
             '@7@7@7@7',
             '.....9..',
+        ],
+        color_mask=[
+            'UUUUUUUU',
+            '.....U..',
+            '........',
+            'UUUUUU..',
+            '........',
+            'UUUUUU..',
+            'UUUUUUUU',
+            '.....U..',
         ],
 
     ),
@@ -648,7 +926,7 @@ CARD_ANIMATION_DEFS = {
         name="Oxygen Generators",
         category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '...99...',
             '..9@@9..',
             '.555555.',
@@ -658,6 +936,16 @@ CARD_ANIMATION_DEFS = {
             '..9@@9..',
             '...99...',
         ],
+        color_mask=[
+            '...UU...',
+            '..UUUU..',
+            '.UUUUUU.',
+            '..UUUU..',
+            '..UUUU..',
+            '.UUUUUU.',
+            '..UUUU..',
+            '...UU...',
+        ],
 
     ),
     PowerCardIds.GRAVITY_FIELD_ID: PowerCardAnimation(
@@ -665,7 +953,7 @@ CARD_ANIMATION_DEFS = {
         name="Gravity Field",
         category=PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME,
         bright_color=PowerCardCategories.CATEGORY_COLORS[PowerCardCategories.UTILITY_SYSTEMS_CATEGORY_NAME],
-        string_mask=[
+        pixel_mask=[
             '..9999..',
             '.9~~~~9.',
             '9~~~~~~9',
@@ -674,6 +962,16 @@ CARD_ANIMATION_DEFS = {
             '9~~~~~~9',
             '.9~~~~9.',
             '..9999..',
+        ],
+        color_mask=[
+            '..UUUU..',
+            '.UUUUUU.',
+            'UUUUUUUU',
+            'UUUUUUUU',
+            'UUUUUUUU',
+            'UUUUUUUU',
+            '.UUUUUU.',
+            '..UUUU..',
         ],
 
     ),

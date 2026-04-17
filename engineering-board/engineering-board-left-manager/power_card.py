@@ -78,8 +78,8 @@ class PowerCard:
         return f"{self.UID}/{self.CardName}({self.__voltage:.2f}V)"
 
 
-
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FUSION_ENGINES_ID, 0.10, 50))
+PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TRANSPORTERS_ID, 2.20, 80))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.WARP_FIELD_ID, 0.20, 80))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.MAIN_COMPUTER_ID, 0.30, 50))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.FORE_SHIELDS_ID, 0.40, 40))
@@ -100,7 +100,6 @@ PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.EXTERNAL_SENSORS_ID, 1
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.INTERNAL_SENSORS_ID, 1.90, 40))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.LONG_RANGE_COMMS_ID, 2.00, 50))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.RADIO_COMMUNICATIONS_ID, 2.10, 80))
-PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.TRANSPORTERS_ID, 2.20, 80))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.CO2_SCRUBBERS_ID, 2.30, 40))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.OXYGEN_GENERATORS_ID, 2.40, 30))
 PowerCard.__ALL_POWER_CARDS.append(PowerCard(PowerCardIds.GRAVITY_FIELD_ID, 2.50, 20))

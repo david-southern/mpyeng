@@ -13,12 +13,12 @@ SCANNING_INTERVAL = 0.2
 class SwitchboardEndpoint:
     def __init__(self, uid: int, name: str, pin: microcontroller.Pin):
         self.uid = int(uid)
-        self._name = name
-        self._pin = pin
-        self._dio = None
+        self.__name = name
+        self.__pin = pin
+        self.__dio = None
 
         if ENABLE_SWITCHBOARD:
-            self._dio = digitalio.DigitalInOut(pin)
+            self.__dio = digitalio.DigitalInOut(pin)
 
         logger.info(f"Created SwitchboardEndpoint: {self}{disabledString(ENABLE_SWITCHBOARD)}")
 
@@ -31,16 +31,16 @@ class SwitchboardEndpoint:
         return self.uid
 
     @property
-    def Name(self) -> int:
-        return self._name
+    def Name(self) -> str:
+        return self.__name
 
     @property
     def Pin(self) -> int:
-        return self._pin
+        return self.__pin
 
     @property
     def DIO(self) -> digitalio.DigitalInOut:
-        return self._dio
+        return self.__dio
 
     def __str__(self):
         return f"{self.Name}/{self.Pin}{disabledString(ENABLE_SWITCHBOARD)}"
@@ -49,21 +49,21 @@ class SwitchboardEndpoint:
 class Switchboard:
     def __init__(self, uid: int, name: str, sources: list[SwitchboardEndpoint], sinks: list[SwitchboardEndpoint]):
         self.uid = int(uid)
-        self._name = name
+        self.__name = name
 
         # if len(sources) < 1:
         #     raise Exception(f"{self}: A Switchboard must have at least one Source")
         # if len(sinks) < 1:
         #     raise Exception(f"{self}: A Switchboard must have at least one Sink")
 
-        self._sources = sources
-        self._sinks = sinks
+        self.__sources = sources
+        self.__sinks = sinks
 
         if ENABLE_SWITCHBOARD:
-            for source in self._sources:
+            for source in self.__sources:
                 source.DIO.switch_to_input(pull=digitalio.Pull.UP)
 
-            for sink in self._sinks:
+            for sink in self.__sinks:
                 sink.DIO.switch_to_input(pull=digitalio.Pull.UP)
 
         logger.info(f"Created Switchboard: {self}{disabledString(ENABLE_SWITCHBOARD)}")
@@ -71,9 +71,9 @@ class Switchboard:
     def deinit(self):
         # Release the DIO pins
         if ENABLE_SWITCHBOARD:
-            for source in self._sources:
+            for source in self.__sources:
                 source.deinit()
-            for sink in self._sinks:
+            for sink in self.__sinks:
                 sink.deinit()
 
     def __enter__(self):
@@ -91,18 +91,18 @@ class Switchboard:
         return self.uid
 
     @property
-    def Name(self) -> int:
-        return self._name
+    def Name(self) -> str:
+        return self.__name
 
     @property
     def Connections(self) -> list[list[str]]:
         retval = []
 
         if ENABLE_SWITCHBOARD:
-            for source in self._sources:
+            for source in self.__sources:
                 source.DIO.switch_to_output(value=False, drive_mode=digitalio.DriveMode.PUSH_PULL)
 
-                for sink in self._sinks:
+                for sink in self.__sinks:
                     if(not sink.DIO.value):
                         retval.append([source.Name, sink.Name])
 
@@ -117,12 +117,12 @@ class Switchboard:
 
 class SwitchboardManagerClass:
     def __init__(self) -> None:
-        self._leftSwitchboard = Switchboard(1, "NullLeftSB", [], [])
-        self._rightSwitchboard = Switchboard(2, "NullCenterSB", [], [])
+        self.__leftSwitchboard = Switchboard(1, "NullLeftSB", [], [])
+        self.__rightSwitchboard = Switchboard(2, "NullCenterSB", [], [])
 
         if ENABLE_SWITCHBOARD:
             if ENABLE_LEFT_SWITCHBOARD:
-                self._leftSwitchboard = Switchboard(
+                self.__leftSwitchboard = Switchboard(
                     1,
                     "LeftSwitchboard",
                     [
@@ -138,7 +138,7 @@ class SwitchboardManagerClass:
                 )
 
             if ENABLE_RIGHT_SWITCHBOARD:
-                self._rightSwitchboard = Switchboard(
+                self.__rightSwitchboard = Switchboard(
                     2,
                     "CenterSwitchboard",
                     [
@@ -158,6 +158,6 @@ class SwitchboardManagerClass:
                 )
 
     def ConnectionStatus(self) -> list[list[str]]:
-        return self._leftSwitchboard.Connections + self._rightSwitchboard.Connections
+        return self.__leftSwitchboard.Connections + self.__rightSwitchboard.Connections
 
 SwitchboardManager = SwitchboardManagerClass()

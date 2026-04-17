@@ -3,7 +3,6 @@ import board
 
 from color_utils import BLUE, GREEN, YELLOW, RED
 from eng_utils import SlowLog, check_timer, register_timer, logger
-from profiling import register_profile, start_profile, stop_profile
 from pixel_strip_manager import PixelStripManager
 from power_card import PowerCard
 
@@ -43,15 +42,9 @@ CARD_TRAY_COLORS = {
 }
 
 TRAY_REFRESH_SECONDS = 0.05
-TRAY_COLOR_CHANGE_SECONDS = 3.0
+TRAY_DEMO_CHANGE_SECONDS = 6.0
 TIMER_TRAY_DEMO = "tray_demo"
 TIMER_TRAY_REFRESH = "tray_refresh"
-
-PROFILE_TRAY_UPDATE = "tray_update"
-PROFILE_TRAY_OVERHEAD = "tray_overhead"
-PROFILE_TRAY_ANIMATION = "tray_animation"
-PROFILE_TRAY_SET_GRID = "tray_set_grid"
-PROFILE_TRAY_SET_BARS = "tray_set_bars"
 
 class PowerCardTray:
     def __init__(self, uid, pixelStripManager: PixelStripManager):
@@ -71,13 +64,8 @@ class PowerCardTray:
         if USE_RANDOM_GRID_ANIMATION:
             self.__randomGridGenerator = RandomGridGenerator(PIXEL_CARD_TRAY_GRID_SIZE)
 
-        register_timer((id(self), TIMER_TRAY_DEMO), TRAY_COLOR_CHANGE_SECONDS)
+        register_timer((id(self), TIMER_TRAY_DEMO), TRAY_DEMO_CHANGE_SECONDS)
         register_timer((id(self), TIMER_TRAY_REFRESH), TRAY_REFRESH_SECONDS)
-        register_profile(PROFILE_TRAY_UPDATE)
-        register_profile(PROFILE_TRAY_OVERHEAD)
-        register_profile(PROFILE_TRAY_ANIMATION)
-        register_profile(PROFILE_TRAY_SET_GRID)
-        register_profile(PROFILE_TRAY_SET_BARS)
 
     @property
     def UID(self):
@@ -110,7 +98,6 @@ class PowerCardTray:
             self.__randomGridGenerator.TargetLevel = _powerStateToTargetLevel[value]
 
     def Update(self):
-        start_profile(PROFILE_TRAY_UPDATE)
         simTime = time.monotonic()
 
         if check_timer((id(self), TIMER_TRAY_DEMO)):
@@ -123,7 +110,6 @@ class PowerCardTray:
                 self.__lastFrameRateReport = time.monotonic()
 
         if check_timer((id(self), TIMER_TRAY_REFRESH)):
-            start_profile(PROFILE_TRAY_OVERHEAD)
             SlowLog(f"Updating Power Card Tray {self.UID} state")
 
             pixel_buffer = [0] * PIXEL_CARD_TRAY_GRID_LEDS
@@ -138,21 +124,14 @@ class PowerCardTray:
                     cardAnimation = self.CurrentPowerCard.CardAnimation
                     animationProgress = (time.monotonic() - self.__currentCardChangedTime) % cardAnimation.animation_duration
 
-                    stop_profile(PROFILE_TRAY_OVERHEAD)
-
-                    start_profile(PROFILE_TRAY_ANIMATION)
                     pixel_buffer = self.CurrentPowerCard.PixelBuffer(animationProgress, TRAY_BRIGHTNESS)
-                    stop_profile(PROFILE_TRAY_ANIMATION)
 
-            start_profile(PROFILE_TRAY_SET_GRID)
             self.__pixelStripManager.SetPixelData(
                 self.__gridPixelIndex,
                 PIXEL_CARD_TRAY_GRID_LEDS,
                 pixel_buffer,
             )
-            stop_profile(PROFILE_TRAY_SET_GRID)
 
-            start_profile(PROFILE_TRAY_SET_BARS)
             trayStateColor = CARD_TRAY_COLORS[self.PowerState]
 
             self.__pixelStripManager.SetPixelData(
@@ -165,11 +144,8 @@ class PowerCardTray:
                 PIXEL_CARD_TRAY_LEDS,
                 [trayStateColor] * PIXEL_CARD_TRAY_LEDS,
             )
-            stop_profile(PROFILE_TRAY_SET_BARS)
 
             self.__refreshCount += 1
-
-        stop_profile(PROFILE_TRAY_UPDATE)
 
     def __str__(self):
         return f"PowerCardTray: {self.UID}"

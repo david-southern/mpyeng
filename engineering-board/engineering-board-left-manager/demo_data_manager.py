@@ -20,19 +20,19 @@ from protocol_resources import (
 )
 from power_grid_manager import PowerGridManager
 
-FAKE_ENGINE_POWER_DATA = [
+DEMO_ENGINE_POWER_DATA = [
     EnginePower(LEFT_WING, 1500, 900),
     EnginePower(RIGHT_WING, 2000, 450),
 ]
 
-FAKE_TRANSFORMER_POWER_DATA = [
+DEMO_TRANSFORMER_POWER_DATA = [
     TransformerPower(TRANS1, 1500, 100),
     TransformerPower(TRANS2, 750, 500),
     TransformerPower(TRANS3, 1000, 700),
     TransformerPower(TRANS4, 500, 50),
 ]
 
-FAKE_SYSTEM_POWER_DATA = [
+DEMO_SYSTEM_POWER_DATA = [
     SystemPower("Thrusters", 50, 1),
     SystemPower("Warp", 110, 1),
     SystemPower("Shields", 60, 0),
@@ -41,9 +41,9 @@ FAKE_SYSTEM_POWER_DATA = [
 ]
 
 RANDOM_POWER_UPDATE_FREQ = 1
-TIMER_FAKE_DATA = "fake_data"
+TIMER_DEMO_DATA = "demo_data"
 
-register_timer(TIMER_FAKE_DATA, RANDOM_POWER_UPDATE_FREQ)
+register_timer(TIMER_DEMO_DATA, RANDOM_POWER_UPDATE_FREQ)
 
 ENABLE_TEST_BUTTONS = False
 
@@ -70,30 +70,30 @@ if ENABLE_TEST_BUTTONS:
 
 
 def set_warp_power(power: int):
-    for power_resource in FAKE_SYSTEM_POWER_DATA:
+    for power_resource in DEMO_SYSTEM_POWER_DATA:
         if power_resource.Name == "Warp":
             power_resource.Power = power
             power_resource.CardCount = int(power / 100)
             break
 
-    logger.info(f"FAKES: Warp Power to {power}")
+    logger.info(f"DEMOS: Warp Power to {power}")
 
 
 def set_shield_power(power: int):
-    for power_resource in FAKE_SYSTEM_POWER_DATA:
+    for power_resource in DEMO_SYSTEM_POWER_DATA:
         if power_resource.Name == "Shields":
             power_resource.Power = power
             power_resource.CardCount = int(power / 50)
             break
 
-    logger.info(f"FAKES: Shield Power to {power}")
+    logger.info(f"DEMOS: Shield Power to {power}")
 
 
-class FakeDataManager:
+class DemoDataManager:
     __firstUpdate = True
 
     @staticmethod
-    def update_fake_data():
+    def update_demo_data():
         if ENABLE_TEST_BUTTONS:
             warp_green.update()
             warp_yellow.update()
@@ -110,23 +110,23 @@ class FakeDataManager:
                 set_warp_power(800)
 
             if shields.fell:
-                logger.info("FAKES: Shield Power to 300")
+                logger.info("DEMOS: Shield Power to 300")
                 set_shield_power(300)
 
             if shields.rose:
-                logger.info("FAKES: Shield Power to 0")
+                logger.info("DEMOS: Shield Power to 0")
                 set_shield_power(0)
         else:
-            if not check_timer(TIMER_FAKE_DATA):
+            if not check_timer(TIMER_DEMO_DATA):
                 return
 
-            if FakeDataManager.__firstUpdate:
-                FakeDataManager.__firstUpdate = False
-                for _, wing in enumerate(FAKE_ENGINE_POWER_DATA):
+            if DemoDataManager.__firstUpdate:
+                DemoDataManager.__firstUpdate = False
+                for _, wing in enumerate(DEMO_ENGINE_POWER_DATA):
                     PowerGridManager.SetWingMaxPower(wing.Name, wing.MaxPower)
                     PowerDisplayManager.SetDisplayValue(wing.Name, wing.MaxPower)
 
-                for _, transformer in enumerate(FAKE_TRANSFORMER_POWER_DATA):
+                for _, transformer in enumerate(DEMO_TRANSFORMER_POWER_DATA):
                     PowerGridManager.SetTransformerMaxPower(
                         transformer.Name, transformer.MaxPower
                     )
@@ -137,13 +137,13 @@ class FakeDataManager:
             for tray in TestPowerCardTrays:
                 tray.PowerState = random.choice(list(CARD_TRAY_COLORS.keys()))
 
-            for power_resource in FAKE_ENGINE_POWER_DATA:
+            for power_resource in DEMO_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
                 PowerGridManager.SetWingTargetPower(
                     power_resource.Name, power_resource.PowerUsage
                 )
 
-            for power_resource in FAKE_TRANSFORMER_POWER_DATA:
+            for power_resource in DEMO_TRANSFORMER_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
                 PowerGridManager.SetTransformerTargetPower(
                     power_resource.Name, power_resource.PowerUsage
@@ -152,41 +152,41 @@ class FakeDataManager:
                     power_resource.Name, power_resource.PowerUsage
                 )
 
-            for power_resource in FAKE_SYSTEM_POWER_DATA:
+            for power_resource in DEMO_SYSTEM_POWER_DATA:
                 power_resource.CardCount = random.randint(1, 5)
 
     @staticmethod
     def GetEnginePowerData():
-        return FAKE_ENGINE_POWER_DATA
+        return DEMO_ENGINE_POWER_DATA
 
     @staticmethod
     def ClearEnginePowerData():
-        FAKE_ENGINE_POWER_DATA.clear()
+        DEMO_ENGINE_POWER_DATA.clear()
 
     @staticmethod
     def AddEnginePowerResource(power_resource: EnginePower):
-        FAKE_ENGINE_POWER_DATA.append(power_resource)
+        DEMO_ENGINE_POWER_DATA.append(power_resource)
 
     @staticmethod
     def GetTransformerPowerData():
-        return FAKE_TRANSFORMER_POWER_DATA
+        return DEMO_TRANSFORMER_POWER_DATA
 
     @staticmethod
     def ClearTransformerPowerData():
-        FAKE_TRANSFORMER_POWER_DATA.clear()
+        DEMO_TRANSFORMER_POWER_DATA.clear()
 
     @staticmethod
     def AddTransformerPowerResource(power_resource: TransformerPower):
-        FAKE_TRANSFORMER_POWER_DATA.append(power_resource)
+        DEMO_TRANSFORMER_POWER_DATA.append(power_resource)
 
     @staticmethod
     def GetSystemPowerData():
-        return FAKE_SYSTEM_POWER_DATA
+        return DEMO_SYSTEM_POWER_DATA
 
     @staticmethod
     def ClearSystemPowerData():
-        FAKE_SYSTEM_POWER_DATA.clear()
+        DEMO_SYSTEM_POWER_DATA.clear()
 
     @staticmethod
     def AddSystemPowerResource(power_resource: SystemPower):
-        FAKE_SYSTEM_POWER_DATA.append(power_resource)
+        DEMO_SYSTEM_POWER_DATA.append(power_resource)

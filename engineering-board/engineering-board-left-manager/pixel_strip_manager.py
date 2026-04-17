@@ -4,6 +4,7 @@ import board
 
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
+from profiling import start_profile, stop_profile
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
@@ -29,10 +30,12 @@ TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 class PixelStripManager:
 
-    def __init__(self, LED_DATA_PIN: board.Pin, TOTAL_LED_COUNT: int):
+    def __init__(self, LED_DATA_PIN: board.Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
+        self.profileKey = profileKey
+        self.__dirty = False
         register_timer((id(self), TIMER_PIXEL_REFRESH), PIXEL_REFRESH_SECONDS)
 
         logger.info(
@@ -98,13 +101,22 @@ class PixelStripManager:
         )
 
         self.pixels[startIndex:startIndex + pixelCount] = pixelData
+        self.__dirty = True
 
     def ShowPixels(self):
         if not ENABLE_PIXELS:
             return
 
+        if not self.__dirty:
+            return
+
         SlowLog("Showing pixel data")
+        if self.profileKey:
+            start_profile(self.profileKey)
         self.pixels.show()
+        if self.profileKey:
+            stop_profile(self.profileKey)
+        self.__dirty = False
 
 
     def Update(self):

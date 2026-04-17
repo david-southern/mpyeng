@@ -66,42 +66,42 @@ class PowerDisplay:
 
 class PowerDisplayManagerClass:
     def __init__(self) -> None:
-        self._ALL_POWER_DISPLAYS: list[PowerDisplay] = []
-        self._ALL_POWER_DISPLAYS = []
+        self.__ALL_POWER_DISPLAYS: list[PowerDisplay] = []
+        self.__ALL_POWER_DISPLAYS = []
         if ENABLE_POWER_DISPLAY:
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(1, board.D2, board.D3, LEFT_WING)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(2, board.D53, board.D49, RIGHT_WING)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(3, board.D26, board.D25, TRANS1 + MAX_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(4, board.D28, board.D27, TRANS1 + CUR_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(5, board.D30, board.D29, TRANS2 + MAX_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(6, board.D32, board.D31, TRANS2 + CUR_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(7, board.D34, board.D33, TRANS3 + MAX_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(8, board.D36, board.D35, TRANS3 + CUR_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(9, board.D46, board.D45, TRANS4 + MAX_DISPLAY)
             )
-            self._ALL_POWER_DISPLAYS.append(
+            self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(10, board.D48, board.D47, TRANS4 + CUR_DISPLAY)
             )
 
     def AllDisplays(self) -> list[PowerDisplay]:
-        return self._ALL_POWER_DISPLAYS
+        return self.__ALL_POWER_DISPLAYS
 
     def SetDisplayCurValue(self, displayName: str, value: int):
         if not ENABLE_POWER_DISPLAY:
@@ -110,7 +110,7 @@ class PowerDisplayManagerClass:
         displayName += CUR_DISPLAY
         try:
             display = next(
-                d for d in self._ALL_POWER_DISPLAYS if d.DisplayName == displayName
+                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
             )
         except StopIteration:
             display = None
@@ -129,7 +129,7 @@ class PowerDisplayManagerClass:
         displayName += MAX_DISPLAY
         try:
             display = next(
-                d for d in self._ALL_POWER_DISPLAYS if d.DisplayName == displayName
+                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
             )
         except StopIteration:
             display = None
@@ -147,7 +147,7 @@ class PowerDisplayManagerClass:
 
         try:
             display = next(
-                d for d in self._ALL_POWER_DISPLAYS if d.DisplayName == displayName
+                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
             )
         except StopIteration:
             display = None
