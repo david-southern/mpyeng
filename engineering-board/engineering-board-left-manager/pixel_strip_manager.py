@@ -5,7 +5,7 @@ import board
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
 from power_card_animation import ANIMATION_TARGET_FPS
-from profiling import start_profile, stop_profile
+from profiling import register_profile, start_profile, stop_profile
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
@@ -29,6 +29,8 @@ PIXEL_BRIGHTNESS = 0.9
 
 PIXEL_REFRESH_SECONDS = 1.0 / ANIMATION_TARGET_FPS
 TIMER_PIXEL_REFRESH = "pixel_refresh"
+
+PROFILE_PIXELS = register_profile("pixel_update")
 
 class PixelStripManager:
 
@@ -126,7 +128,9 @@ class PixelStripManager:
             return
 
         if check_timer((id(self), TIMER_PIXEL_REFRESH)):
+            start_profile(PROFILE_PIXELS)
             self.ShowPixels()
+            stop_profile(PROFILE_PIXELS)
 
     def __str__(self):
         return f"PixelManager{disabledString(ENABLE_PIXELS)}"

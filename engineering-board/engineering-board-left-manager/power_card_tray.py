@@ -6,6 +6,7 @@ from color_utils import BLUE, GREEN, YELLOW, RED
 from eng_utils import SlowLog, check_timer, register_timer, logger
 from pixel_strip_manager import PixelStripManager
 from power_card import PowerCard
+from profiling import register_profile, start_profile, stop_profile
 
 ENABLE_DEMO_LOGGING = False
 ENABLE_DEMO_ANIMATION = True
@@ -128,6 +129,8 @@ class PowerCardTray:
     def __str__(self):
         return f"PowerCardTray: {self.UID}"
 
+PROFILE_TRAYS = register_profile("power_trays")
+
 class PowerTrayManagerClass:
     def __init__(self):
         if board.board_id == "grandcentral_m4_express":
@@ -140,9 +143,11 @@ class PowerTrayManagerClass:
         self.TestPowerCardTrays = [ PowerCardTray(i, self.RightPixelStrip) for i in range(PIXEL_CARD_TRAYS) ]
 
     def Update(self):
+        start_profile(PROFILE_TRAYS)
         for tray in self.TestPowerCardTrays:
             tray.Update()
         self.RightPixelStrip.Update()
+        stop_profile(PROFILE_TRAYS)
 
 
 PowerTrayManager = PowerTrayManagerClass()

@@ -39,7 +39,6 @@ TIMER_POWER_TRAY_UPDATE = "tray_update"
 
 PROFILE_COMMS         = register_profile("comms")
 PROFILE_DEMO_DATA     = register_profile("demo_data")
-PROFILE_TRAYS         = register_profile("power_trays")
 PROFILE_HEARTBEAT     = register_profile("heartbeat")
 
 if usb_cdc.data is None:
@@ -118,9 +117,7 @@ def mainLoop():
             stop_profile(PROFILE_DEMO_DATA)
 
         if check_timer(TIMER_POWER_TRAY_UPDATE):
-            start_profile(PROFILE_TRAYS)
             PowerTrayManager.Update()
-            stop_profile(PROFILE_TRAYS)
 
         if check_timer(TIMER_HEARTBEAT):
             start_profile(PROFILE_HEARTBEAT)

@@ -1,6 +1,6 @@
 from power_card_ids import PowerCardIds
 
-ANIMATION_TARGET_FPS = 10
+ANIMATION_TARGET_FPS = 5
 
 class CardAnimationHelpers:
     WIDTH = 8
