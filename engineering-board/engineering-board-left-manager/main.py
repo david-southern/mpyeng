@@ -2,17 +2,18 @@
 # managing the various components of the client, including the USB serial
 # connection to receive commands from the server
 
+from power_card_animation import ANIMATION_TARGET_FPS
 from profiling import log_free_ram
 log_free_ram("power-on")
 
-from power_card_tray import RightPixelStrip, TestPowerCardTrays
+from power_card_tray import PowerTrayManager
 import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import check_timer, register_timer, logger
 from profiling import register_profile, start_profile, stop_profile, report_all_profiles
 from demo_data_manager import DemoDataManager
 
-from power_grid_manager import LeftPixelStrip, PowerGridManager
+from power_grid_manager import PowerGridManager
 from power_display_manager import PowerDisplayManager
 
 from card_manager import CardReaderManager
@@ -33,11 +34,12 @@ TIMER_PROFILE_REPORT = "profile_report"
 DEMO_DATA_FREQUENCY_SEC = 0.25
 TIMER_DEMO_DATA = "demo_data"
 
+ANIMATION_UPDATE_FREQUENCY_SEC = 1.0 / ANIMATION_TARGET_FPS
+TIMER_POWER_TRAY_UPDATE = "tray_update"
+
 PROFILE_COMMS         = register_profile("comms")
 PROFILE_DEMO_DATA     = register_profile("demo_data")
-PROFILE_TRAYS         = register_profile("trays")
-PROFILE_LEFT_PIXELS   = register_profile("left_pixels")
-PROFILE_RIGHT_PIXELS  = register_profile("right_pixels")
+PROFILE_TRAYS         = register_profile("power_trays")
 PROFILE_HEARTBEAT     = register_profile("heartbeat")
 
 if usb_cdc.data is None:
@@ -54,6 +56,7 @@ register_timer(TIMER_HEARTBEAT, HEARTBEAT_FREQUENCY_SEC)
 register_timer(TIMER_PROFILE_REPORT, PROFILE_REPORT_FREQUENCY_SEC)
 register_timer(TIMER_SERIAL_READ, SERIAL_READ_FREQUENCY_SEC)
 register_timer(TIMER_DEMO_DATA, DEMO_DATA_FREQUENCY_SEC)
+register_timer(TIMER_POWER_TRAY_UPDATE, ANIMATION_UPDATE_FREQUENCY_SEC)
 
 def log_heartbeat():
     if not ENABLE_HEARTBEAT_LOGGING:
@@ -111,21 +114,13 @@ def mainLoop():
         if check_timer(TIMER_DEMO_DATA):
             start_profile(PROFILE_DEMO_DATA)
             DemoDataManager.update_demo_data()
-            PowerGridManager.UpdateGridState()
+            PowerGridManager.Update()
             stop_profile(PROFILE_DEMO_DATA)
 
-        start_profile(PROFILE_TRAYS)
-        for tray in TestPowerCardTrays:
-            tray.Update()
-        stop_profile(PROFILE_TRAYS)
-
-        start_profile(PROFILE_LEFT_PIXELS)
-        LeftPixelStrip.Update()
-        stop_profile(PROFILE_LEFT_PIXELS)
-
-        start_profile(PROFILE_RIGHT_PIXELS)
-        RightPixelStrip.Update()
-        stop_profile(PROFILE_RIGHT_PIXELS)
+        if check_timer(TIMER_POWER_TRAY_UPDATE):
+            start_profile(PROFILE_TRAYS)
+            PowerTrayManager.Update()
+            stop_profile(PROFILE_TRAYS)
 
         if check_timer(TIMER_HEARTBEAT):
             start_profile(PROFILE_HEARTBEAT)

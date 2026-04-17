@@ -4,6 +4,7 @@ import board
 
 from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
+from power_card_animation import ANIMATION_TARGET_FPS
 from profiling import start_profile, stop_profile
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
@@ -25,7 +26,8 @@ PIXEL_BRIGHTNESS = 0.9
 # without causing the strip to update multiple times in quick succession, as well as re-sending the
 # strip data at a regular interval in case of interference or other issues causing the strip to lose
 # data.
-PIXEL_REFRESH_SECONDS = 0.1
+
+PIXEL_REFRESH_SECONDS = 1.0 / ANIMATION_TARGET_FPS
 TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 class PixelStripManager:

@@ -12,8 +12,6 @@ LARGE_GRID_COUNT = 2
 SMALL_GRID_SIZE = 8
 SMALL_GRID_COUNT = 4
 
-LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
-
 class PowerGrid:
     def __init__(self, uid, isLarge, pixelStripManager: PixelStripManager):
         self.__uid = uid
@@ -93,16 +91,25 @@ class PowerGridManagerClass:
     __WING_POWER_GRID_INDEXES = {LEFT_WING: 0, RIGHT_WING: 1}
     __TRANSFORMER_POWER_GRID_INDEXES = {TRANS1: 2, TRANS2: 3, TRANS3: 4, TRANS4: 5}
 
-    def __init__(self, pixelStripManager: PixelStripManager) -> None:
+    def __init__(self) -> None:
         self.__ALL_POWER_GRIDS: list[PowerGrid] = []
         self.__ALL_POWER_GRIDS = []
+
+        self.LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
+
+        self.LEFT_STRIP_DATA_PIN = board.D5
+
+        self.LeftPixelStrip = PixelStripManager(self.LEFT_STRIP_DATA_PIN, self.LEFT_STRIP_LED_COUNT)
+        
         if ENABLE_POWER_GRID:
-            self.__ALL_POWER_GRIDS.append(PowerGrid(0, True, pixelStripManager))
-            self.__ALL_POWER_GRIDS.append(PowerGrid(1, True, pixelStripManager))
-            self.__ALL_POWER_GRIDS.append(PowerGrid(2, False, pixelStripManager))
-            self.__ALL_POWER_GRIDS.append(PowerGrid(3, False, pixelStripManager))
-            self.__ALL_POWER_GRIDS.append(PowerGrid(4, False, pixelStripManager))
-            self.__ALL_POWER_GRIDS.append(PowerGrid(5, False, pixelStripManager))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(0, True, self.LeftPixelStrip))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(1, True, self.LeftPixelStrip))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(2, False, self.LeftPixelStrip))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(3, False, self.LeftPixelStrip))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(4, False, self.LeftPixelStrip))
+            self.__ALL_POWER_GRIDS.append(PowerGrid(5, False, self.LeftPixelStrip))
+
+            
 
     def SetWingMaxPower(self, wingName: str, powerLevel: int):
         if not ENABLE_POWER_GRID:
@@ -167,9 +174,10 @@ class PowerGridManagerClass:
     def AllGrids(self) -> list[PowerGrid]:
         return self.__ALL_POWER_GRIDS
 
-    def UpdateGridState(self):
+    def Update(self):
         for grid in self.__ALL_POWER_GRIDS:
             grid.Update()
+        self.LeftPixelStrip.Update()
 
     def SetGridMaxLevel(self, gridIndex: int, maxLevel: int):
         if not ENABLE_POWER_GRID:
@@ -221,8 +229,4 @@ class PowerGridManagerClass:
         )
         self.__ALL_POWER_GRIDS[gridIndex].DeadMode = deadMode
 
-LEFT_STRIP_DATA_PIN = board.D5
-
-LeftPixelStrip = PixelStripManager(LEFT_STRIP_DATA_PIN, LEFT_STRIP_LED_COUNT)
-
-PowerGridManager = PowerGridManagerClass(LeftPixelStrip)
+PowerGridManager = PowerGridManagerClass()

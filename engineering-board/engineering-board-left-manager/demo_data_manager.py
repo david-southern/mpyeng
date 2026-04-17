@@ -5,7 +5,6 @@ from adafruit_debouncer import Debouncer  # pyright: ignore[reportMissingImports
 
 from eng_utils import check_timer, register_timer, logger
 
-from power_card_tray import CARD_TRAY_COLORS, TestPowerCardTrays
 from power_display_manager import PowerDisplayManager
 from protocol_resources import (
     LEFT_WING,
@@ -133,9 +132,6 @@ class DemoDataManager:
                     PowerDisplayManager.SetDisplayMaxValue(
                         transformer.Name, transformer.MaxPower
                     )
-
-            for tray in TestPowerCardTrays:
-                tray.PowerState = random.choice(list(CARD_TRAY_COLORS.keys()))
 
             for power_resource in DEMO_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
