@@ -97,7 +97,7 @@ class PowerGridManagerClass:
 
         self.LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
 
-        self.LEFT_STRIP_DATA_PIN = Pin(5)  # TODO: verify GP5 for RP2350 wiring
+        self.LEFT_STRIP_DATA_PIN = Pin(5)  # TODO: verify GP5 for ESP32-S3 wiring
 
         self.LeftPixelStrip = PixelStripManager(self.LEFT_STRIP_DATA_PIN, self.LEFT_STRIP_LED_COUNT)
         

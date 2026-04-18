@@ -68,7 +68,7 @@ class PowerDisplayManagerClass:
     def __init__(self) -> None:
         self.__ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self.__ALL_POWER_DISPLAYS = []
-        if ENABLE_POWER_DISPLAY:  # TODO: verify all GP pin numbers for RP2350 wiring
+        if ENABLE_POWER_DISPLAY:  # TODO: verify all GP pin numbers for ESP32-S3 wiring
             self.__ALL_POWER_DISPLAYS.append(
                 PowerDisplay(1, Pin(2), Pin(3), LEFT_WING)
             )

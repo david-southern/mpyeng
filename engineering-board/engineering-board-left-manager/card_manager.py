@@ -88,19 +88,19 @@ class CardReaderManagerClass:
             return
 
         self.spi = SPI(
-            0,
+            2,
             baudrate=1_000_000,
             polarity=0,
             phase=0,
-            sck=Pin(18),   # TODO: verify GP18 for RP2350 wiring
-            mosi=Pin(19),  # TODO: verify GP19 for RP2350 wiring
-            miso=Pin(16),  # TODO: verify GP16 for RP2350 wiring
+            sck=Pin(18),   # TODO: verify GP18 for ESP32-S3 wiring
+            mosi=Pin(19),  # TODO: verify GP19 for ESP32-S3 wiring
+            miso=Pin(16),  # TODO: verify GP16 for ESP32-S3 wiring
         )
 
-        self.channel09 = _MCP3008(self.spi, Pin(9, Pin.OUT))   # TODO: verify GP9 for RP2350 wiring
-        self.channel10 = _MCP3008(self.spi, Pin(10, Pin.OUT))  # TODO: verify GP10 for RP2350 wiring
-        self.channel11 = _MCP3008(self.spi, Pin(11, Pin.OUT))  # TODO: verify GP11 for RP2350 wiring
-        self.channel12 = _MCP3008(self.spi, Pin(12, Pin.OUT))  # TODO: verify GP12 for RP2350 wiring
+        self.channel09 = _MCP3008(self.spi, Pin(9, Pin.OUT))   # TODO: verify GP9 for ESP32-S3 wiring
+        self.channel10 = _MCP3008(self.spi, Pin(10, Pin.OUT))  # TODO: verify GP10 for ESP32-S3 wiring
+        self.channel11 = _MCP3008(self.spi, Pin(11, Pin.OUT))  # TODO: verify GP11 for ESP32-S3 wiring
+        self.channel12 = _MCP3008(self.spi, Pin(12, Pin.OUT))  # TODO: verify GP12 for ESP32-S3 wiring
 
         self.__ALL_CARD_READERS.append(CardReader(0, _AnalogIn(self.channel09, P0)))
         self.__ALL_CARD_READERS.append(CardReader(1, _AnalogIn(self.channel09, P1)))

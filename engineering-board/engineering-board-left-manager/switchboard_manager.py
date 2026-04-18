@@ -119,14 +119,14 @@ class SwitchboardManagerClass:
                     1,
                     "LeftSwitchboard",
                     [
-                        SwitchboardEndpoint(1, "EngineTop", 22),    # TODO: verify GP22 for RP2350 wiring
-                        SwitchboardEndpoint(2, "EngineBottom", 42),  # TODO: verify GP42 for RP2350 wiring
+                        SwitchboardEndpoint(1, "EngineTop", 22),    # TODO: verify GP22 for ESP32-S3 wiring
+                        SwitchboardEndpoint(2, "EngineBottom", 42),  # TODO: verify GP42 for ESP32-S3 wiring
                     ],
                     [
-                        SwitchboardEndpoint(3, "Dist1_In", 24),  # TODO: verify GP24 for RP2350 wiring
-                        SwitchboardEndpoint(4, "Dist2_In", 23),  # TODO: verify GP23 for RP2350 wiring
-                        SwitchboardEndpoint(5, "Dist3_In", 44),  # TODO: verify GP44 for RP2350 wiring
-                        SwitchboardEndpoint(6, "Dist4_In", 43),  # TODO: verify GP43 for RP2350 wiring
+                        SwitchboardEndpoint(3, "Dist1_In", 24),  # TODO: verify GP24 for ESP32-S3 wiring
+                        SwitchboardEndpoint(4, "Dist2_In", 23),  # TODO: verify GP23 for ESP32-S3 wiring
+                        SwitchboardEndpoint(5, "Dist3_In", 44),  # TODO: verify GP44 for ESP32-S3 wiring
+                        SwitchboardEndpoint(6, "Dist4_In", 43),  # TODO: verify GP43 for ESP32-S3 wiring
                     ],
                 )
 
@@ -135,18 +135,18 @@ class SwitchboardManagerClass:
                     2,
                     "CenterSwitchboard",
                     [
-                        SwitchboardEndpoint(7, "Dist1_Out", 38),   # TODO: verify GP38 for RP2350 wiring
-                        SwitchboardEndpoint(8, "Dist1_Out", 39),   # TODO: verify GP39 for RP2350 wiring
-                        SwitchboardEndpoint(9, "Dist1_Out", 40),   # TODO: verify GP40 for RP2350 wiring
-                        SwitchboardEndpoint(10, "Dist1_Out", 41),  # TODO: verify GP41 for RP2350 wiring
+                        SwitchboardEndpoint(7, "Dist1_Out", 38),   # TODO: verify GP38 for ESP32-S3 wiring
+                        SwitchboardEndpoint(8, "Dist1_Out", 39),   # TODO: verify GP39 for ESP32-S3 wiring
+                        SwitchboardEndpoint(9, "Dist1_Out", 40),   # TODO: verify GP40 for ESP32-S3 wiring
+                        SwitchboardEndpoint(10, "Dist1_Out", 41),  # TODO: verify GP41 for ESP32-S3 wiring
                     ],
                     [
-                        SwitchboardEndpoint(11, "Bus1", 42),  # TODO: verify GP42 for RP2350 wiring
-                        SwitchboardEndpoint(12, "Bus2", 43),  # TODO: verify GP43 for RP2350 wiring
-                        SwitchboardEndpoint(13, "Bus3", 44),  # TODO: verify GP44 for RP2350 wiring
-                        SwitchboardEndpoint(14, "Bus4", 45),  # TODO: verify GP45 for RP2350 wiring
-                        SwitchboardEndpoint(15, "Bus5", 46),  # TODO: verify GP46 for RP2350 wiring
-                        SwitchboardEndpoint(16, "Bus6", 47),  # TODO: verify GP47 for RP2350 wiring
+                        SwitchboardEndpoint(11, "Bus1", 42),  # TODO: verify GP42 for ESP32-S3 wiring
+                        SwitchboardEndpoint(12, "Bus2", 43),  # TODO: verify GP43 for ESP32-S3 wiring
+                        SwitchboardEndpoint(13, "Bus3", 44),  # TODO: verify GP44 for ESP32-S3 wiring
+                        SwitchboardEndpoint(14, "Bus4", 45),  # TODO: verify GP45 for ESP32-S3 wiring
+                        SwitchboardEndpoint(15, "Bus5", 46),  # TODO: verify GP46 for ESP32-S3 wiring
+                        SwitchboardEndpoint(16, "Bus6", 47),  # TODO: verify GP47 for ESP32-S3 wiring
                     ],
                 )
 

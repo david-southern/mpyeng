@@ -1,0 +1,5 @@
+# Real credentials — stored externally, deployed via install script
+secrets-eng-board.py
+
+# In case I mess up and leave this sitting around
+secrets*

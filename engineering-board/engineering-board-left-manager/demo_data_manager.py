@@ -74,10 +74,10 @@ register_timer(TIMER_DEMO_DATA, RANDOM_POWER_UPDATE_FREQ)
 ENABLE_TEST_BUTTONS = False
 
 if ENABLE_TEST_BUTTONS:
-    warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))    # TODO: verify GP4 for RP2350 wiring
-    warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))   # TODO: verify GP5 for RP2350 wiring
-    warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))      # TODO: verify GP6 for RP2350 wiring
-    shields = Debouncer(Pin(13, Pin.IN, Pin.PULL_UP), interval=0.1)  # TODO: verify GP13 for RP2350 wiring
+    warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))    # TODO: verify GP4 for ESP32-S3 wiring
+    warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))   # TODO: verify GP5 for ESP32-S3 wiring
+    warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))      # TODO: verify GP6 for ESP32-S3 wiring
+    shields = Debouncer(Pin(13, Pin.IN, Pin.PULL_UP), interval=0.1)  # TODO: verify GP13 for ESP32-S3 wiring
 
 
 def set_warp_power(power: int):
