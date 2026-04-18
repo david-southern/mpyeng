@@ -7,7 +7,6 @@ from profiling import log_free_ram
 log_free_ram("power-on")
 
 from power_card_tray import PowerTrayManager
-import usb_cdc  # pyright: ignore[reportMissingImports]
 
 from eng_utils import check_timer, register_timer, logger
 from profiling import register_profile, start_profile, stop_profile, report_all_profiles
@@ -22,7 +21,7 @@ from switchboard_manager import SwitchboardManager
 
 ENABLE_HEARTBEAT_LOGGING = False
 
-logger.info("Initializing USB Client")
+logger.info("Initializing TCP Client")
 
 # Only check the serial line this often so we don't use up all the client's cycles
 SERIAL_READ_FREQUENCY_SEC = 0.01
@@ -40,9 +39,6 @@ TIMER_POWER_TRAY_UPDATE = "tray_update"
 PROFILE_COMMS         = register_profile("comms")
 PROFILE_DEMO_DATA     = register_profile("demo_data")
 PROFILE_HEARTBEAT     = register_profile("heartbeat")
-
-if usb_cdc.data is None:
-    raise ConnectionError("Unable to open USB_cdc.data Serial connection")
 
 showSerialDiags = False
 showSerialStats = False

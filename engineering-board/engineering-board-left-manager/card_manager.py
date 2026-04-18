@@ -1,21 +1,52 @@
 import time
-import board
-import busio
-import digitalio
-import adafruit_mcp3xxx.mcp3008 as MCP  # pyright: ignore[reportMissingImports]
-from adafruit_mcp3xxx.analog_in import AnalogIn  # pyright: ignore[reportMissingImports]
+from machine import SPI, Pin  # pyright: ignore[reportMissingImports]
 from power_card import PowerCard
 from eng_utils import ENABLE_CARD_READER, disabledString, logger
 
 VOLTAGE_CHECK_FREQUENCY = 0.2
 
+_MCP3008_VREF = 3.3
+P0, P1, P2, P3, P4, P5, P6, P7 = 0, 1, 2, 3, 4, 5, 6, 7
+
+
+class _MCP3008:
+    """Minimal MicroPython driver for the MCP3008 8-channel SPI ADC."""
+
+    def __init__(self, spi: SPI, cs_pin: Pin):
+        self._spi = spi
+        self._cs = cs_pin
+        self._cs.value(1)
+        self._buf = bytearray(3)
+
+    def read(self, channel: int) -> int:
+        """Returns the raw 10-bit ADC value for the given channel (0–7)."""
+        self._buf[0] = 0x01
+        self._buf[1] = 0x80 | (channel << 4)
+        self._buf[2] = 0x00
+        self._cs.value(0)
+        self._spi.write_readinto(self._buf, self._buf)
+        self._cs.value(1)
+        return ((self._buf[1] & 0x03) << 8) | self._buf[2]
+
+
+class _AnalogIn:
+    """Exposes a .voltage property for a single MCP3008 channel."""
+
+    def __init__(self, mcp: "_MCP3008", channel: int):
+        self._mcp = mcp
+        self._channel = channel
+
+    @property
+    def voltage(self) -> float:
+        return self._mcp.read(self._channel) * _MCP3008_VREF / 1023
+
 
 class CardReader:
-    def __init__(self, uid: int, analogIn: AnalogIn):
+    def __init__(self, uid: int, analogIn: _AnalogIn):
         self.uid = int(uid)
 
         self.inputPin = analogIn
-        self.lastVoltageCheck = time.monotonic()
+        self.lastVoltageCheck = time.ticks_ms()
         self.lastCard = None
         logger.info(f"Created CardReader-Analog: {self}")
 
@@ -25,10 +56,10 @@ class CardReader:
 
     @property
     def CardPresent(self) -> PowerCard | None:
-        if time.monotonic() - self.lastVoltageCheck < VOLTAGE_CHECK_FREQUENCY:
+        if time.ticks_diff(time.ticks_ms(), self.lastVoltageCheck) < int(VOLTAGE_CHECK_FREQUENCY * 1000):
             return self.lastCard
 
-        self.lastVoltageCheck = time.monotonic()
+        self.lastVoltageCheck = time.ticks_ms()
         logger.info(
             f"CardReader({self}): Checking pin present - voltage {self.inputPin.voltage}"
         )
@@ -56,16 +87,24 @@ class CardReaderManagerClass:
             logger.info("CardReaderManager: Card readers disabled")
             return
 
-        self.spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+        self.spi = SPI(
+            0,
+            baudrate=1_000_000,
+            polarity=0,
+            phase=0,
+            sck=Pin(18),   # TODO: verify GP18 for RP2350 wiring
+            mosi=Pin(19),  # TODO: verify GP19 for RP2350 wiring
+            miso=Pin(16),  # TODO: verify GP16 for RP2350 wiring
+        )
 
-        self.channel09 = MCP.MCP3008(self.spi, digitalio.DigitalInOut(board.D9))
-        self.channel10 = MCP.MCP3008(self.spi, digitalio.DigitalInOut(board.D10))
-        self.channel11 = MCP.MCP3008(self.spi, digitalio.DigitalInOut(board.D11))
-        self.channel12 = MCP.MCP3008(self.spi, digitalio.DigitalInOut(board.D12))
+        self.channel09 = _MCP3008(self.spi, Pin(9, Pin.OUT))   # TODO: verify GP9 for RP2350 wiring
+        self.channel10 = _MCP3008(self.spi, Pin(10, Pin.OUT))  # TODO: verify GP10 for RP2350 wiring
+        self.channel11 = _MCP3008(self.spi, Pin(11, Pin.OUT))  # TODO: verify GP11 for RP2350 wiring
+        self.channel12 = _MCP3008(self.spi, Pin(12, Pin.OUT))  # TODO: verify GP12 for RP2350 wiring
 
-        self.__ALL_CARD_READERS.append(CardReader(0, AnalogIn(self.channel09, MCP.P0)))
-        self.__ALL_CARD_READERS.append(CardReader(1, AnalogIn(self.channel09, MCP.P1)))
-        self.__ALL_CARD_READERS.append(CardReader(2, AnalogIn(self.channel09, MCP.P2)))
+        self.__ALL_CARD_READERS.append(CardReader(0, _AnalogIn(self.channel09, P0)))
+        self.__ALL_CARD_READERS.append(CardReader(1, _AnalogIn(self.channel09, P1)))
+        self.__ALL_CARD_READERS.append(CardReader(2, _AnalogIn(self.channel09, P2)))
         # self.__ALL_CARD_READERS.append(CardReader(3, AnalogIn(self.channel09, MCP.P3)))
         # self.__ALL_CARD_READERS.append(CardReader(4, AnalogIn(self.channel09, MCP.P4)))
         # self.__ALL_CARD_READERS.append(CardReader(5, AnalogIn(self.channel09, MCP.P5)))

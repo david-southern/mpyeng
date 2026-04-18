@@ -1,6 +1,5 @@
 import gc
-
-import supervisor
+import time
 
 from eng_utils import logger
 
@@ -16,7 +15,7 @@ _START = 4  # start time (None when not active)
 _KEY = 5    # profile name string (for error messages and report)
 
 # Cache the ticks_ms function reference to avoid repeated attribute lookups
-_ticks_ms = supervisor.ticks_ms
+_ticks_ms = time.ticks_ms
 
 
 def log_free_ram(label: str = ""):
@@ -56,7 +55,7 @@ def stop_profile(handle: list):
     start = handle[_START]
     if start is None:
         raise ValueError(f"Profile {repr(handle[_KEY])} is not active. Call start_profile before stopping.")
-    elapsed = _ticks_ms() - start
+    elapsed = time.ticks_diff(_ticks_ms(), start)
     handle[_START] = None
     _active_count -= 1
     handle[_COUNT] += 1
@@ -113,7 +112,7 @@ def report_all_profiles():
     total_row = ("Total", str(sum_calls), f"{avg_avg:.2f}", str(sum_total), "")
 
     # Compute idle row
-    observed_ms = (now - _last_report_time) if _last_report_time is not None else 0
+    observed_ms = time.ticks_diff(now, _last_report_time) if _last_report_time is not None else 0
     idle_ms = max(0, observed_ms - sum_total)
     idle_row = ("Idle", "", "", str(idle_ms), str(observed_ms))
 

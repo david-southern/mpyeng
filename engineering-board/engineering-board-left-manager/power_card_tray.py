@@ -1,6 +1,6 @@
 import random
 import time
-import board
+from machine import Pin  # pyright: ignore[reportMissingImports]
 
 from color_utils import BLUE, GREEN, YELLOW, RED
 from eng_utils import SlowLog, check_timer, register_timer, logger
@@ -54,7 +54,7 @@ class PowerCardTray:
         self.__gridPixelIndex = self.__pixelStripManager.ReservePixelRange(PIXEL_CARD_TRAY_GRID_LEDS)
         self.__bottomTrayPixelIndex = self.__pixelStripManager.ReservePixelRange(PIXEL_CARD_TRAY_LEDS)
         self.__refreshCount = 0
-        self.__lastFrameRateReport = time.monotonic()
+        self.__lastFrameRateReport = time.ticks_ms()
         
         register_timer((id(self), TIMER_TRAY_DEMO), TRAY_DEMO_CHANGE_SECONDS)
 
@@ -68,7 +68,7 @@ class PowerCardTray:
 
     @CurrentPowerCard.setter
     def CurrentPowerCard(self, value: PowerCard | None):
-        self.__currentCardChangedTime = time.monotonic()
+        self.__currentCardChangedTime = time.ticks_ms()
         self.__currentPowerCard = value
 
     @property
@@ -80,7 +80,7 @@ class PowerCardTray:
         self.__powerState = value
 
     def Update(self):
-        simTime = time.monotonic()
+        simTime = time.ticks_ms()
 
         if check_timer((id(self), TIMER_TRAY_DEMO)):
             if ENABLE_DEMO_ANIMATION:
@@ -89,9 +89,10 @@ class PowerCardTray:
                 self.DEMO_CARD_INDEX += 1
                 self.CurrentPowerCard = self.__allPowerCards[self.DEMO_CARD_INDEX % len(self.__allPowerCards)]
                 if self.UID == 0 and ENABLE_DEMO_LOGGING:
-                    logger.info(f"PowerCardTray(self.UID): Frame rate: {self.__refreshCount / (simTime - self.__lastFrameRateReport)}, current power card: {self.CurrentPowerCard.CardName if self.CurrentPowerCard else 'None'}")
+                    elapsed_sec = time.ticks_diff(simTime, self.__lastFrameRateReport) / 1000.0
+                    logger.info(f"PowerCardTray(self.UID): Frame rate: {self.__refreshCount / elapsed_sec}, current power card: {self.CurrentPowerCard.CardName if self.CurrentPowerCard else 'None'}")
                 self.__refreshCount = 0
-                self.__lastFrameRateReport = time.monotonic()
+                self.__lastFrameRateReport = time.ticks_ms()
 
         SlowLog(f"Updating Power Card Tray {self.UID} state")
 
@@ -101,7 +102,9 @@ class PowerCardTray:
             pixel_buffer = [0] * PIXEL_CARD_TRAY_GRID_LEDS
         else:
             cardAnimation = self.CurrentPowerCard.CardAnimation
-            animationProgress = ((time.monotonic() - self.__currentCardChangedTime) % cardAnimation.animation_duration) / cardAnimation.animation_duration
+            elapsed_ms = time.ticks_diff(time.ticks_ms(), self.__currentCardChangedTime)
+            elapsed_sec = elapsed_ms / 1000.0
+            animationProgress = (elapsed_sec % cardAnimation.animation_duration) / cardAnimation.animation_duration
 
             pixel_buffer = self.CurrentPowerCard.PixelBuffer(animationProgress, TRAY_BRIGHTNESS)
 
@@ -133,10 +136,7 @@ PROFILE_TRAYS = register_profile("power_trays")
 
 class PowerTrayManagerClass:
     def __init__(self):
-        if board.board_id == "grandcentral_m4_express":
-            self.RIGHT_STRIP_DATA_PIN = board.D21
-        else:
-            self.RIGHT_STRIP_DATA_PIN = board.D25
+        self.RIGHT_STRIP_DATA_PIN = Pin(21)  # GP21 — NeoPixel data out
 
         self.RIGHT_STRIP_LED_COUNT = PIXEL_CARD_TRAY_TOTAL_LEDS * PIXEL_CARD_TRAYS
         self.RightPixelStrip = PixelStripManager(self.RIGHT_STRIP_DATA_PIN, self.RIGHT_STRIP_LED_COUNT)

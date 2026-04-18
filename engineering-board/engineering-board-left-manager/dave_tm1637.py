@@ -29,8 +29,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from time import sleep
-from digitalio import DigitalInOut, Direction
+import time
+from machine import Pin  # pyright: ignore[reportMissingImports]
 
 TM1637_CMD1 = 64  # 0x40 data command
 TM1637_CMD2 = 192  # 0xC0 address command
@@ -45,36 +45,12 @@ _SEGMENTS = bytearray(
 )
 
 
-class Pin:
-    OUT = 1
-
-    def __init__(self, digitalPin):
-        self.pin = DigitalInOut(digitalPin)
-        self.pin.direction = Direction.OUTPUT
-        self.pin.value = False
-        self.value = 0
-
-    def init(self, direction, value):
-        self.pin.value = False
-
-    def __call__(self, val):
-        self.pin.value = True if val == 1 else False
-
-
-def sleep_us(micros):
-    sleep(micros / 1000000.0)
-
-
-def sleep_ms(millis):
-    sleep(millis / 1000.0)
-
-
 class TM1637(object):
     """Library for quad 7-segment LED modules based on the TM1637 LED driver."""
 
     def __init__(self, clk, dio, brightness=7):
-        self.clk = Pin(clk)
-        self.dio = Pin(dio)
+        self.clk = clk
+        self.dio = dio
 
         if not 0 <= brightness <= 7:
             raise ValueError("Brightness out of range")
@@ -82,22 +58,22 @@ class TM1637(object):
 
         self.clk.init(Pin.OUT, value=0)
         self.dio.init(Pin.OUT, value=0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
 
         self.__write_data_cmd()
         self.__write_dsp_ctrl()
 
     def __start(self):
         self.dio(0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
         self.clk(0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
 
     def __stop(self):
         self.dio(0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
         self.clk(1)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
         self.dio(1)
 
     def __write_data_cmd(self):
@@ -115,17 +91,17 @@ class TM1637(object):
     def __write_byte(self, b):
         for i in range(8):
             self.dio((b >> i) & 1)
-            sleep_us(TM1637_DELAY)
+            time.sleep_us(TM1637_DELAY)
             self.clk(1)
-            sleep_us(TM1637_DELAY)
+            time.sleep_us(TM1637_DELAY)
             self.clk(0)
-            sleep_us(TM1637_DELAY)
+            time.sleep_us(TM1637_DELAY)
         self.clk(0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
         self.clk(1)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
         self.clk(0)
-        sleep_us(TM1637_DELAY)
+        time.sleep_us(TM1637_DELAY)
 
     def brightness(self, val=None):
         """Set the display brightness 0-7."""
@@ -229,7 +205,7 @@ class TM1637(object):
         data[4:0] = list(segments)
         for i in range(len(segments) + 5):
             self.write(data[0 + i : 4 + i])
-            sleep_ms(delay)
+            time.sleep_ms(delay)
 
 
 class TM1637Decimal(TM1637):

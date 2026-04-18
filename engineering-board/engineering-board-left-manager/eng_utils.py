@@ -1,12 +1,10 @@
 import time
-import board
+import sys
 
-import adafruit_logging as logging  # pyright: ignore[reportMissingImports]
+import logging
 
 logger = logging.getLogger("main")
-logger.setLevel(
-    logging.INFO  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
-)
+logger.setLevel(logging.INFO)
 
 ENABLE_SLOW_LOG = False
 
@@ -26,19 +24,15 @@ ENABLE_RIGHT_SWITCHBOARD = False
 ENABLE_LEFT_PIXELS = False
 ENABLE_RIGHT_PIXELS = False
 
-if board.board_id == "grandcentral_m4_express":
-    ENABLE_POWER_DISPLAY = False
-    ENABLE_PIXELS = True
-    ENABLE_CARD_READER = True
-    ENABLE_POWER_GRID = False
-    ENABLE_SWITCHBOARD = True
-    ENABLE_LEFT_SWITCHBOARD = False
-    ENABLE_RIGHT_SWITCHBOARD = True
-    ENABLE_RIGHT_PIXELS = True
-
-if board.board_id == "adafruit_feather_rp2040":
-    ENABLE_PIXELS = True
-    ENABLE_RIGHT_PIXELS = True
+ENABLE_POWER_DISPLAY = False
+ENABLE_PIXELS = True
+ENABLE_CARD_READER = True
+ENABLE_POWER_GRID = False
+ENABLE_SWITCHBOARD = True
+ENABLE_LEFT_SWITCHBOARD = False
+ENABLE_RIGHT_SWITCHBOARD = True
+ENABLE_LEFT_PIXELS = False
+ENABLE_RIGHT_PIXELS = True
 
 SLOW_LOG_FREQUENCY = 1
 slowLogCount = {}
@@ -52,8 +46,9 @@ _timer_intervals = {}
 def register_timer(key, interval_sec: float):
     """Registers a timer with the given key and interval. Must be called before check_timer.
     key: any hashable value (str, tuple, etc.) to identify this timer."""
-    _timer_intervals[key] = interval_sec
-    _timers[key] = time.monotonic() + interval_sec
+    interval_ms = int(interval_sec * 1000)
+    _timer_intervals[key] = interval_ms
+    _timers[key] = time.ticks_add(time.ticks_ms(), interval_ms)
 
 
 def check_timer(key) -> bool:
@@ -62,9 +57,9 @@ def check_timer(key) -> bool:
     Raises ValueError if the key has not been registered with register_timer."""
     if key not in _timer_intervals:
         raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
-    now = time.monotonic()
-    if now >= _timers[key]:
-        _timers[key] = now + _timer_intervals[key]
+    now = time.ticks_ms()
+    if time.ticks_diff(now, _timers[key]) >= 0:
+        _timers[key] = time.ticks_add(_timers[key], _timer_intervals[key])
         return True
     return False
 

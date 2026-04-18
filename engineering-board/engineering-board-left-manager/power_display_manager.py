@@ -1,4 +1,4 @@
-import board
+from machine import Pin  # pyright: ignore[reportMissingImports]
 from protocol_resources import (
     LEFT_WING,
     RIGHT_WING,
@@ -9,7 +9,7 @@ from protocol_resources import (
     CUR_DISPLAY,
     MAX_DISPLAY,
 )
-from tm1637 import TM1637
+from dave_tm1637 import TM1637
 from eng_utils import ENABLE_POWER_DISPLAY, disabledString, logger
 
 SHOW_POWER_DISPLAY_DIAGS = False
@@ -68,36 +68,36 @@ class PowerDisplayManagerClass:
     def __init__(self) -> None:
         self.__ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self.__ALL_POWER_DISPLAYS = []
-        if ENABLE_POWER_DISPLAY:
+        if ENABLE_POWER_DISPLAY:  # TODO: verify all GP pin numbers for RP2350 wiring
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(1, board.D2, board.D3, LEFT_WING)
+                PowerDisplay(1, Pin(2), Pin(3), LEFT_WING)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(2, board.D53, board.D49, RIGHT_WING)
+                PowerDisplay(2, Pin(4), Pin(5), RIGHT_WING)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(3, board.D26, board.D25, TRANS1 + MAX_DISPLAY)
+                PowerDisplay(3, Pin(6), Pin(7), TRANS1 + MAX_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(4, board.D28, board.D27, TRANS1 + CUR_DISPLAY)
+                PowerDisplay(4, Pin(8), Pin(9), TRANS1 + CUR_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(5, board.D30, board.D29, TRANS2 + MAX_DISPLAY)
+                PowerDisplay(5, Pin(10), Pin(11), TRANS2 + MAX_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(6, board.D32, board.D31, TRANS2 + CUR_DISPLAY)
+                PowerDisplay(6, Pin(12), Pin(13), TRANS2 + CUR_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(7, board.D34, board.D33, TRANS3 + MAX_DISPLAY)
+                PowerDisplay(7, Pin(14), Pin(15), TRANS3 + MAX_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(8, board.D36, board.D35, TRANS3 + CUR_DISPLAY)
+                PowerDisplay(8, Pin(16), Pin(17), TRANS3 + CUR_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(9, board.D46, board.D45, TRANS4 + MAX_DISPLAY)
+                PowerDisplay(9, Pin(18), Pin(19), TRANS4 + MAX_DISPLAY)
             )
             self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(10, board.D48, board.D47, TRANS4 + CUR_DISPLAY)
+                PowerDisplay(10, Pin(20), Pin(22), TRANS4 + CUR_DISPLAY)
             )
 
     def AllDisplays(self) -> list[PowerDisplay]:

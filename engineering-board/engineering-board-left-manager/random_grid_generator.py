@@ -47,7 +47,7 @@ class RandomGridGenerator:
         self.__pixelColors: list[int] = [0] * (self.__gridSize * self.__gridSize)
 
         self.__gridScrollSeconds = GRID_SCROLL_SECONDS / self.__gridSize
-        self.__lastScrollTime = time.monotonic()
+        self.__lastScrollTime = time.ticks_ms()
         register_timer((id(self), TIMER_GRID_SCROLL), self.__gridScrollSeconds)
 
 
@@ -78,10 +78,10 @@ class RandomGridGenerator:
         return pixelIndex
 
     def UpdateGridState(self):
-        simTime = time.monotonic()
+        simTime = time.ticks_ms()
 
         if check_timer((id(self), TIMER_GRID_SCROLL)):
-            elapsedTime = simTime - self.__lastScrollTime
+            elapsedTime = time.ticks_diff(simTime, self.__lastScrollTime) / 1000.0
             self.__lastScrollTime = simTime
 
             delta = abs(self.__curLevel - self.__targetLevel)

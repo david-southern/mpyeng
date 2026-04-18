@@ -1,8 +1,6 @@
 import random
-import board
-import digitalio
-from adafruit_debouncer import Debouncer  # pyright: ignore[reportMissingImports]
-
+import time
+from machine import Pin  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, logger
 
 from power_display_manager import PowerDisplayManager
@@ -18,6 +16,35 @@ from protocol_resources import (
     TransformerPower,
 )
 from power_grid_manager import PowerGridManager
+
+
+class Debouncer:
+    """Minimal debounce wrapper for a MicroPython machine.Pin."""
+
+    def __init__(self, pin: Pin, interval: float = 0.05):
+        self._pin = pin
+        self._interval_ms = int(interval * 1000)
+        self._state = pin.value()
+        self._last_change = time.ticks_ms()
+        self.fell = False
+        self.rose = False
+
+    def update(self):
+        """Must be called regularly to update the debounced state."""
+        self.fell = False
+        self.rose = False
+        now = time.ticks_ms()
+        if time.ticks_diff(now, self._last_change) < self._interval_ms:
+            return
+        new_state = self._pin.value()
+        if new_state != self._state:
+            self._last_change = now
+            if new_state == 0:
+                self.fell = True
+            else:
+                self.rose = True
+            self._state = new_state
+
 
 DEMO_ENGINE_POWER_DATA = [
     EnginePower(LEFT_WING, 1500, 900),
@@ -47,25 +74,10 @@ register_timer(TIMER_DEMO_DATA, RANDOM_POWER_UPDATE_FREQ)
 ENABLE_TEST_BUTTONS = False
 
 if ENABLE_TEST_BUTTONS:
-    green_pin = digitalio.DigitalInOut(board.D4)
-    green_pin.direction = digitalio.Direction.INPUT
-    green_pin.pull = digitalio.Pull.UP
-    warp_green = Debouncer(green_pin)
-
-    yellow_pin = digitalio.DigitalInOut(board.D5)
-    yellow_pin.direction = digitalio.Direction.INPUT
-    yellow_pin.pull = digitalio.Pull.UP
-    warp_yellow = Debouncer(yellow_pin)
-
-    red_pin = digitalio.DigitalInOut(board.D6)
-    red_pin.direction = digitalio.Direction.INPUT
-    red_pin.pull = digitalio.Pull.UP
-    warp_red = Debouncer(red_pin)
-
-    blue_pin = digitalio.DigitalInOut(board.D13)
-    blue_pin.direction = digitalio.Direction.INPUT
-    blue_pin.pull = digitalio.Pull.UP
-    shields = Debouncer(blue_pin, interval=0.1)
+    warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))    # TODO: verify GP4 for RP2350 wiring
+    warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))   # TODO: verify GP5 for RP2350 wiring
+    warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))      # TODO: verify GP6 for RP2350 wiring
+    shields = Debouncer(Pin(13, Pin.IN, Pin.PULL_UP), interval=0.1)  # TODO: verify GP13 for RP2350 wiring
 
 
 def set_warp_power(power: int):

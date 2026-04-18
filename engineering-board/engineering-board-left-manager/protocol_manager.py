@@ -1,6 +1,8 @@
 import json
 import time
-import usb_cdc  # pyright: ignore[reportMissingImports]
+import socket  # pyright: ignore[reportMissingImports]
+import network  # pyright: ignore[reportMissingImports]
+import secrets  # pyright: ignore[reportMissingImports]
 
 from demo_data_manager import DemoDataManager
 
@@ -44,22 +46,37 @@ SER_PROTO_SYSTEM_POWER_SET = SER_PROTO_SYSTEM_POWER + SER_PROTO_SET
 
 class ProtocolManagerClass:
     def __init__(self):
-        if usb_cdc.data is None:
-            raise ConnectionError("Unable to open USB_cdc.data Serial connection")
+        logger.info("Connecting to WiFi...")
+        wlan = network.WLAN(network.STA_IF)
+        wlan.active(True)
+        if not wlan.isconnected():
+            wlan.connect(secrets.WIFI_SSID, secrets.WIFI_PASSWORD)
+            timeout_ms = 0
+            while not wlan.isconnected() and timeout_ms < 30000:
+                time.sleep_ms(100)
+                timeout_ms += 100
+            if not wlan.isconnected():
+                raise RuntimeError("WiFi connection timed out after 30s")
+        ip = wlan.ifconfig()[0]
+        logger.info(f"WiFi connected: IP={ip}")
 
-        self.__dataSerial = usb_cdc.data
-        self.__dataSerial.timeout = 0
+        self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.__server.bind(("", secrets.TCP_PORT))
+        self.__server.listen(1)
+        self.__server.setblocking(False)
+        self.__client = None
         self.__pendingCommand = bytearray(0)
         self.__lastReadTime = 0
         self.__total_commands_handled = 0
         self.__total_bytes_sent = 0
         self.__total_bytes_read = 0
 
-        logger.info("Initializing ProtocolManager")
+        logger.info(f"TCP server listening on port {secrets.TCP_PORT}")
 
     @property
     def IsConnected(self):
-        return self.__dataSerial.connected
+        return self.__client is not None
 
     @property
     def TotalBytesRead(self):
@@ -73,40 +90,66 @@ class ProtocolManagerClass:
     def TotalCommandsHandled(self):
         return self.__total_commands_handled
 
+    def __disconnect(self):
+        if self.__client is not None:
+            try:
+                self.__client.close()
+            except OSError:
+                pass
+            self.__client = None
+            self.__pendingCommand = bytearray(0)
+            logger.info("TCP client disconnected")
+
     def HandleComms(self):
-        if self.__dataSerial.connected and self.__dataSerial.in_waiting > 0:
-            chunkBytes = self.__dataSerial.readline()
+        if self.__client is None:
+            try:
+                self.__client, addr = self.__server.accept()
+                self.__client.setblocking(False)
+                logger.info(f"TCP client connected from {addr[0]}:{addr[1]}")
+            except OSError:
+                pass  # No pending connection — normal with non-blocking accept
+            return
+
+        try:
+            chunk = self.__client.recv(256)
+            if len(chunk) == 0:
+                self.__disconnect()
+                return
             if SER_PROTO_DIAGS > 4:
-                logger.info(f"Read serial chunk: {format_hex_list(chunkBytes)}")
-            self.__pendingCommand += chunkBytes
+                logger.info(f"Read TCP chunk: {format_hex_list(chunk)}")
+            self.__pendingCommand += chunk
             if SER_PROTO_DIAGS > 3:
-                logger.info(
-                    f"Pending command: {format_hex_list(self.__pendingCommand)}"
-                )
-            self.__lastReadTime = time.monotonic()
+                logger.info(f"Pending command: {format_hex_list(self.__pendingCommand)}")
+            self.__lastReadTime = time.ticks_ms()
+        except OSError:
+            pass  # No data available — normal with non-blocking socket
+
         self.__CheckCommand()
 
     def __SendPacket(self, command, data=None):
         packet = command
         if data is not None:
-            jsonData = json_string(data)
+            jsonData = json_string(data).replace("|", "").replace("\r", "").replace("\n", "")
             packet += f"{SER_PROTO_RESPONSE_DELIMITER}{jsonData}"
         packet += "\n"
 
         if SER_PROTO_DIAGS > 0:
             logger.info(f"Sending response packet: {packet}")
 
-        self.__dataSerial.write(packet.encode("utf-8"))
-        self.__dataSerial.flush()
+        try:
+            self.__client.send(packet.encode("utf-8"))
+            self.__total_bytes_sent += len(packet)
+        except OSError as ex:
+            logger.error(f"Error sending TCP packet: {ex}")
+            self.__disconnect()
 
     def __HandleCommand(self, command, data=None):
         if command == SER_PROTO_INIT_HEADER:
             if SER_PROTO_DIAGS > 0:
                 logger.info("Received INIT command")
 
-            # Clear the buffers in case there are any unsent/received bytes waiting (possibly from another failed communication)
-            self.__dataSerial.reset_input_buffer()
-            self.__dataSerial.reset_output_buffer()
+            # Clear any pending buffered data from a previous (possibly failed) connection
+            self.__pendingCommand = bytearray(0)
 
             self.__SendPacket(SER_PROTO_INIT_RESPONSE)
             self.__total_commands_handled += 1
@@ -228,7 +271,7 @@ class ProtocolManagerClass:
 
         if (
             self.__pendingCommand[-1] == BYTE_CR
-            and time.monotonic() - self.__lastReadTime > PENDING_CRLF_DELAY_SEC
+            and time.ticks_diff(time.ticks_ms(), self.__lastReadTime) > int(PENDING_CRLF_DELAY_SEC * 1000)
         ):
             commandFinished = True
 

@@ -1,5 +1,5 @@
 import random
-import board
+from machine import Pin  # pyright: ignore[reportMissingImports]
 from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString, logger
 from power_card_tray import PixelStripManager
 from protocol_resources import LEFT_WING, RIGHT_WING, TRANS1, TRANS2, TRANS3, TRANS4
@@ -97,7 +97,7 @@ class PowerGridManagerClass:
 
         self.LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
 
-        self.LEFT_STRIP_DATA_PIN = board.D5
+        self.LEFT_STRIP_DATA_PIN = Pin(5)  # TODO: verify GP5 for RP2350 wiring
 
         self.LeftPixelStrip = PixelStripManager(self.LEFT_STRIP_DATA_PIN, self.LEFT_STRIP_LED_COUNT)
         

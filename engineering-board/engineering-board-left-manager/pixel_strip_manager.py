@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import board
-
-from neopixel import NeoPixel  # pyright: ignore[reportMissingImports]
+import neopixel  # pyright: ignore[reportMissingImports]
+from machine import Pin  # pyright: ignore[reportMissingImports]
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
 from power_card_animation import ANIMATION_TARGET_FPS
 from profiling import register_profile, start_profile, stop_profile
@@ -32,9 +31,39 @@ TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 PROFILE_PIXELS = register_profile("pixel_update")
 
+
+class _NeoPixelWrapper:
+    """Wraps MicroPython's neopixel.NeoPixel with a packed-int compatible interface.
+
+    Accepts packed 0xRRGGBB integers instead of (R, G, B) tuples, and exposes
+    .show() instead of .write(). Note: no automatic brightness scaling.
+    """
+
+    def __init__(self, pin: Pin, count: int):
+        self._np = neopixel.NeoPixel(pin, count)
+
+    def fill(self, color: int):
+        if color == 0:
+            self._np.fill((0, 0, 0))
+        else:
+            self._np.fill(((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF))
+
+    def show(self):
+        self._np.write()
+
+    def __setitem__(self, index, val):
+        if isinstance(index, slice):
+            self._np[index] = [
+                ((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF)
+                for color in val
+            ]
+        else:
+            self._np[index] = ((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)
+
+
 class PixelStripManager:
 
-    def __init__(self, LED_DATA_PIN: board.Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
+    def __init__(self, LED_DATA_PIN: Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
@@ -48,13 +77,7 @@ class PixelStripManager:
 
         if ENABLE_PIXELS:
             self.enabledString = ""
-            self.pixels = NeoPixel(
-                LED_DATA_PIN,
-                TOTAL_LED_COUNT,
-                brightness=PIXEL_BRIGHTNESS,
-                auto_write=False,
-                pixel_order="GRB",
-            )
+            self.pixels = _NeoPixelWrapper(LED_DATA_PIN, TOTAL_LED_COUNT)
 
             logger.info(
                 f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels"
