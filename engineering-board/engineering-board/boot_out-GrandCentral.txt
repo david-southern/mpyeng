@@ -1,4 +1,0 @@
-Adafruit CircuitPython 10.1.4 on 2026-03-09; Adafruit Grand Central M4 Express with samd51p20
-Board ID:grandcentral_m4_express
-UID:C3568B84385350532020204A443915FF
-boot.py output:

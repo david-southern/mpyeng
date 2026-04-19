@@ -1,0 +1,131 @@
+import time
+
+from utils.eng_utils import check_timer, register_timer
+
+from utils.color_utils import BLUE, GREEN, RED, YELLOW
+
+GRID_SCROLL_SECONDS = 1
+TIMER_GRID_SCROLL = "grid_scroll"
+POWER_VALUE_LERP_PER_SECOND = 0.6
+ANIMATION_SPEED_MS = 5
+STEP_SPEED_MS = 100
+
+LOW_POWER_LEVEL_16 = 5
+SAFE_POWER_LEVEL_16 = 9
+WARNING_POWER_LEVEL_16 = 13
+
+LOW_POWER_LEVEL_8 = 1
+SAFE_POWER_LEVEL_8 = 3
+WARNING_POWER_LEVEL_8 = 5
+
+LOW_POWER_LEVEL_5 = 1
+SAFE_POWER_LEVEL_5 = 2
+WARNING_POWER_LEVEL_5 = 4
+
+
+def _scaled_int(color, brightness):
+    return (int(color.R * brightness) << 16) | (int(color.G * brightness) << 8) | int(color.B * brightness)
+
+
+GRID_BRIGHTNESS = 0.1
+BLACK_INT = 0
+LOW_COLOR = _scaled_int(BLUE, GRID_BRIGHTNESS)
+SAFE_COLOR = _scaled_int(GREEN, GRID_BRIGHTNESS)
+WARNING_COLOR = _scaled_int(YELLOW, GRID_BRIGHTNESS)
+DANGER_COLOR = _scaled_int(RED, GRID_BRIGHTNESS)
+
+
+class RandomGridGenerator:
+    def __init__(self, gridSize):
+        self.__maxLevel = 100
+        self.__targetLevel = 0
+        self.__curLevel: float = 0
+        self.__gridSize = gridSize
+        self.__valueLerpPerSecond = self.__maxLevel * POWER_VALUE_LERP_PER_SECOND
+
+        self.lowPowerLevel = (
+            LOW_POWER_LEVEL_16 if gridSize == 16 else LOW_POWER_LEVEL_8 if gridSize == 8 else LOW_POWER_LEVEL_5
+        )
+        self.safePowerLevel = (
+            SAFE_POWER_LEVEL_16 if gridSize == 16 else SAFE_POWER_LEVEL_8 if gridSize == 8 else SAFE_POWER_LEVEL_5
+        )
+        self.warningPowerLevel = (
+            WARNING_POWER_LEVEL_16
+            if gridSize == 16
+            else WARNING_POWER_LEVEL_8
+            if gridSize == 8
+            else WARNING_POWER_LEVEL_5
+        )
+
+        self.__pixelColors: list[int] = [0] * (self.__gridSize * self.__gridSize)
+
+        self.__gridScrollSeconds = GRID_SCROLL_SECONDS / self.__gridSize
+        self.__lastScrollTime = time.ticks_ms()
+        register_timer((id(self), TIMER_GRID_SCROLL), self.__gridScrollSeconds)
+
+    @property
+    def PixelColors(self) -> list[int]:
+        return self.__pixelColors
+
+    @property
+    def TargetLevel(self):
+        return self.__targetLevel
+
+    @TargetLevel.setter
+    def TargetLevel(self, value):
+        self.__targetLevel = value
+
+    def PixelIndex(self, x, y):
+        pixelIndex = y * self.__gridSize
+
+        # The pixel grids that we are using map the pixels as a zig-zag linear string: Pixel zero
+        # starts at the bottom-left of the grid, and the pixels increment to the right until the
+        # string reaches the edge of the grid. Then the string moves up one pixel, and proceeds
+        # incrementing to the left.
+        if y % 2 == 0:
+            pixelIndex += x
+        else:
+            pixelIndex += (self.__gridSize - 1) - x
+
+        return pixelIndex
+
+    def UpdateGridState(self):
+        simTime = time.ticks_ms()
+
+        if check_timer((id(self), TIMER_GRID_SCROLL)):
+            elapsedTime = time.ticks_diff(simTime, self.__lastScrollTime) / 1000.0
+            self.__lastScrollTime = simTime
+
+            delta = abs(self.__curLevel - self.__targetLevel)
+            if delta > 0:
+                delta = min(delta, self.__valueLerpPerSecond * elapsedTime)
+                if self.__curLevel > self.__targetLevel:
+                    delta = -delta
+                self.__curLevel += delta
+
+            currentLevel = self.__curLevel / self.__maxLevel
+            currentY = int(currentLevel * self.__gridSize)
+
+            for y in range(self.__gridSize):
+                for x in range(self.__gridSize):
+                    pixelColor = BLACK_INT
+                    pixelIndex = self.PixelIndex(x, y)
+
+                    if x < self.__gridSize - 1:
+                        pixelColor = self.__pixelColors[self.PixelIndex(x + 1, y)]
+
+                    elif y <= currentY:
+                        pixelColor = DANGER_COLOR
+
+                        if y <= self.lowPowerLevel:
+                            pixelColor = LOW_COLOR
+                        elif y <= self.safePowerLevel:
+                            pixelColor = SAFE_COLOR
+                        elif y <= self.warningPowerLevel:
+                            pixelColor = WARNING_COLOR
+
+                    if pixelColor != self.__pixelColors[pixelIndex]:
+                        self.__pixelColors[pixelIndex] = pixelColor
+
+    def __str__(self):
+        return f"RandomGridGenerator(GridSize: {self.__gridSize})"

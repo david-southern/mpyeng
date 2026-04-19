@@ -1,11 +1,7 @@
-# This is the main entry point for the USB Client. It is responsible for
-# managing the various components of the client, including the USB serial
-# connection to receive commands from the server
+from power_cards.animation import ANIMATION_TARGET_FPS
+from utils.profiling import log_free_ram
 
-from power_card_animation import ANIMATION_TARGET_FPS
-from profiling import log_free_ram
-
-from eng_utils import (
+from utils.eng_utils import (
     ENABLE_CARD_READER,
     ENABLE_POWER_DISPLAY,
     ENABLE_POWER_GRID,
@@ -16,49 +12,51 @@ from eng_utils import (
     register_timer,
     logger,
 )
-from device_manager import device_manager
-from profiling import register_profile, start_profile, stop_profile, report_all_profiles
-from demo_data_manager import DemoDataManager
+from utils.device_manager import device_manager
+from utils.profiling import register_profile, start_profile, stop_profile, report_all_profiles
+from utils.demo_data_manager import DemoDataManager
 
 if ENABLE_POWER_TRAY:
-    from power_card_tray import PowerTrayManager
+    from card_tray.tray_manager import PowerTrayManager
 
 if ENABLE_POWER_GRID:
-    from power_grid_manager import PowerGridManager
+    from power_grid.grid_manager import PowerGridManager
 
 if ENABLE_POWER_DISPLAY:
-    from power_display_manager import PowerDisplayManager
+    from power_display.display_manager import PowerDisplayManager
 
 if ENABLE_CARD_READER:
-    from card_manager import CardReaderManager
+    from card_reader.reader_manager import CardReaderManager
 
 if ENABLE_SWITCHBOARD:
-    from switchboard_manager import SwitchboardManager
+    from switchboard.switchboard_manager import SwitchboardManager
 
 if ENABLE_PROTOCOL_MANAGER:
-    from protocol_manager import ProtocolManager
+    from comms.protocol_manager import ProtocolManager
 
 ENABLE_HEARTBEAT_LOGGING = False
 
-# Only check the serial line this often so we don't use up all the client's cycles
-COMMS_FREQUENCY_SEC = 0.01
-TIMER_COMMS = "serial_read"
+PROTOCOL_FREQUENCY_SEC = 0.01
+TIMER_PROTOCOL = "protocol"
+
 HEARTBEAT_FREQUENCY_SEC = 2
 TIMER_HEARTBEAT = "heartbeat"
+
 PROFILE_REPORT_FREQUENCY_SEC = 10.0
 TIMER_PROFILE_REPORT = "profile_report"
+
 DEMO_DATA_FREQUENCY_SEC = 0.25
 TIMER_DEMO_DATA = "demo_data"
 
 ANIMATION_UPDATE_FREQUENCY_SEC = 1.0 / ANIMATION_TARGET_FPS
 TIMER_POWER_TRAY_UPDATE = "tray_update"
 
-PROFILE_COMMS = register_profile("comms")
+PROFILE_PROTOCOL = register_profile("protocol")
 PROFILE_DEMO_DATA = register_profile("demo_data")
 PROFILE_HEARTBEAT = register_profile("heartbeat")
 
-showSerialDiags = False
-showSerialStats = False
+showProtocolDiags = False
+showProtocolStats = False
 
 showCardReaderDiags = False
 showSwitchboardDiags = False
@@ -69,7 +67,7 @@ UNKNOWN_DEVICE_LOG_FREQUENCY_SEC = 1.0
 
 register_timer(TIMER_HEARTBEAT, HEARTBEAT_FREQUENCY_SEC)
 register_timer(TIMER_PROFILE_REPORT, PROFILE_REPORT_FREQUENCY_SEC)
-register_timer(TIMER_COMMS, COMMS_FREQUENCY_SEC)
+register_timer(TIMER_PROTOCOL, PROTOCOL_FREQUENCY_SEC)
 register_timer(TIMER_DEMO_DATA, DEMO_DATA_FREQUENCY_SEC)
 register_timer(TIMER_POWER_TRAY_UPDATE, ANIMATION_UPDATE_FREQUENCY_SEC)
 register_timer(TIMER_UNKNOWN_DEVICE_LOG, UNKNOWN_DEVICE_LOG_FREQUENCY_SEC)
@@ -81,11 +79,11 @@ def log_heartbeat():
 
     logString = "** Heartbeat"
 
-    if ENABLE_PROTOCOL_MANAGER and showSerialDiags:
+    if ENABLE_PROTOCOL_MANAGER and showProtocolDiags:
         connState = "Connected" if ProtocolManager.IsConnected else "UNCONNECTED"
-        logString += f": SerProto: {connState}"
+        logString += f": Proto: {connState}"
 
-    if ENABLE_PROTOCOL_MANAGER and showSerialStats:
+    if ENABLE_PROTOCOL_MANAGER and showProtocolStats:
         logString += (
             f", bytes read/sent: {ProtocolManager.TotalBytesRead}/{ProtocolManager.TotalBytesSent}, "
             + f"commands handled: {ProtocolManager.TotalCommandsHandled}"
@@ -128,10 +126,10 @@ def mainLoop():
     initialize()
 
     while True:
-        if ENABLE_PROTOCOL_MANAGER and check_timer(TIMER_COMMS):
-            start_profile(PROFILE_COMMS)
+        if ENABLE_PROTOCOL_MANAGER and check_timer(TIMER_PROTOCOL):
+            start_profile(PROFILE_PROTOCOL)
             ProtocolManager.HandleComms()
-            stop_profile(PROFILE_COMMS)
+            stop_profile(PROFILE_PROTOCOL)
 
         if check_timer(TIMER_DEMO_DATA):
             start_profile(PROFILE_DEMO_DATA)
@@ -141,6 +139,7 @@ def mainLoop():
             stop_profile(PROFILE_DEMO_DATA)
 
         if ENABLE_POWER_TRAY and check_timer(TIMER_POWER_TRAY_UPDATE):
+            # PowerTray profiling is done internal to the class
             PowerTrayManager.Update()
 
         if check_timer(TIMER_HEARTBEAT):
