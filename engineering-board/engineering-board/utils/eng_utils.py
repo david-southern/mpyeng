@@ -15,13 +15,14 @@ class LoggerClass:
 
 logger = LoggerClass()
 
+logger.info("Logger initialized.")
+
 ENABLE_PROTOCOL_MANAGER = False
 ENABLE_SLOW_LOG = False
 
-# Running the TM1637 displays when the board is does not have an external +5V supply causes the
+# FYI: Running the TM1637 displays when the board is does not have an external +5V supply causes the
 # Arduino to crash erratically. Not sure why, but it definitely happens. Providing the external +5V
-# supply stops this happening, but I'll leave this enable flag here so that the board can be run
-# without external power if desired.
+# supply stops this happening.
 ENABLE_POWER_DISPLAY = False
 
 ENABLE_PIXELS = False
@@ -36,8 +37,16 @@ ENABLE_RIGHT_PIXELS = False
 ENABLE_POWER_TRAY = False
 
 
+def set_flags(flags: dict):
+    """Set module-level enable flags from a dict of {flag_name: value} pairs."""
+    module_globals = globals()
+    for key, value in flags.items():
+        logger.info(f"Setting flag {key} to {value}")
+        module_globals[key] = value
+
+
 # DeviceManager import triggers device identification and sets enable flags
-# via setattr on this module. Must be imported after flag defaults are defined.
+# via set_flags on this module. Must be imported after flag defaults are defined.
 from utils.device_manager import device_manager  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
 
 SLOW_LOG_FREQUENCY = 1

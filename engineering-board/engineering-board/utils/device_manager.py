@@ -1,6 +1,6 @@
 from machine import unique_id  # pyright: ignore[reportMissingImports]
 
-import utils.eng_utils as eng_utils
+from utils.eng_utils import logger, set_flags
 
 
 class DeviceManager:
@@ -83,18 +83,18 @@ class DeviceManager:
     def __init__(self):
         raw_id = unique_id()
         self.device_id = "".join(f"{byte:02X}" for byte in raw_id)
+        logger.info(f"DeviceManager: checking device ID: '{self.device_id}' against KNOWN_DEVICES")
         self._pins: dict = {}
 
         if self.device_id in self.KNOWN_DEVICES:
             self.device_name, flags, self._pins = self.KNOWN_DEVICES[self.device_id]
             self.device_recognized = True
-            for flag_name, flag_value in flags.items():
-                setattr(eng_utils, flag_name, flag_value)
-            eng_utils.logger.info(f"DeviceManager: Recognized device '{self.device_name}' (ID: {self.device_id})")
+            set_flags(flags)
+            logger.info(f"DeviceManager: Recognized device '{self.device_name}' (ID: {self.device_id})")
         else:
             self.device_name = "Unknown"
             self.device_recognized = False
-            eng_utils.logger.error(f"DeviceManager: Unrecognized device ID: {self.device_id}. No modules enabled.")
+            logger.error(f"DeviceManager: Unrecognized device ID: {self.device_id}. No modules enabled.")
 
     def resolve_pin(self, module: str, key: str, default=None):
         """Resolve a pin configuration value for a module.

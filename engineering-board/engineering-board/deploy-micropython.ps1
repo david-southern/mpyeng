@@ -30,11 +30,15 @@
 # about enumerating the top-level files and directories we want to copy, and not their children.
 
 param(
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Force
 )
 
 if ($DryRun) {
     Write-Host "[DRY RUN] No changes will be made to the device." -ForegroundColor Magenta
+}
+if ($Force) {
+    Write-Host "[FORCE] All files will be copied regardless of size." -ForegroundColor Magenta
 }
 
 # Overall process:
@@ -42,7 +46,7 @@ if ($DryRun) {
 #    don't want to copy
 # 2. Enumerate recursively all files on the device
 # 3. Remove any files on the device that are not in the list of files we want to copy
-# 4. Copy all files we want to copy to the device
+# 4. Copy files to the device, skipping any whose size has not changed (use -Force to override)
 # 5. Prune any empty directories left on the device
 # 6. Send a soft-reset to the device
 
@@ -71,6 +75,7 @@ $ignoreFiles = @(
 # In -DryRun mode, prints what would be run without executing it.
 function Invoke-Mpremote {
     param(
+        [switch]$IgnoreErrors = $false,
         [Parameter(Mandatory, ValueFromRemainingArguments)]
         [string[]]$Arguments
     )
@@ -80,27 +85,33 @@ function Invoke-Mpremote {
         return
     }
 
-    mpremote @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "mpremote $($Arguments -join ' ') failed with exit code $LASTEXITCODE. Aborting." -ForegroundColor Red
-        exit $LASTEXITCODE
+    if ($IgnoreErrors) {
+        mpremote @Arguments 2> $null
+    } else {
+        mpremote @Arguments
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "mpremote $($Arguments -join ' ') failed with exit code $LASTEXITCODE. Aborting." -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
     }
 }
 
 # Enumerate all files on the device recursively.
-# Returns paths in mpremote format, e.g. ':/main.py', ':/card_reader/constants.py'
+# Returns a hashtable of { remote-path = file-size }, e.g. @{ ':/main.py' = 4994; ':/card_reader/constants.py' = 1234 }
 function Get-DeviceFiles {
     param (
         [string]$remotePath = ':/'
     )
 
-    $files = @()
+    $files = @{}
     $output = @(mpremote ls $remotePath 2>&1)
 
     foreach ($line in $output) {
         # Match lines like "     1234 filename.py" or "        0 dirname/"
-        if ($line -match '^\s*\d+\s+(.+)$') {
-            $entry = $matches[1].Trim()
+        if ($line -match '^\s*(\d+)\s+(.+)$') {
+            $size = [long]$matches[1]
+            $entry = $matches[2].Trim()
             $isDir = $entry.EndsWith('/')
             $name = $entry.TrimEnd('/')
 
@@ -109,9 +120,12 @@ function Get-DeviceFiles {
             $fullPath = "$base/$name"
 
             if ($isDir) {
-                $files += Get-DeviceFiles $fullPath
+                $subFiles = Get-DeviceFiles $fullPath
+                foreach ($kvp in $subFiles.GetEnumerator()) {
+                    $files[$kvp.Key] = $kvp.Value
+                }
             } else {
-                $files += $fullPath
+                $files[$fullPath] = $size
             }
         }
     }
@@ -123,18 +137,10 @@ $ignoreRE = ($ignoreDirectories + $ignoreFiles) -join '|'
 
 # All local files (recursive, files only) normalized to forward-slash relative paths,
 # used to determine what should exist on the device.
-$localFiles = @(
+$deployFiles = @(
     Get-ChildItem -Recurse -File |
         Where-Object { $_.FullName -notmatch $ignoreRE } |
         ForEach-Object { (Resolve-Path -Relative $_.FullName) -replace '^\.[\\/]', '' -replace '\\', '/' }
-)
-
-# Top-level items (files and directories) to copy to the device.
-# mpremote cp -r handles recursive directory copies, so only top-level items are needed.
-$topLevelItems = @(
-    Get-ChildItem |
-        Where-Object { $_.Name -notmatch $ignoreRE } |
-        ForEach-Object { Resolve-Path -Relative $_.FullName }
 )
 
 # Step 2: Enumerate all files currently on the device
@@ -143,40 +149,60 @@ $deviceFiles = Get-DeviceFiles ':/'
 
 # Step 3: Remove any device files that are not in the local file list
 $filesToRemove = @(
-    $deviceFiles | Where-Object {
+    $deviceFiles.Keys | Where-Object {
         $normalized = $_ -replace '^:/', ''
-        $localFiles -notcontains $normalized
+        $deployFiles -notcontains $normalized
     }
 )
 
 if ($filesToRemove.Count -gt 0) {
     Write-Host "Removing $($filesToRemove.Count) orphaned file(s) from device..." -ForegroundColor Yellow
     Invoke-Mpremote rm @filesToRemove
-    # foreach ($file in $filesToRemove) {
-    #     Write-Host "  Removing: $file" -ForegroundColor Yellow
-    #     Invoke-Mpremote rm $file
-    # }
 } else {
     Write-Host "No orphaned files to remove." -ForegroundColor Green
 }
 
 # Step 4: Copy all local items to the device
-Write-Host "Copying $($topLevelItems.Count) item(s) to device..." -ForegroundColor Cyan
+Write-Host "Copying $($deployFiles.Count) item(s) to device..." -ForegroundColor Cyan
 
 # For some reason, this command does not work when called from this script, even though it works
 # when I call it from PowerShell. No idea why, but the loop below does work...
 # Invoke-Mpremote cp -rv $topLevelItems :/
 
-foreach ($item in $topLevelItems) {
-    $isDir = (Get-Item $item).PSIsContainer
-    if ($isDir) {
-        Write-Host "  Copying directory: $item" -ForegroundColor Cyan
-        # No trailing slash on src: copies the directory itself (not just its contents) into :/
-        Invoke-Mpremote cp -r $item :/
-    } else {
-        Write-Host "  Copying file: $item" -ForegroundColor Cyan
-        Invoke-Mpremote cp $item :/
+# Derive the set of directories that already exist on the device from the file paths.
+$deviceDirectories = @(
+    $deviceFiles.Keys | ForEach-Object { $_ -replace '^:/', '' } |
+        Where-Object { $_.Contains('/') } |
+        ForEach-Object { $_.Substring(0, $_.LastIndexOf('/')) } |
+        Select-Object -Unique
+)
+
+foreach ($item in $deployFiles) {
+    # $item for a directory: utils\other\thingy.py
+    # required $remotePath for the directory: :/utils/other
+    $remotePath = $item -replace '\\', '/'
+
+    if ($remotePath.Contains('/')) {
+        $remoteDirectory = ':/' + $remotePath.Substring(0, $remotePath.LastIndexOf('/'))
+        $remoteDirectoryNormalized = $remoteDirectory -replace '^:/', ''
+        if ($deviceDirectories -notcontains $remoteDirectoryNormalized) {
+            Write-Host "  Creating directory: $remoteDirectory" -ForegroundColor Cyan
+            Invoke-Mpremote mkdir $remoteDirectory -IgnoreErrors
+            $deviceDirectories += $remoteDirectoryNormalized
+        }
     }
+
+    $remotePath = ":/" + $remotePath
+
+    $deviceSize = $deviceFiles[$remotePath]
+    $localSize = (Get-Item $item).Length
+    if (-not $Force -and $null -ne $deviceSize -and $deviceSize -eq $localSize) {
+        Write-Host "  Skipping (unchanged): $item" -ForegroundColor DarkGray
+        continue
+    }
+
+    Write-Host "  Copying file: $item" -ForegroundColor Cyan
+    Invoke-Mpremote cp -v $item $remotePath
 }
 
 # Copy our secrets file if it exists. This file is not checked in to source control.
