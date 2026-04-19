@@ -1,9 +1,17 @@
 import random
 import time
-from machine import Pin  # pyright: ignore[reportMissingImports]
-from eng_utils import check_timer, register_timer, logger
+from machine import Pin
+from eng_utils import (
+    ENABLE_POWER_DISPLAY,
+    ENABLE_POWER_GRID,
+    check_timer,
+    register_timer,
+    logger,
+)
 
-from power_display_manager import PowerDisplayManager
+if ENABLE_POWER_DISPLAY:
+    from power_display_manager import PowerDisplayManager
+
 from protocol_resources import (
     LEFT_WING,
     RIGHT_WING,
@@ -15,7 +23,9 @@ from protocol_resources import (
     SystemPower,
     TransformerPower,
 )
-from power_grid_manager import PowerGridManager
+
+if ENABLE_POWER_GRID:
+    from power_grid_manager import PowerGridManager
 
 
 class Debouncer:
@@ -74,9 +84,9 @@ register_timer(TIMER_DEMO_DATA, RANDOM_POWER_UPDATE_FREQ)
 ENABLE_TEST_BUTTONS = False
 
 if ENABLE_TEST_BUTTONS:
-    warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))    # TODO: verify GP4 for ESP32-S3 wiring
-    warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))   # TODO: verify GP5 for ESP32-S3 wiring
-    warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))      # TODO: verify GP6 for ESP32-S3 wiring
+    warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))  # TODO: verify GP4 for ESP32-S3 wiring
+    warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))  # TODO: verify GP5 for ESP32-S3 wiring
+    warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))  # TODO: verify GP6 for ESP32-S3 wiring
     shields = Debouncer(Pin(13, Pin.IN, Pin.PULL_UP), interval=0.1)  # TODO: verify GP13 for ESP32-S3 wiring
 
 
@@ -134,31 +144,28 @@ class DemoDataManager:
             if DemoDataManager.__firstUpdate:
                 DemoDataManager.__firstUpdate = False
                 for _, wing in enumerate(DEMO_ENGINE_POWER_DATA):
-                    PowerGridManager.SetWingMaxPower(wing.Name, wing.MaxPower)
-                    PowerDisplayManager.SetDisplayValue(wing.Name, wing.MaxPower)
+                    if ENABLE_POWER_GRID:
+                        PowerGridManager.SetWingMaxPower(wing.Name, wing.MaxPower)
+                    if ENABLE_POWER_DISPLAY:
+                        PowerDisplayManager.SetDisplayValue(wing.Name, wing.MaxPower)
 
                 for _, transformer in enumerate(DEMO_TRANSFORMER_POWER_DATA):
-                    PowerGridManager.SetTransformerMaxPower(
-                        transformer.Name, transformer.MaxPower
-                    )
-                    PowerDisplayManager.SetDisplayMaxValue(
-                        transformer.Name, transformer.MaxPower
-                    )
+                    if ENABLE_POWER_GRID:
+                        PowerGridManager.SetTransformerMaxPower(transformer.Name, transformer.MaxPower)
+                    if ENABLE_POWER_DISPLAY:
+                        PowerDisplayManager.SetDisplayMaxValue(transformer.Name, transformer.MaxPower)
 
             for power_resource in DEMO_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
-                PowerGridManager.SetWingTargetPower(
-                    power_resource.Name, power_resource.PowerUsage
-                )
+                if ENABLE_POWER_GRID:
+                    PowerGridManager.SetWingTargetPower(power_resource.Name, power_resource.PowerUsage)
 
             for power_resource in DEMO_TRANSFORMER_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
-                PowerGridManager.SetTransformerTargetPower(
-                    power_resource.Name, power_resource.PowerUsage
-                )
-                PowerDisplayManager.SetDisplayCurValue(
-                    power_resource.Name, power_resource.PowerUsage
-                )
+                if ENABLE_POWER_GRID:
+                    PowerGridManager.SetTransformerTargetPower(power_resource.Name, power_resource.PowerUsage)
+                if ENABLE_POWER_DISPLAY:
+                    PowerDisplayManager.SetDisplayCurValue(power_resource.Name, power_resource.PowerUsage)
 
             for power_resource in DEMO_SYSTEM_POWER_DATA:
                 power_resource.CardCount = random.randint(1, 5)

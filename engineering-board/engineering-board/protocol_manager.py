@@ -1,8 +1,8 @@
 import json
 import time
-import socket  # pyright: ignore[reportMissingImports]
-import network  # pyright: ignore[reportMissingImports]
-import secrets  # pyright: ignore[reportMissingImports]
+import socket
+import network
+import secrets
 
 from demo_data_manager import DemoDataManager
 
@@ -46,7 +46,7 @@ SER_PROTO_SYSTEM_POWER_SET = SER_PROTO_SYSTEM_POWER + SER_PROTO_SET
 
 class ProtocolManagerClass:
     def __init__(self):
-        logger.info("Connecting to WiFi...")
+        logger.info("ProtocolManager: Connecting to WiFi...")
         wlan = network.WLAN(network.STA_IF)
         wlan.active(True)
         if not wlan.isconnected():
@@ -65,7 +65,7 @@ class ProtocolManagerClass:
         self.__server.bind(("", secrets.TCP_PORT))
         self.__server.listen(1)
         self.__server.setblocking(False)
-        self.__client = None
+        self.__client: socket.socket = None  # pyright: ignore[reportAttributeAccessIssue]
         self.__pendingCommand = bytearray(0)
         self.__lastReadTime = 0
         self.__total_commands_handled = 0
@@ -96,7 +96,7 @@ class ProtocolManagerClass:
                 self.__client.close()
             except OSError:
                 pass
-            self.__client = None
+            self.__client = None  # pyright: ignore[reportAttributeAccessIssue]
             self.__pendingCommand = bytearray(0)
             logger.info("TCP client disconnected")
 
@@ -159,9 +159,7 @@ class ProtocolManagerClass:
             if SER_PROTO_DIAGS > 0:
                 logger.info("Received ENGINE POWER QUERY command")
 
-            self.__SendPacket(
-                SER_PROTO_ENGINE_POWER_RESPONSE, DemoDataManager.GetEnginePowerData()
-            )
+            self.__SendPacket(SER_PROTO_ENGINE_POWER_RESPONSE, DemoDataManager.GetEnginePowerData())
             self.__total_commands_handled += 1
             return
 
@@ -180,9 +178,7 @@ class ProtocolManagerClass:
             if SER_PROTO_DIAGS > 0:
                 logger.info("Received SYSTEM POWER QUERY command")
 
-            self.__SendPacket(
-                SER_PROTO_SYSTEM_POWER_RESPONSE, DemoDataManager.GetSystemPowerData()
-            )
+            self.__SendPacket(SER_PROTO_SYSTEM_POWER_RESPONSE, DemoDataManager.GetSystemPowerData())
             self.__total_commands_handled += 1
             return
 
@@ -217,9 +213,7 @@ class ProtocolManagerClass:
                 return
 
             if SER_PROTO_DIAGS > 0:
-                logger.info(
-                    f"Received SET TRANSFORMER POWER command: {shortString(data)}"
-                )
+                logger.info(f"Received SET TRANSFORMER POWER command: {shortString(data)}")
 
             try:
                 DemoDataManager.ClearTransformerPowerData()
@@ -269,20 +263,15 @@ class ProtocolManagerClass:
 
         commandFinished = self.__pendingCommand[-1] == BYTE_LF
 
-        if (
-            self.__pendingCommand[-1] == BYTE_CR
-            and time.ticks_diff(time.ticks_ms(), self.__lastReadTime) > int(PENDING_CRLF_DELAY_SEC * 1000)
+        if self.__pendingCommand[-1] == BYTE_CR and time.ticks_diff(time.ticks_ms(), self.__lastReadTime) > int(
+            PENDING_CRLF_DELAY_SEC * 1000
         ):
             commandFinished = True
 
         if commandFinished:
             self.__total_bytes_read += len(self.__pendingCommand)
 
-            command = (
-                self.__pendingCommand.decode("utf-8")
-                .replace("\r", "")
-                .replace("\n", "")
-            )
+            command = self.__pendingCommand.decode("utf-8").replace("\r", "").replace("\n", "")
             self.__pendingCommand = bytearray(0)
 
             if len(command) < 1:
@@ -297,9 +286,7 @@ class ProtocolManagerClass:
             try:
                 data = None if len(commandParts) < 2 else json.loads(commandParts[1])
             except:
-                logger.error(
-                    f"Invalid JSON data for command '{commandParts[0]}': {commandParts[1]}"
-                )
+                logger.error(f"Invalid JSON data for command '{commandParts[0]}': {commandParts[1]}")
                 return
 
             self.__HandleCommand(commandParts[0], data)

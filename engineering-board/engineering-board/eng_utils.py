@@ -1,11 +1,21 @@
 import time
-import sys
 
-import logging
 
-logger = logging.getLogger("main")
-logger.setLevel(logging.INFO)
+class LoggerClass:
+    def timestamp(self):
+        ts = time.ticks_ms() / 1000
+        return f"{ts:.3f}s"
 
+    def info(self, message):
+        print(f"[{self.timestamp()}] {message}")
+
+    def error(self, message):
+        print(f"[{self.timestamp()}] ERROR: {message}")
+
+
+logger = LoggerClass()
+
+ENABLE_PROTOCOL_MANAGER = False
 ENABLE_SLOW_LOG = False
 
 # Running the TM1637 displays when the board is does not have an external +5V supply causes the
@@ -23,16 +33,12 @@ ENABLE_RIGHT_SWITCHBOARD = False
 
 ENABLE_LEFT_PIXELS = False
 ENABLE_RIGHT_PIXELS = False
+ENABLE_POWER_TRAY = False
 
-ENABLE_POWER_DISPLAY = False
-ENABLE_PIXELS = True
-ENABLE_CARD_READER = True
-ENABLE_POWER_GRID = False
-ENABLE_SWITCHBOARD = True
-ENABLE_LEFT_SWITCHBOARD = False
-ENABLE_RIGHT_SWITCHBOARD = True
-ENABLE_LEFT_PIXELS = False
-ENABLE_RIGHT_PIXELS = True
+
+# DeviceManager import triggers device identification and sets enable flags
+# via setattr on this module. Must be imported after flag defaults are defined.
+from device_manager import device_manager  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
 
 SLOW_LOG_FREQUENCY = 1
 slowLogCount = {}
@@ -81,9 +87,7 @@ def SlowLog(message: str):
         return
 
     for logMessage, logCount in slowLogCount.items():
-        logger.info(
-            f"PixelManager{disabledString(ENABLE_PIXELS)}: (rpt: {logCount}) {logMessage}"
-        )
+        logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: (rpt: {logCount}) {logMessage}")
     slowLogCount = {}
 
 
@@ -112,7 +116,7 @@ def format_hex_list(listVal, delimiter=", "):
 
 
 def _xy_to_index(x: int, y: int, width: int = 8, height: int = 8) -> int:
-    """ Convert an x, y grid coordinate the the Serpentine layout with y-flip that our NeoPixel
+    """Convert an x, y grid coordinate the the Serpentine layout with y-flip that our NeoPixel
     grids use."""
     y = height - 1 - y
     return y * width + (x if y % 2 == 0 else (width - 1 - x))

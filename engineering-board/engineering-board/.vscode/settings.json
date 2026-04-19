@@ -1,0 +1,17 @@
+{
+    "python.languageServer": "Pylance",
+    "git.ignoreLimitWarning": true,
+    "cSpell.words": ["busio", "debouncer", "digitalio", "MOSI"],
+    "python.analysis.extraPaths": ["~/.micropico-stubs/micropython-esp32-esp32_generic_s3-stubs==1.27.0.post1"],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.ignore": ["lib/**"],
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    },
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
+    "python.terminal.activateEnvironment": false,
+    "python.analysis.typeshedPaths": ["~/.micropico-stubs/micropython-esp32-esp32_generic_s3-stubs==1.27.0.post1"]
+}

@@ -1,4 +1,4 @@
-from machine import Pin  # pyright: ignore[reportMissingImports]
+from machine import Pin
 from protocol_resources import (
     LEFT_WING,
     RIGHT_WING,
@@ -11,6 +11,7 @@ from protocol_resources import (
 )
 from dave_tm1637 import TM1637
 from eng_utils import ENABLE_POWER_DISPLAY, disabledString, logger
+from device_manager import device_manager
 
 SHOW_POWER_DISPLAY_DIAGS = False
 
@@ -56,49 +57,53 @@ class PowerDisplay:
             else:
                 self.__display.show(str(value))
             if SHOW_POWER_DISPLAY_DIAGS:
-                logger.info(
-                    f"Setting PowerDisplay {self}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}"
-                )
+                logger.info(f"Setting PowerDisplay {self}{disabledString(ENABLE_POWER_DISPLAY)} to value {value}")
 
     def __str__(self):
         return f"{self.DisplayName}/D:{self.DataPin}/C:{self.ClockPin}{disabledString(ENABLE_POWER_DISPLAY)}"
 
 
 class PowerDisplayManagerClass:
+    _DISPLAY_NAMES = [
+        LEFT_WING,
+        RIGHT_WING,
+        TRANS1 + MAX_DISPLAY,
+        TRANS1 + CUR_DISPLAY,
+        TRANS2 + MAX_DISPLAY,
+        TRANS2 + CUR_DISPLAY,
+        TRANS3 + MAX_DISPLAY,
+        TRANS3 + CUR_DISPLAY,
+        TRANS4 + MAX_DISPLAY,
+        TRANS4 + CUR_DISPLAY,
+    ]
+
+    _DEFAULT_DISPLAY_PINS = [
+        (2, 3),
+        (4, 5),
+        (6, 7),
+        (8, 9),
+        (10, 11),
+        (12, 13),
+        (14, 15),
+        (16, 17),
+        (18, 19),
+        (20, 22),
+    ]
+
     def __init__(self) -> None:
         self.__ALL_POWER_DISPLAYS: list[PowerDisplay] = []
         self.__ALL_POWER_DISPLAYS = []
-        if ENABLE_POWER_DISPLAY:  # TODO: verify all GP pin numbers for ESP32-S3 wiring
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(1, Pin(2), Pin(3), LEFT_WING)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(2, Pin(4), Pin(5), RIGHT_WING)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(3, Pin(6), Pin(7), TRANS1 + MAX_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(4, Pin(8), Pin(9), TRANS1 + CUR_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(5, Pin(10), Pin(11), TRANS2 + MAX_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(6, Pin(12), Pin(13), TRANS2 + CUR_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(7, Pin(14), Pin(15), TRANS3 + MAX_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(8, Pin(16), Pin(17), TRANS3 + CUR_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(9, Pin(18), Pin(19), TRANS4 + MAX_DISPLAY)
-            )
-            self.__ALL_POWER_DISPLAYS.append(
-                PowerDisplay(10, Pin(20), Pin(22), TRANS4 + CUR_DISPLAY)
-            )
+        if ENABLE_POWER_DISPLAY:
+            display_pins = device_manager.resolve_pin("power_display", "displays", self._DEFAULT_DISPLAY_PINS)
+            for display_index, (data_pin, clock_pin) in enumerate(display_pins):
+                self.__ALL_POWER_DISPLAYS.append(
+                    PowerDisplay(
+                        display_index + 1,
+                        Pin(data_pin),
+                        Pin(clock_pin),
+                        self._DISPLAY_NAMES[display_index],
+                    )
+                )
 
     def AllDisplays(self) -> list[PowerDisplay]:
         return self.__ALL_POWER_DISPLAYS
@@ -109,9 +114,7 @@ class PowerDisplayManagerClass:
 
         displayName += CUR_DISPLAY
         try:
-            display = next(
-                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
-            )
+            display = next(d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName)
         except StopIteration:
             display = None
 
@@ -128,9 +131,7 @@ class PowerDisplayManagerClass:
 
         displayName += MAX_DISPLAY
         try:
-            display = next(
-                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
-            )
+            display = next(d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName)
         except StopIteration:
             display = None
 
@@ -146,9 +147,7 @@ class PowerDisplayManagerClass:
             return
 
         try:
-            display = next(
-                d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName
-            )
+            display = next(d for d in self.__ALL_POWER_DISPLAYS if d.DisplayName == displayName)
         except StopIteration:
             display = None
 

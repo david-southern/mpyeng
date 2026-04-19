@@ -1,7 +1,5 @@
-from __future__ import annotations
-
-import neopixel  # pyright: ignore[reportMissingImports]
-from machine import Pin  # pyright: ignore[reportMissingImports]
+import neopixel
+from machine import Pin
 from eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
 from power_card_animation import ANIMATION_TARGET_FPS
 from profiling import register_profile, start_profile, stop_profile
@@ -32,37 +30,7 @@ TIMER_PIXEL_REFRESH = "pixel_refresh"
 PROFILE_PIXELS = register_profile("pixel_update")
 
 
-class _NeoPixelWrapper:
-    """Wraps MicroPython's neopixel.NeoPixel with a packed-int compatible interface.
-
-    Accepts packed 0xRRGGBB integers instead of (R, G, B) tuples, and exposes
-    .show() instead of .write(). Note: no automatic brightness scaling.
-    """
-
-    def __init__(self, pin: Pin, count: int):
-        self._np = neopixel.NeoPixel(pin, count)
-
-    def fill(self, color: int):
-        if color == 0:
-            self._np.fill((0, 0, 0))
-        else:
-            self._np.fill(((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF))
-
-    def show(self):
-        self._np.write()
-
-    def __setitem__(self, index, val):
-        if isinstance(index, slice):
-            self._np[index] = [
-                ((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF)
-                for color in val
-            ]
-        else:
-            self._np[index] = ((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)
-
-
 class PixelStripManager:
-
     def __init__(self, LED_DATA_PIN: Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
@@ -77,14 +45,12 @@ class PixelStripManager:
 
         if ENABLE_PIXELS:
             self.enabledString = ""
-            self.pixels = _NeoPixelWrapper(LED_DATA_PIN, TOTAL_LED_COUNT)
+            self.pixels = neopixel.NeoPixel(LED_DATA_PIN, TOTAL_LED_COUNT)
 
-            logger.info(
-                f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels"
-            )
+            logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels")
 
-            self.pixels.fill(0)
-            self.pixels.show()
+            self.pixels.fill((0, 0, 0))
+            self.pixels.write()
 
     def ReservePixelRange(self, pixelCount: int) -> int:
         if self.currentPixelIndex + pixelCount > self.TOTAL_LED_COUNT:
@@ -105,12 +71,14 @@ class PixelStripManager:
         if not ENABLE_PIXELS:
             return
 
-        if(pixelCount < 1):
+        if pixelCount < 1:
             logger.error(f"SetPixelRangeColor: pixelCount {pixelCount} is invalid.")
             return
 
         if pixelCount != len(pixelData):
-            logger.error(f"SetPixelRangeColor: pixelCount {pixelCount} does not match length of pixelData {len(pixelData)}.")
+            logger.error(
+                f"SetPixelRangeColor: pixelCount {pixelCount} does not match length of pixelData {len(pixelData)}."
+            )
             return
 
         if startIndex < 0 or startIndex >= self.TOTAL_LED_COUNT:
@@ -123,11 +91,13 @@ class PixelStripManager:
             logger.error(f"SetPixelRangeColor: Pixel end index {endIndex} is out of range.")
             return
 
-        SlowLog(
-            f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Pixel range {startIndex}-{endIndex}"
-        )
+        SlowLog(f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Pixel range {startIndex}-{endIndex}")
 
-        self.pixels[startIndex:startIndex + pixelCount] = pixelData
+        for pixIndex in range(pixelCount):
+            val = pixelData[pixIndex]
+            pixVal = ((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)
+            self.pixels[startIndex + pixIndex] = pixVal
+
         self.__dirty = True
 
     def ShowPixels(self):
@@ -140,11 +110,10 @@ class PixelStripManager:
         SlowLog("Showing pixel data")
         if self.profileKey:
             start_profile(self.profileKey)
-        self.pixels.show()
+        self.pixels.write()
         if self.profileKey:
             stop_profile(self.profileKey)
         self.__dirty = False
-
 
     def Update(self):
         if not ENABLE_PIXELS:

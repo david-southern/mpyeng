@@ -1,7 +1,8 @@
 import time
-from machine import SPI, Pin  # pyright: ignore[reportMissingImports]
+from machine import SPI, Pin
 from power_card import PowerCard
 from eng_utils import ENABLE_CARD_READER, disabledString, logger
+from device_manager import device_manager
 
 VOLTAGE_CHECK_FREQUENCY = 0.2
 
@@ -60,9 +61,7 @@ class CardReader:
             return self.lastCard
 
         self.lastVoltageCheck = time.ticks_ms()
-        logger.info(
-            f"CardReader({self}): Checking pin present - voltage {self.inputPin.voltage}"
-        )
+        logger.info(f"CardReader({self}): Checking pin present - voltage {self.inputPin.voltage}")
 
         self.lastCard = PowerCard.FindCard(self.inputPin.voltage)
         return self.lastCard
@@ -78,7 +77,6 @@ class CardReader:
 
 
 class CardReaderManagerClass:
-
     def __init__(self) -> None:
 
         self.__ALL_CARD_READERS: list["CardReader"] = []
@@ -88,19 +86,20 @@ class CardReaderManagerClass:
             return
 
         self.spi = SPI(
-            2,
+            device_manager.resolve_pin("card_reader", "spi_id", 2),
             baudrate=1_000_000,
             polarity=0,
             phase=0,
-            sck=Pin(18),   # TODO: verify GP18 for ESP32-S3 wiring
-            mosi=Pin(19),  # TODO: verify GP19 for ESP32-S3 wiring
-            miso=Pin(16),  # TODO: verify GP16 for ESP32-S3 wiring
+            sck=Pin(device_manager.resolve_pin("card_reader", "spi_sck", 18)),
+            mosi=Pin(device_manager.resolve_pin("card_reader", "spi_mosi", 19)),
+            miso=Pin(device_manager.resolve_pin("card_reader", "spi_miso", 16)),
         )
 
-        self.channel09 = _MCP3008(self.spi, Pin(9, Pin.OUT))   # TODO: verify GP9 for ESP32-S3 wiring
-        self.channel10 = _MCP3008(self.spi, Pin(10, Pin.OUT))  # TODO: verify GP10 for ESP32-S3 wiring
-        self.channel11 = _MCP3008(self.spi, Pin(11, Pin.OUT))  # TODO: verify GP11 for ESP32-S3 wiring
-        self.channel12 = _MCP3008(self.spi, Pin(12, Pin.OUT))  # TODO: verify GP12 for ESP32-S3 wiring
+        cs_pins = device_manager.resolve_pin("card_reader", "cs_pins", [9, 10, 11, 12])
+        self.channel09 = _MCP3008(self.spi, Pin(cs_pins[0], Pin.OUT))
+        self.channel10 = _MCP3008(self.spi, Pin(cs_pins[1], Pin.OUT))
+        self.channel11 = _MCP3008(self.spi, Pin(cs_pins[2], Pin.OUT))
+        self.channel12 = _MCP3008(self.spi, Pin(cs_pins[3], Pin.OUT))
 
         self.__ALL_CARD_READERS.append(CardReader(0, _AnalogIn(self.channel09, P0)))
         self.__ALL_CARD_READERS.append(CardReader(1, _AnalogIn(self.channel09, P1)))
@@ -138,19 +137,13 @@ class CardReaderManagerClass:
         # self.__ALL_CARD_READERS.append(CardReader(30, AnalogIn(self.channel12, MCP.P6)))
         # self.__ALL_CARD_READERS.append(CardReader(31, AnalogIn(self.channel12, MCP.P7)))
 
-        logger.info(
-            f"CardReaderManager: Creating {len(self.__ALL_CARD_READERS)} card readers"
-        )
+        logger.info(f"CardReaderManager: Creating {len(self.__ALL_CARD_READERS)} card readers")
 
     def AllReaders(self) -> list[CardReader]:
         return self.__ALL_CARD_READERS
 
     def ReaderStatus(self) -> list[str]:
-        return [
-            reader.CardID
-            for reader in self.__ALL_CARD_READERS
-            if reader.CardID is not None
-        ]
+        return [reader.CardID for reader in self.__ALL_CARD_READERS if reader.CardID is not None]
 
     def ReaderCards(self) -> list[str]:
         retval = [

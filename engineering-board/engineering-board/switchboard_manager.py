@@ -1,12 +1,20 @@
 # import threading
 # import time
 
-from machine import Pin  # pyright: ignore[reportMissingImports]
-from eng_utils import ENABLE_RIGHT_SWITCHBOARD, ENABLE_LEFT_SWITCHBOARD, ENABLE_SWITCHBOARD, disabledString, logger
+from machine import Pin
+from eng_utils import (
+    ENABLE_RIGHT_SWITCHBOARD,
+    ENABLE_LEFT_SWITCHBOARD,
+    ENABLE_SWITCHBOARD,
+    disabledString,
+    logger,
+)
+from device_manager import device_manager
 
 # The number of seconds to wait between checks of the Switchboard state.  Makes sure that the scanning thread doesn't
 # take too much of the system's resources
 SCANNING_INTERVAL = 0.2
+
 
 class SwitchboardEndpoint:
     def __init__(self, uid: int, name: str, pin_num: int):
@@ -54,10 +62,12 @@ class Switchboard:
 
         if ENABLE_SWITCHBOARD:
             for source in self.__sources:
-                source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
+                if source.DIO:
+                    source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
 
             for sink in self.__sinks:
-                sink.DIO.init(Pin.IN, pull=Pin.PULL_UP)
+                if sink.DIO:
+                    sink.DIO.init(Pin.IN, pull=Pin.PULL_UP)
 
         logger.info(f"Created Switchboard: {self}{disabledString(ENABLE_SWITCHBOARD)}")
 
@@ -93,14 +103,16 @@ class Switchboard:
 
         if ENABLE_SWITCHBOARD:
             for source in self.__sources:
-                source.DIO.init(Pin.OUT, value=0)
+                if source.DIO:
+                    source.DIO.init(Pin.OUT, value=0)
 
                 for sink in self.__sinks:
-                    if not sink.DIO.value():
+                    if sink.DIO and not sink.DIO.value():
                         retval.append([source.Name, sink.Name])
 
-                source.DIO.value(1)
-                source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
+                if source.DIO:
+                    source.DIO.value(1)
+                    source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
 
         return retval
 
@@ -115,42 +127,63 @@ class SwitchboardManagerClass:
 
         if ENABLE_SWITCHBOARD:
             if ENABLE_LEFT_SWITCHBOARD:
+                left_sources = device_manager.resolve_pin(
+                    "switchboard",
+                    "left_sources",
+                    [
+                        (1, "EngineTop", 22),
+                        (2, "EngineBottom", 42),
+                    ],
+                )
+                left_sinks = device_manager.resolve_pin(
+                    "switchboard",
+                    "left_sinks",
+                    [
+                        (3, "Dist1_In", 24),
+                        (4, "Dist2_In", 23),
+                        (5, "Dist3_In", 44),
+                        (6, "Dist4_In", 43),
+                    ],
+                )
                 self.__leftSwitchboard = Switchboard(
                     1,
                     "LeftSwitchboard",
-                    [
-                        SwitchboardEndpoint(1, "EngineTop", 22),    # TODO: verify GP22 for ESP32-S3 wiring
-                        SwitchboardEndpoint(2, "EngineBottom", 42),  # TODO: verify GP42 for ESP32-S3 wiring
-                    ],
-                    [
-                        SwitchboardEndpoint(3, "Dist1_In", 24),  # TODO: verify GP24 for ESP32-S3 wiring
-                        SwitchboardEndpoint(4, "Dist2_In", 23),  # TODO: verify GP23 for ESP32-S3 wiring
-                        SwitchboardEndpoint(5, "Dist3_In", 44),  # TODO: verify GP44 for ESP32-S3 wiring
-                        SwitchboardEndpoint(6, "Dist4_In", 43),  # TODO: verify GP43 for ESP32-S3 wiring
-                    ],
+                    [SwitchboardEndpoint(*ep) for ep in left_sources],
+                    [SwitchboardEndpoint(*ep) for ep in left_sinks],
                 )
 
             if ENABLE_RIGHT_SWITCHBOARD:
+                right_sources = device_manager.resolve_pin(
+                    "switchboard",
+                    "right_sources",
+                    [
+                        (7, "Dist1_Out", 38),
+                        (8, "Dist1_Out", 39),
+                        (9, "Dist1_Out", 40),
+                        (10, "Dist1_Out", 41),
+                    ],
+                )
+                right_sinks = device_manager.resolve_pin(
+                    "switchboard",
+                    "right_sinks",
+                    [
+                        (11, "Bus1", 42),
+                        (12, "Bus2", 43),
+                        (13, "Bus3", 44),
+                        (14, "Bus4", 45),
+                        (15, "Bus5", 46),
+                        (16, "Bus6", 47),
+                    ],
+                )
                 self.__rightSwitchboard = Switchboard(
                     2,
                     "CenterSwitchboard",
-                    [
-                        SwitchboardEndpoint(7, "Dist1_Out", 38),   # TODO: verify GP38 for ESP32-S3 wiring
-                        SwitchboardEndpoint(8, "Dist1_Out", 39),   # TODO: verify GP39 for ESP32-S3 wiring
-                        SwitchboardEndpoint(9, "Dist1_Out", 40),   # TODO: verify GP40 for ESP32-S3 wiring
-                        SwitchboardEndpoint(10, "Dist1_Out", 41),  # TODO: verify GP41 for ESP32-S3 wiring
-                    ],
-                    [
-                        SwitchboardEndpoint(11, "Bus1", 42),  # TODO: verify GP42 for ESP32-S3 wiring
-                        SwitchboardEndpoint(12, "Bus2", 43),  # TODO: verify GP43 for ESP32-S3 wiring
-                        SwitchboardEndpoint(13, "Bus3", 44),  # TODO: verify GP44 for ESP32-S3 wiring
-                        SwitchboardEndpoint(14, "Bus4", 45),  # TODO: verify GP45 for ESP32-S3 wiring
-                        SwitchboardEndpoint(15, "Bus5", 46),  # TODO: verify GP46 for ESP32-S3 wiring
-                        SwitchboardEndpoint(16, "Bus6", 47),  # TODO: verify GP47 for ESP32-S3 wiring
-                    ],
+                    [SwitchboardEndpoint(*ep) for ep in right_sources],
+                    [SwitchboardEndpoint(*ep) for ep in right_sinks],
                 )
 
     def ConnectionStatus(self) -> list[list[str]]:
         return self.__leftSwitchboard.Connections + self.__rightSwitchboard.Connections
+
 
 SwitchboardManager = SwitchboardManagerClass()

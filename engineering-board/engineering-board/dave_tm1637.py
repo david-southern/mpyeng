@@ -30,7 +30,7 @@ SOFTWARE.
 """
 
 import time
-from machine import Pin  # pyright: ignore[reportMissingImports]
+from machine import Pin
 
 TM1637_CMD1 = 64  # 0x40 data command
 TM1637_CMD2 = 192  # 0xC0 address command

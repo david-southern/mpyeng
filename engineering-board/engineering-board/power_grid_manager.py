@@ -1,6 +1,7 @@
 import random
-from machine import Pin  # pyright: ignore[reportMissingImports]
+from machine import Pin
 from eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString, logger
+from device_manager import device_manager
 from power_card_tray import PixelStripManager
 from protocol_resources import LEFT_WING, RIGHT_WING, TRANS1, TRANS2, TRANS3, TRANS4
 
@@ -11,6 +12,7 @@ LARGE_GRID_COUNT = 2
 
 SMALL_GRID_SIZE = 8
 SMALL_GRID_COUNT = 4
+
 
 class PowerGrid:
     def __init__(self, uid, isLarge, pixelStripManager: PixelStripManager):
@@ -33,7 +35,10 @@ class PowerGrid:
         self.__pixelStripManager.SetPixelData(
             self.__pixelIndex,
             self.pixelCount - 1,
-            [(random.randint(0, 255) << 16) | (random.randint(0, 255) << 8) | random.randint(0, 255) for pixIndex in range(self.pixelCount - 1)],
+            [
+                (random.randint(0, 255) << 16) | (random.randint(0, 255) << 8) | random.randint(0, 255)
+                for pixIndex in range(self.pixelCount - 1)
+            ],
         )
 
     @property
@@ -86,7 +91,6 @@ class PowerGrid:
         return f"{self.UID}{disabledString(ENABLE_POWER_GRID)}: TGT:{self.TargetLevel}, CUR:{self.CurLevel}"
 
 
-
 class PowerGridManagerClass:
     __WING_POWER_GRID_INDEXES = {LEFT_WING: 0, RIGHT_WING: 1}
     __TRANSFORMER_POWER_GRID_INDEXES = {TRANS1: 2, TRANS2: 3, TRANS3: 4, TRANS4: 5}
@@ -95,12 +99,14 @@ class PowerGridManagerClass:
         self.__ALL_POWER_GRIDS: list[PowerGrid] = []
         self.__ALL_POWER_GRIDS = []
 
-        self.LEFT_STRIP_LED_COUNT = LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
+        self.LEFT_STRIP_LED_COUNT = (
+            LARGE_GRID_SIZE * LARGE_GRID_SIZE * LARGE_GRID_COUNT + SMALL_GRID_SIZE * SMALL_GRID_SIZE * SMALL_GRID_COUNT
+        )
 
-        self.LEFT_STRIP_DATA_PIN = Pin(5)  # TODO: verify GP5 for ESP32-S3 wiring
+        self.LEFT_STRIP_DATA_PIN = Pin(device_manager.resolve_pin("power_grid", "strip_data", 5))
 
         self.LeftPixelStrip = PixelStripManager(self.LEFT_STRIP_DATA_PIN, self.LEFT_STRIP_LED_COUNT)
-        
+
         if ENABLE_POWER_GRID:
             self.__ALL_POWER_GRIDS.append(PowerGrid(0, True, self.LeftPixelStrip))
             self.__ALL_POWER_GRIDS.append(PowerGrid(1, True, self.LeftPixelStrip))
@@ -108,8 +114,6 @@ class PowerGridManagerClass:
             self.__ALL_POWER_GRIDS.append(PowerGrid(3, False, self.LeftPixelStrip))
             self.__ALL_POWER_GRIDS.append(PowerGrid(4, False, self.LeftPixelStrip))
             self.__ALL_POWER_GRIDS.append(PowerGrid(5, False, self.LeftPixelStrip))
-
-            
 
     def SetWingMaxPower(self, wingName: str, powerLevel: int):
         if not ENABLE_POWER_GRID:
@@ -187,9 +191,7 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(
-            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} max power level to {maxLevel}"
-        )
+        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} max power level to {maxLevel}")
         self.__ALL_POWER_GRIDS[gridIndex].MaxLevel = maxLevel
 
     def SetGridTargetLevel(self, gridIndex: int, curLevel: int):
@@ -211,9 +213,7 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(
-            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power warning to {warnMode}"
-        )
+        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power warning to {warnMode}")
         self.__ALL_POWER_GRIDS[gridIndex].WarnMode = warnMode
 
     def SetGridPowerDead(self, gridIndex: int, deadMode: bool):
@@ -224,9 +224,8 @@ class PowerGridManagerClass:
             logger.error(f"Grid index {gridIndex} is out of range.")
             return
 
-        logger.info(
-            f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power DEAD to {deadMode}"
-        )
+        logger.info(f"Setting PowerGrid {gridIndex}{disabledString(ENABLE_POWER_GRID)} power DEAD to {deadMode}")
         self.__ALL_POWER_GRIDS[gridIndex].DeadMode = deadMode
+
 
 PowerGridManager = PowerGridManagerClass()

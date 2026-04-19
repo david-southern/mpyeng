@@ -1,44 +1,38 @@
-from __future__ import annotations
 import random
 from power_card_animation import CardAnimationHelpers
 from power_card_ids import PowerCardIds
 
 CARD_VOLTAGE_THRESHOLD = 0.05
 
+
 class PowerCard:
     __ALL_POWER_CARDS = []
 
     @classmethod
-    def GetAllPowerCards(cls) -> list[PowerCard]:
+    def GetAllPowerCards(cls) -> list["PowerCard"]:
         return PowerCard.__ALL_POWER_CARDS
 
     @classmethod
-    def FindCard(cls, cardVoltage) -> PowerCard | None:
-        matchingCards = [
-            card for card in PowerCard.__ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)
-        ]
+    def FindCard(cls, cardVoltage) -> "PowerCard | None":
+        matchingCards = [card for card in PowerCard.__ALL_POWER_CARDS if card.VoltageMatches(cardVoltage)]
         return matchingCards[0] if len(matchingCards) > 0 else None
 
     @classmethod
-    def RandomCard(cls) -> PowerCard | None:
+    def RandomCard(cls) -> "PowerCard | None":
         return PowerCard.__ALL_POWER_CARDS[random.randint(0, len(PowerCard.__ALL_POWER_CARDS) - 1)]
 
-    def __init__(self, cardId:str, cardVoltage:float, requiredPower:int):
+    def __init__(self, cardId: str, cardVoltage: float, requiredPower: int):
         if not PowerCardIds.validate_id(cardId):
-            raise Exception(
-                f"PowerCard: unknown card_id: {cardId}"
-            )
+            raise Exception(f"PowerCard: unknown card_id: {cardId}")
 
         self.__cardAnimation = CardAnimationHelpers.getCardAnimation(cardId)
 
         if not self.__cardAnimation:
-            raise Exception(
-                f"PowerCard({cardId}): no animation found for card id {cardId}"
-            )
+            raise Exception(f"PowerCard({cardId}): no animation found for card id {cardId}")
 
         self.__cardId = cardId
-        self.__cardName =self.__cardAnimation.name
-        
+        self.__cardName = self.__cardAnimation.name
+
         duplicates = [card for card in PowerCard.__ALL_POWER_CARDS if card.UID == cardId]
 
         if len(duplicates) > 0:
@@ -73,7 +67,7 @@ class PowerCard:
             return self.__cardAnimation.PixelBuffer(animationProgress, brightness)
         else:
             return [0] * CardAnimationHelpers.CARD_PIXEL_COUNT
-        
+
     def __str__(self):
         return f"{self.UID}/{self.CardName}({self.__voltage:.2f}V)"
 
