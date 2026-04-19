@@ -82,7 +82,7 @@ function Invoke-Mpremote {
 
     mpremote @Arguments
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "mpremote $($Arguments -join ' ') failed with exit code $LASTEXITCODE. Aborting."
+        Write-Host "mpremote $($Arguments -join ' ') failed with exit code $LASTEXITCODE. Aborting." -ForegroundColor Red
         exit $LASTEXITCODE
     }
 }
@@ -162,19 +162,22 @@ if ($filesToRemove.Count -gt 0) {
 
 # Step 4: Copy all local items to the device
 Write-Host "Copying $($topLevelItems.Count) item(s) to device..." -ForegroundColor Cyan
-Invoke-Mpremote cp -rv $topLevelItems :/
 
-# foreach ($item in $topLevelItems) {
-#     $isDir = (Get-Item $item).PSIsContainer
-#     if ($isDir) {
-#         Write-Host "  Copying directory: $item" -ForegroundColor Cyan
-#         # No trailing slash on src: copies the directory itself (not just its contents) into :/
-#         Invoke-Mpremote cp -r $item :/
-#     } else {
-#         Write-Host "  Copying file: $item" -ForegroundColor Cyan
-#         Invoke-Mpremote cp $item :/
-#     }
-# }
+# For some reason, this command does not work when called from this script, even though it works
+# when I call it from PowerShell. No idea why, but the loop below does work...
+# Invoke-Mpremote cp -rv $topLevelItems :/
+
+foreach ($item in $topLevelItems) {
+    $isDir = (Get-Item $item).PSIsContainer
+    if ($isDir) {
+        Write-Host "  Copying directory: $item" -ForegroundColor Cyan
+        # No trailing slash on src: copies the directory itself (not just its contents) into :/
+        Invoke-Mpremote cp -r $item :/
+    } else {
+        Write-Host "  Copying file: $item" -ForegroundColor Cyan
+        Invoke-Mpremote cp $item :/
+    }
+}
 
 # Copy our secrets file if it exists. This file is not checked in to source control.
 $secretsSource = "$env:USERPROFILE\source\repos\secrets\secrets-eng-board.py"
