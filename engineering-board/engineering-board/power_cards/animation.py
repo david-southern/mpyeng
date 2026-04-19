@@ -5,11 +5,19 @@ ANIMATION_TARGET_FPS = 5
 
 log_free_ram("pre-animation-baking")
 
+WIDTH = 8
+HEIGHT = 8
+CARD_PIXEL_COUNT = WIDTH * HEIGHT
+
+# Globally Shared render buffer (single pre-allocated list, reused every frame - caller must consume before next call)
+GLOBAL_RENDER_BUFFER: list[int] = [0] * CARD_PIXEL_COUNT
+
+# Globally Shared Palette LUT (regenerated when brightness changes)
+GLOBAL_PALETTE_LOOKUP: list[int] = [0] * 256
+GLOBAL_PALETTE_BRIGHTNESS: float = -1.0
+
 
 class CardAnimationHelpers:
-    WIDTH = 8
-    HEIGHT = 8
-    CARD_PIXEL_COUNT = WIDTH * HEIGHT
     PALETTE_SIZE = 20
 
     # Global LUT layout (256 entries):
@@ -66,18 +74,13 @@ class CardAnimationHelpers:
 
     DEFAULT_ANIMATION_DURATION = 1.0
 
-    # Shared render buffer (single pre-allocated list, reused every frame)
-    _render_buffer: list[int] = [0] * CARD_PIXEL_COUNT
-
-    # Palette / LUT caches (regenerated when brightness changes)
-    _global_lut: list[int] = [0] * 256
-    __palette_brightness: float = -1.0
-
     @classmethod
     def __regenerate_palettes(cls, brightness: float):
+        global GLOBAL_PALETTE_LOOKUP, GLOBAL_PALETTE_BRIGHTNESS
+
         ps = cls.PALETTE_SIZE
         ps_1 = ps - 1
-        lut = cls._global_lut
+        lut = GLOBAL_PALETTE_LOOKUP
 
         # Grey ramp (0–19): index 0 = black, index 19 = bright white
         for i in range(ps):
@@ -167,11 +170,12 @@ class CardAnimationHelpers:
         for i in range(250, 256):
             lut[i] = 0
 
-        cls.__palette_brightness = brightness
+        GLOBAL_PALETTE_BRIGHTNESS = brightness
 
     @classmethod
     def ensure_palettes(cls, brightness: float):
-        if cls.__palette_brightness != brightness:
+        global GLOBAL_PALETTE_BRIGHTNESS
+        if GLOBAL_PALETTE_BRIGHTNESS != brightness:
             cls.__regenerate_palettes(brightness)
 
     @classmethod
@@ -193,6 +197,8 @@ class PowerCardAnimation:
         self.animation_duration = animation_duration
 
     def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> list[int]:
+        global GLOBAL_PALETTE_LOOKUP, GLOBAL_RENDER_BUFFER
+
         """Translate baked frame bytes to packed neopixel ints via global LUT lookup.
         Returns the shared render buffer — caller must consume before the next PixelBuffer call.
         """
@@ -202,8 +208,8 @@ class PowerCardAnimation:
         frame_idx = int(cycle_progress * nf) % nf
         frame = self._frames[frame_idx]
 
-        buf = CardAnimationHelpers._render_buffer
-        lut = CardAnimationHelpers._global_lut
+        buf = GLOBAL_RENDER_BUFFER
+        lut = GLOBAL_PALETTE_LOOKUP
 
         for i in range(64):
             buf[i] = lut[frame[i]]

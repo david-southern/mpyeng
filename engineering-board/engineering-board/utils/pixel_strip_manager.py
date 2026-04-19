@@ -61,9 +61,9 @@ class PixelStripManager:
         reservedPixelIndex = self.currentPixelIndex
         self.currentPixelIndex += pixelCount
 
-        logger.info(
-            f"PixelManager{disabledString(ENABLE_PIXELS)}: Reserved pixel range {reservedPixelIndex}-{self.currentPixelIndex - 1} (count: {pixelCount})"
-        )
+        # logger.info(
+        #     f"PixelManager{disabledString(ENABLE_PIXELS)}: Reserved pixel range {reservedPixelIndex}-{self.currentPixelIndex - 1} (count: {pixelCount})"
+        # )
 
         return reservedPixelIndex
 

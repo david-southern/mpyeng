@@ -75,10 +75,8 @@ class PowerCardTray:
 
         SlowLog(f"Updating Power Card Tray {self.UID} state")
 
-        pixel_buffer = [0] * PIXEL_CARD_TRAY_GRID_LEDS
-
         if not self.CurrentPowerCard:
-            pixel_buffer = [0] * PIXEL_CARD_TRAY_GRID_LEDS
+            self.__pixelStripManager.pixels.fill((0, 0, 0))
         else:
             cardAnimation = self.CurrentPowerCard.CardAnimation
             elapsed_ms = time.ticks_diff(time.ticks_ms(), self.__currentCardChangedTime)
@@ -87,11 +85,11 @@ class PowerCardTray:
 
             pixel_buffer = self.CurrentPowerCard.PixelBuffer(animationProgress, TRAY_BRIGHTNESS)
 
-        self.__pixelStripManager.SetPixelData(
-            self.__gridPixelIndex,
-            PIXEL_CARD_TRAY_GRID_LEDS,
-            pixel_buffer,
-        )
+            self.__pixelStripManager.SetPixelData(
+                self.__gridPixelIndex,
+                PIXEL_CARD_TRAY_GRID_LEDS,
+                pixel_buffer,
+            )
 
         trayStateColor = CARD_TRAY_COLORS[self.PowerState]
 
