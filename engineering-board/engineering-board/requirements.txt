@@ -1,7 +1,0 @@
-adafruit_bus_device
-adafruit_itertools
-adafruit_mcp3xxx
-adafruit_debouncer
-adafruit_logging
-adafruit_ticks
-neopixel

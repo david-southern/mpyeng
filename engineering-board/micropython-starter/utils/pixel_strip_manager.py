@@ -4,8 +4,7 @@ import micropython
 
 import neopixel
 from machine import Pin
-from utils.eng_utils import check_timer, register_timer, SlowLog, disabledString, logger, ENABLE_PIXELS
-from power_cards.animation import ANIMATION_TARGET_FPS
+from utils.eng_utils import check_timer, register_timer, SlowLog, logger, ENABLE_PIXELS
 from utils.profiling import register_profile, start_profile, stop_profile
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
@@ -22,34 +21,37 @@ PIXEL_BRIGHTNESS = 0.9
 #  768 |   0, 255, 255 | 2.02
 #  768 | 255, 255, 255 | 2.55
 
-# The PixelManager doesn't update the strip every time a caller sets pixel data, instead if sends
-# the pixel on the PIXEL_REFRESH_SECONDS timer.  This allows multiple callers to set pixel data
+# The PixelManager doesn't update the strip every time a caller sets pixel data, instead it sends
+# the pixel data on the PIXEL_REFRESH_SECONDS timer.  This allows multiple callers to set pixel data
 # without causing the strip to update multiple times in quick succession, as well as re-sending the
 # strip data at a regular interval in case of interference or other issues causing the strip to lose
 # data.
 
-PIXEL_REFRESH_SECONDS = 1.0 / ANIMATION_TARGET_FPS
+PIXEL_REFRESH_SECONDS = 0.05
 TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 PROFILE_PIXELS = register_profile("pixel_update")
 
 
 @micropython.viper
-def _unpack_pixels_to_buf(src: ptr32, dst: ptr8, dst_byte_offset: int, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
-    # Unpack n pixels from packed 0x00RRGGBB src into NeoPixel GRB byte buf.
-    # src must be array('I'); dst must be np.buf bytearray.
-    i: int = 0
-    while i < n:
-        p: int = src[i]
-        base: int = dst_byte_offset + i * 3
-        dst[base] = (p >> 8) & 0xFF  # G
-        dst[base + 1] = (p >> 16) & 0xFF  # R
-        dst[base + 2] = p & 0xFF  # B
-        i += 1
+def _unpack_pixels_to_buf(src: ptr32, dst: ptr8, dst_byte_offset: int, src_length: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
+    """Unpack <src_length> neo_packed ints from <src> into our NeoPixel.buf, which is a bytearray.
+    <src> must be array('I'); <dst> must be bytearray."""
+    copy_index: int = 0
+    while copy_index < src_length:
+        neo_packed: int = src[copy_index]
+        base: int = dst_byte_offset + copy_index * 3
+        # neo_packed ints are already in the correct byte order for the strip layout, per the
+        # color_utils.NEO_PACKED_PIXEL_OFFSETS constant, so just copy them in
+        dst[base] = (neo_packed >> 16) & 0xFF
+        dst[base + 1] = (neo_packed >> 8) & 0xFF
+        dst[base + 2] = neo_packed & 0xFF
+        copy_index += 1
 
 
 class PixelStripManager:
     def __init__(self, LED_DATA_PIN: Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
+        self.name = "PixelStripManager" + f"({profileKey[0]})" if profileKey else ""
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
@@ -58,14 +60,14 @@ class PixelStripManager:
         register_timer((id(self), TIMER_PIXEL_REFRESH), PIXEL_REFRESH_SECONDS)
 
         logger.info(
-            f"Creating PixelStripManager{disabledString(ENABLE_PIXELS)} on LED_DATA_PIN {LED_DATA_PIN} with {TOTAL_LED_COUNT} pixels"
+            f"{self.name}: Creating NeoPixel strip on LED_DATA_PIN {LED_DATA_PIN} with {TOTAL_LED_COUNT} pixels"
         )
 
         if ENABLE_PIXELS:
             self.enabledString = ""
             self.pixels = neopixel.NeoPixel(LED_DATA_PIN, TOTAL_LED_COUNT)
 
-            logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: Clearing {TOTAL_LED_COUNT} total pixels")
+            logger.info(f"{self.name}: Clearing {TOTAL_LED_COUNT} total pixels")
 
             self.pixels.fill((0, 0, 0))
             self.pixels.write()
@@ -73,15 +75,11 @@ class PixelStripManager:
     def ReservePixelRange(self, pixelCount: int) -> int:
         if self.currentPixelIndex + pixelCount > self.TOTAL_LED_COUNT:
             raise Exception(
-                f"PixelManager{disabledString(ENABLE_PIXELS)}: Unable to reserve {pixelCount} pixels, only {self.TOTAL_LED_COUNT - self.currentPixelIndex} pixels remaining."
+                f"{self.name}: Unable to reserve {pixelCount} pixels, only {self.TOTAL_LED_COUNT - self.currentPixelIndex} pixels remaining."
             )
 
         reservedPixelIndex = self.currentPixelIndex
         self.currentPixelIndex += pixelCount
-
-        # logger.info(
-        #     f"PixelManager{disabledString(ENABLE_PIXELS)}: Reserved pixel range {reservedPixelIndex}-{self.currentPixelIndex - 1} (count: {pixelCount})"
-        # )
 
         return reservedPixelIndex
 
@@ -109,7 +107,7 @@ class PixelStripManager:
             logger.error(f"SetPixelRangeColor: Pixel end index {endIndex} is out of range.")
             return
 
-        SlowLog(f"PixelManager{disabledString(ENABLE_PIXELS)}: Setting Pixel range {startIndex}-{endIndex}")
+        SlowLog(f"{self.name}: Setting Pixel range {startIndex}-{endIndex}")
 
         _unpack_pixels_to_buf(pixelData, self.pixels.buf, startIndex * 3, pixelCount)
 
@@ -140,4 +138,4 @@ class PixelStripManager:
             stop_profile(PROFILE_PIXELS)
 
     def __str__(self):
-        return f"PixelManager{disabledString(ENABLE_PIXELS)}"
+        return f"{self.name}"
