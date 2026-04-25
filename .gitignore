@@ -7,6 +7,11 @@ bin/
 node_modules
 __pycache__
 
+
+# Don't check in any virtual environments
+.venv
+
+
 # Prerequisites
 *.d
 
