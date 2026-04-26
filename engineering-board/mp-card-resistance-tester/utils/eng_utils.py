@@ -6,7 +6,7 @@ APP_START_TIME = time.ticks_ms()
 class LoggerClass:
     def timestamp(self):
         ts = time.ticks_diff(time.ticks_ms(), APP_START_TIME) / 1000
-        return f"{ts:.3f}s"
+        return f"{ts:7.3f}s"
 
     def info(self, message):
         print(f"[{self.timestamp()}] {message}")

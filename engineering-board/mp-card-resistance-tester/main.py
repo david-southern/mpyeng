@@ -1,4 +1,5 @@
-from machine import ADC, Pin, reset
+import time
+from machine import ADC, Pin
 
 from utils.profiling import log_free_ram
 
@@ -7,41 +8,52 @@ from utils.eng_utils import (
     register_timer,
     logger,
     reset_timer,
-    timer_elapsed_sec,
 )
 from utils.device_manager import DeviceManager
 from utils.profiling import register_profile, start_profile, stop_profile, report_all_profiles
 
 ENABLE_HEARTBEAT_LOGGING = False
 
-HEARTBEAT_FREQUENCY_SEC = 2
+HEARTBEAT_FREQUENCY_SEC = 1
 TIMER_HEARTBEAT = "heartbeat"
 
-ANALOG_POLL_TIMER = "analog_poll"
-ANALOG_POLL_FREQUENCY_SEC = 0.05
+TIMER_ANALOG_POLL = "analog_poll"
+ANALOG_POLL_FREQUENCY_SEC = 0.01
 
-VOLTAGE_SMOOTHING_TIMER = "voltage_smoothing"
-VOLTAGE_SMOOTHING_FREQUENCY_SEC = 1.0
+# Amount of time to wait after a resistor swap before tracking a new min/max voltage for the new resistor
+TIMER_VOLTAGE_RESET = "voltage_reset"
+VOLTAGE_RESET_OFFSET_SEC = 2.0
 
-LAST_EXCEPTION_TIMER = "last_exception"
-LAST_EXCEPTION_FREQUENCY_SEC = 99999
-
-PROFILE_REPORT_FREQUENCY_SEC = 5.0
+PROFILE_REPORT_FREQUENCY_SEC = 999999
 TIMER_PROFILE_REPORT = "profile_report"
 
 TIMER_UNKNOWN_DEVICE_LOG = "unknown_device_log"
 UNKNOWN_DEVICE_LOG_FREQUENCY_SEC = 1.0
 
+# Known fixed resistor in the voltage-divider circuit (ohms)
+TEST_FIXED_RESISTANCE_OHMS = 1200
+V_REF = 3.3  # RP2350 uses the 3.3V supply as the reference voltage for ADC readings
+ANALOG_PIN = 26
+
+# Smoothed voltage below this value is treated as "zero" (no resistor connected)
+ZERO_VOLTAGE_THRESHOLD = 0.02
+
+# Duration (seconds) that smoothed voltage must read near-zero before treating
+# the resistor as absent and waiting for a new one
+RESISTOR_CHANGE_SECONDS_THRESHOLD = 2.0
+
+# EMA smoothing factor for voltage (0.05 ≈ 1s time constant at 50ms sample rate)
+EMA_ALPHA = 0.05
+
+SAMPLE_PROFILE = register_profile("samples")
+
 register_timer(TIMER_HEARTBEAT, HEARTBEAT_FREQUENCY_SEC)
 register_timer(TIMER_PROFILE_REPORT, PROFILE_REPORT_FREQUENCY_SEC)
 register_timer(TIMER_UNKNOWN_DEVICE_LOG, UNKNOWN_DEVICE_LOG_FREQUENCY_SEC)
-register_timer(ANALOG_POLL_TIMER, ANALOG_POLL_FREQUENCY_SEC)
-register_timer(VOLTAGE_SMOOTHING_TIMER, VOLTAGE_SMOOTHING_FREQUENCY_SEC)
-register_timer(LAST_EXCEPTION_TIMER, LAST_EXCEPTION_FREQUENCY_SEC)
+register_timer(TIMER_ANALOG_POLL, ANALOG_POLL_FREQUENCY_SEC)
+register_timer(TIMER_VOLTAGE_RESET, VOLTAGE_RESET_OFFSET_SEC)
 
 PROFILE_HEARTBEAT = register_profile(TIMER_HEARTBEAT)
-
-V_REF = 3.3  # RP2350 uses the 3.3V supply as the reference voltage for ADC readings
 
 
 def log_heartbeat():
@@ -73,28 +85,22 @@ def mainLoop():
 
     initialize()
 
-    ANALOG_PIN = 26
     test_pin = ADC(Pin(ANALOG_PIN))
 
     logger.info(f"Monitoring analog input on {ANALOG_PIN}")
     logger.info(f"Reference voltage {V_REF}V")
+    logger.info(f"Fixed resistance {TEST_FIXED_RESISTANCE_OHMS} ohm")
 
-    max_delta_threshold = 0.02
-    delta_exception_reset_threshold = 0.04
-    delta_exceptions = 0
-    reset_timer(LAST_EXCEPTION_TIMER)
+    # EMA-smoothed voltage; seeded with the first reading
+    smoothed_voltage = get_voltage(test_pin)
 
-    last_voltage = get_voltage(test_pin)
+    # Per-run tracking state
+    max_voltage = smoothed_voltage
+    min_voltage = smoothed_voltage
 
-    # calculate the trailing average of the input value to smooth out noise
-    trailing_average_samples = 0
-    trailing_voltage = last_voltage
-    trailing_deltav = 0
-    total_delta_v = 0
-    deltav_samples = 0
-    max_voltage = 0.0
-    min_voltage = 999.0
-    max_deltav = 0.0
+    # Resistor-absent state tracking
+    resistor_absent = False
+    zero_voltage_start_ticks = None
 
     while True:
         if check_timer(TIMER_HEARTBEAT):
@@ -102,49 +108,53 @@ def mainLoop():
             log_heartbeat()
             stop_profile(PROFILE_HEARTBEAT)
 
+            if resistor_absent:
+                logger.info("Test resistor is not present")
+            else:
+                log_str = f"V: {smoothed_voltage:6.4f} / ∧{max_voltage:6.4f} / ∨{min_voltage:<6.4f} "
+
+                logger.info(log_str)
+
         if check_timer(TIMER_PROFILE_REPORT):
             report_all_profiles()
 
-        if check_timer(TIMER_UNKNOWN_DEVICE_LOG):
-            input_voltage = get_voltage(test_pin)
-            trailing_voltage += input_voltage
-            trailing_deltav += abs(input_voltage - last_voltage)
-            last_voltage = input_voltage
-            trailing_average_samples += 1
+        if check_timer(TIMER_ANALOG_POLL):
+            start_profile(SAMPLE_PROFILE)
+            raw_voltage = get_voltage(test_pin)
 
-        if check_timer(VOLTAGE_SMOOTHING_TIMER):
-            smoothed_voltage = trailing_voltage / trailing_average_samples
-            smoothed_deltav = trailing_deltav / trailing_average_samples
-            trailing_voltage = 0
-            trailing_deltav = 0
-            trailing_average_samples = 0
+            # EMA smoothing for voltage
+            smoothed_voltage = EMA_ALPHA * raw_voltage + (1.0 - EMA_ALPHA) * smoothed_voltage
+            stop_profile(SAMPLE_PROFILE)
 
-            max_voltage = max(max_voltage, smoothed_voltage)
-            min_voltage = min(min_voltage, smoothed_voltage)
+            if not resistor_absent:
+                if max_voltage == 0:
+                    if check_timer(TIMER_VOLTAGE_RESET):
+                        max_voltage = smoothed_voltage
+                        min_voltage = smoothed_voltage
+                else:
+                    max_voltage = max(max_voltage, smoothed_voltage)
+                    min_voltage = min(min_voltage, smoothed_voltage)
 
-            max_deltav = max(max_deltav, smoothed_deltav)
-            total_delta_v += smoothed_deltav
-            deltav_samples += 1
-            avg_deltav = total_delta_v / deltav_samples
-
-            logString = f"V: {smoothed_voltage:4.2f}/∧{max_voltage:4.2f}/∨{min_voltage:<4.2f} "
-            logString += f" - ΔV: {smoothed_deltav:6.4f} / μΔV {avg_deltav:<6.4f} / ∧ΔV {max_deltav:6.4f} "
-            logString += f" - Excp {delta_exceptions} - reset: {timer_elapsed_sec(LAST_EXCEPTION_TIMER):.2f}s ago"
-
-            if smoothed_deltav > max_delta_threshold:
-                logString += " ***************"
-                delta_exceptions += 1
-
-                if smoothed_deltav >= delta_exception_reset_threshold:
-                    max_voltage = 0.0
-                    min_voltage = 999.0
-                    max_deltav = 0.0
-                    total_delta_v = 0.0
-                    deltav_samples = 0
-                    delta_exceptions = 0
-                    reset_timer(LAST_EXCEPTION_TIMER)
-
-            logger.info(logString)
+                # Detect resistor removal: voltage near zero for longer than the threshold
+                if raw_voltage < ZERO_VOLTAGE_THRESHOLD:
+                    if zero_voltage_start_ticks is None:
+                        zero_voltage_start_ticks = time.ticks_ms()
+                    elif (
+                        time.ticks_diff(time.ticks_ms(), zero_voltage_start_ticks)
+                        > RESISTOR_CHANGE_SECONDS_THRESHOLD * 1000
+                    ):
+                        resistor_absent = True
+                else:
+                    zero_voltage_start_ticks = None
+            else:
+                # Detect new resistor: wait for non-zero smoothed voltage, then reset run state
+                if raw_voltage >= ZERO_VOLTAGE_THRESHOLD:
+                    smoothed_voltage = raw_voltage
+                    max_voltage = 0
+                    min_voltage = 999
+                    resistor_absent = False
+                    zero_voltage_start_ticks = None
+                    reset_timer(TIMER_VOLTAGE_RESET)
 
 
 mainLoop()
