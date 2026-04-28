@@ -2,9 +2,9 @@ from array import array
 import micropython
 
 from power_cards.card_ids import PowerCardIds
-from utils.profiling import log_free_ram
+from utils.color_utils import NEOPIXEL_BYTE_OFFSET_R, NEOPIXEL_BYTE_OFFSET_G, NEOPIXEL_BYTE_OFFSET_B, NEO_PACKED_OFFSETS
 
-ANIMATION_TARGET_FPS = 7
+from utils.profiling import log_free_ram
 
 log_free_ram("pre-animation-baking")
 
@@ -12,9 +12,8 @@ CARD_WIDTH = 8
 CARD_HEIGHT = 8
 CARD_PIXEL_COUNT = CARD_WIDTH * CARD_HEIGHT
 
-BLACK_BUFFER = array("I", [0] * CARD_PIXEL_COUNT)
 # Globally shared render buffer (single pre-allocated array, reused every frame — caller must consume before next call)
-GLOBAL_RENDER_BUFFER = array("I", [0] * CARD_PIXEL_COUNT)
+GLOBAL_RENDER_BUFFER = bytearray(CARD_PIXEL_COUNT * 3)
 
 # Globally shared palette LUT (regenerated when brightness changes)
 GLOBAL_PALETTE_LOOKUP = array("I", [0] * 256)
@@ -188,10 +187,15 @@ class CardAnimationHelpers:
 
 
 @micropython.viper
-def _expand_frame_lut(frame: ptr8, lut: ptr32, buf: ptr32, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
+def _expand_frame_lut(frame: ptr8, lut: ptr32, buf: ptr8, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
     i: int = 0
     while i < n:
-        buf[i] = lut[frame[i]]
+        # avoid the function calls to neo_packed_red/green/blue(lut_value) for this
+        # performance-critical method
+        lut_value = lut[frame[i]]
+        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_R] = (lut_value >> NEO_PACKED_OFFSETS["R"]) & 0xFF
+        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_G] = (lut_value >> NEO_PACKED_OFFSETS["G"]) & 0xFF
+        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_B] = (lut_value >> NEO_PACKED_OFFSETS["B"]) & 0xFF
         i += 1
 
 
@@ -208,7 +212,7 @@ class PowerCardAnimation:
         self._frames = frames
         self.animation_duration = animation_duration
 
-    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> array[int]:
+    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> bytearray:
         global GLOBAL_PALETTE_LOOKUP, GLOBAL_RENDER_BUFFER
 
         """Translate baked frame bytes to packed neopixel ints via global LUT lookup.

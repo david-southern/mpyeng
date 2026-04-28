@@ -1,8 +1,8 @@
-from machine import SPI, Pin
+from machine import SPI
 
-from utils.eng_utils import ENABLE_CARD_READER, disabledString, logger
-from utils.device_manager import device_manager
-from utils.mcp3008 import _MCP3008, _AnalogIn, P0, P1, P2
+from utils.eng_utils import logger
+from utils.device_manager import DeviceManager, Systems, PinNames
+from drivers.mcp3008 import MCP3008, MCPAnalogIn
 from card_reader.card_reader import CardReader
 
 
@@ -11,61 +11,54 @@ class CardReaderManagerClass:
 
         self.__ALL_CARD_READERS: list["CardReader"] = []
         self.__ALL_CARD_READERS = []
-        if not ENABLE_CARD_READER:
+        if not DeviceManager.IsEnabled(Systems.CARD_READER):
             logger.info("CardReaderManager: Card readers disabled")
             return
 
         self.spi = SPI(
-            device_manager.resolve_pin("card_reader", "spi_id", 2),
-            baudrate=1_000_000,
-            polarity=0,
-            phase=0,
-            sck=Pin(device_manager.resolve_pin("card_reader", "spi_sck", 18)),
-            mosi=Pin(device_manager.resolve_pin("card_reader", "spi_mosi", 19)),
-            miso=Pin(device_manager.resolve_pin("card_reader", "spi_miso", 16)),
+            0,
+            sck=DeviceManager.ResolvePin(PinNames.CardReader.SPI_CLK).Pin,  # noqa: F821
+            mosi=DeviceManager.ResolvePin(PinNames.CardReader.SPI_MOSI).Pin,
+            miso=DeviceManager.ResolvePin(PinNames.CardReader.SPI_MISO).Pin,
         )
 
-        cs_pins = device_manager.resolve_pin("card_reader", "cs_pins", [9, 10, 11, 12])
-        self.channel09 = _MCP3008(self.spi, Pin(cs_pins[0], Pin.OUT))
-        self.channel10 = _MCP3008(self.spi, Pin(cs_pins[1], Pin.OUT))
-        self.channel11 = _MCP3008(self.spi, Pin(cs_pins[2], Pin.OUT))
-        self.channel12 = _MCP3008(self.spi, Pin(cs_pins[3], Pin.OUT))
+        self.channel01 = MCP3008(self.spi, DeviceManager.ResolvePin(PinNames.CardReader.SPI_CS_MCP1).Pin)
+        self.channel02 = MCP3008(self.spi, DeviceManager.ResolvePin(PinNames.CardReader.SPI_CS_MCP2).Pin)
+        self.channel03 = MCP3008(self.spi, DeviceManager.ResolvePin(PinNames.CardReader.SPI_CS_MCP3).Pin)
+        self.channel04 = MCP3008(self.spi, DeviceManager.ResolvePin(PinNames.CardReader.SPI_CS_MCP4).Pin)
 
-        self.__ALL_CARD_READERS.append(CardReader(0, _AnalogIn(self.channel09, P0)))
-        self.__ALL_CARD_READERS.append(CardReader(1, _AnalogIn(self.channel09, P1)))
-        self.__ALL_CARD_READERS.append(CardReader(2, _AnalogIn(self.channel09, P2)))
-        # self.__ALL_CARD_READERS.append(CardReader(3, AnalogIn(self.channel09, MCP.P3)))
-        # self.__ALL_CARD_READERS.append(CardReader(4, AnalogIn(self.channel09, MCP.P4)))
-        # self.__ALL_CARD_READERS.append(CardReader(5, AnalogIn(self.channel09, MCP.P5)))
-        # self.__ALL_CARD_READERS.append(CardReader(6, AnalogIn(self.channel09, MCP.P6)))
-        # self.__ALL_CARD_READERS.append(CardReader(7, AnalogIn(self.channel09, MCP.P7)))
+        self.__ALL_CARD_READERS.append(CardReader(0, MCPAnalogIn(self.channel01, 0)))
+        self.__ALL_CARD_READERS.append(CardReader(1, MCPAnalogIn(self.channel01, 1)))
+        self.__ALL_CARD_READERS.append(CardReader(2, MCPAnalogIn(self.channel01, 2)))
+        self.__ALL_CARD_READERS.append(CardReader(3, MCPAnalogIn(self.channel01, 3)))
+        self.__ALL_CARD_READERS.append(CardReader(4, MCPAnalogIn(self.channel01, 4)))
+        self.__ALL_CARD_READERS.append(CardReader(5, MCPAnalogIn(self.channel01, 5)))
+        self.__ALL_CARD_READERS.append(CardReader(6, MCPAnalogIn(self.channel01, 6)))
+        self.__ALL_CARD_READERS.append(CardReader(7, MCPAnalogIn(self.channel01, 7)))
+        self.__ALL_CARD_READERS.append(CardReader(8, MCPAnalogIn(self.channel02, 0)))
+        self.__ALL_CARD_READERS.append(CardReader(9, MCPAnalogIn(self.channel02, 1)))
 
-        # self.__ALL_CARD_READERS.append(CardReader(8, AnalogIn(self.channel10, MCP.P0)))
-        # self.__ALL_CARD_READERS.append(CardReader(9, AnalogIn(self.channel10, MCP.P1)))
-        # self.__ALL_CARD_READERS.append(CardReader(10, AnalogIn(self.channel10, MCP.P2)))
-        # self.__ALL_CARD_READERS.append(CardReader(11, AnalogIn(self.channel10, MCP.P3)))
-        # self.__ALL_CARD_READERS.append(CardReader(12, AnalogIn(self.channel10, MCP.P4)))
-        # self.__ALL_CARD_READERS.append(CardReader(13, AnalogIn(self.channel10, MCP.P5)))
-        # self.__ALL_CARD_READERS.append(CardReader(14, AnalogIn(self.channel10, MCP.P6)))
-        # self.__ALL_CARD_READERS.append(CardReader(15, AnalogIn(self.channel10, MCP.P7)))
+        self.__ALL_CARD_READERS.append(CardReader(10, MCPAnalogIn(self.channel02, 2)))
+        self.__ALL_CARD_READERS.append(CardReader(11, MCPAnalogIn(self.channel02, 3)))
+        self.__ALL_CARD_READERS.append(CardReader(12, MCPAnalogIn(self.channel02, 4)))
+        self.__ALL_CARD_READERS.append(CardReader(13, MCPAnalogIn(self.channel02, 5)))
+        self.__ALL_CARD_READERS.append(CardReader(14, MCPAnalogIn(self.channel02, 6)))
+        self.__ALL_CARD_READERS.append(CardReader(15, MCPAnalogIn(self.channel02, 7)))
+        self.__ALL_CARD_READERS.append(CardReader(16, MCPAnalogIn(self.channel03, 0)))
+        self.__ALL_CARD_READERS.append(CardReader(17, MCPAnalogIn(self.channel03, 1)))
+        self.__ALL_CARD_READERS.append(CardReader(18, MCPAnalogIn(self.channel03, 2)))
+        self.__ALL_CARD_READERS.append(CardReader(19, MCPAnalogIn(self.channel03, 3)))
 
-        # self.__ALL_CARD_READERS.append(CardReader(16, AnalogIn(self.channel11, MCP.P0)))
-        # self.__ALL_CARD_READERS.append(CardReader(17, AnalogIn(self.channel11, MCP.P1)))
-        # self.__ALL_CARD_READERS.append(CardReader(18, AnalogIn(self.channel11, MCP.P2)))
-        # self.__ALL_CARD_READERS.append(CardReader(19, AnalogIn(self.channel11, MCP.P3)))
-        # self.__ALL_CARD_READERS.append(CardReader(20, AnalogIn(self.channel11, MCP.P4)))
-        # self.__ALL_CARD_READERS.append(CardReader(21, AnalogIn(self.channel11, MCP.P5)))
-        # self.__ALL_CARD_READERS.append(CardReader(22, AnalogIn(self.channel11, MCP.P6)))
-        # self.__ALL_CARD_READERS.append(CardReader(23, AnalogIn(self.channel11, MCP.P7)))
-
-        # self.__ALL_CARD_READERS.append(CardReader(24, AnalogIn(self.channel12, MCP.P0)))
-        # self.__ALL_CARD_READERS.append(CardReader(25, AnalogIn(self.channel12, MCP.P1)))
-        # self.__ALL_CARD_READERS.append(CardReader(26, AnalogIn(self.channel12, MCP.P2)))
-        # self.__ALL_CARD_READERS.append(CardReader(27, AnalogIn(self.channel12, MCP.P3)))
-        # self.__ALL_CARD_READERS.append(CardReader(28, AnalogIn(self.channel12, MCP.P4)))
-        # self.__ALL_CARD_READERS.append(CardReader(29, AnalogIn(self.channel12, MCP.P5)))
-        # self.__ALL_CARD_READERS.append(CardReader(30, AnalogIn(self.channel12, MCP.P6)))
-        # self.__ALL_CARD_READERS.append(CardReader(31, AnalogIn(self.channel12, MCP.P7)))
+        self.__ALL_CARD_READERS.append(CardReader(20, MCPAnalogIn(self.channel03, 4)))
+        self.__ALL_CARD_READERS.append(CardReader(21, MCPAnalogIn(self.channel03, 5)))
+        self.__ALL_CARD_READERS.append(CardReader(22, MCPAnalogIn(self.channel03, 6)))
+        self.__ALL_CARD_READERS.append(CardReader(23, MCPAnalogIn(self.channel03, 7)))
+        self.__ALL_CARD_READERS.append(CardReader(24, MCPAnalogIn(self.channel04, 0)))
+        self.__ALL_CARD_READERS.append(CardReader(25, MCPAnalogIn(self.channel04, 1)))
+        self.__ALL_CARD_READERS.append(CardReader(26, MCPAnalogIn(self.channel04, 2)))
+        self.__ALL_CARD_READERS.append(CardReader(27, MCPAnalogIn(self.channel04, 3)))
+        self.__ALL_CARD_READERS.append(CardReader(28, MCPAnalogIn(self.channel04, 4)))
+        self.__ALL_CARD_READERS.append(CardReader(29, MCPAnalogIn(self.channel04, 5)))
 
         logger.info(f"CardReaderManager: Creating {len(self.__ALL_CARD_READERS)} card readers")
 
@@ -77,7 +70,7 @@ class CardReaderManagerClass:
 
     def ReaderCards(self) -> list[str]:
         retval = [
-            f"{reader}{disabledString(ENABLE_CARD_READER)}: {reader.CardPresent.CardName}"
+            f"{reader}: {reader.CardPresent.CardName}"
             for reader in self.__ALL_CARD_READERS
             if reader.CardPresent is not None
         ]

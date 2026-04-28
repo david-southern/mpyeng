@@ -73,12 +73,7 @@ Refactoring is NOT allowed when:
 
 ## Testing and Validation
 
-- If tests exist:
-  - Run tests after making changes
-  - Fix any failures caused by the changes
-- If no tests exist:
-  - Do NOT introduce large new test suites unless explicitly requested
-  - Add minimal validation only if necessary
+- Do NOT introduce any tests unless explicitly requested
 
 ---
 
@@ -130,9 +125,7 @@ When presenting results:
 
 ## Instructions regarding this repository
 
-- The project in this repo is a controller for a physical prop in the STEM Space Science jab at my daughter's school.
-- The project is intended to run on an Arduino (or clone) microprocessor.
-- The project currently targets Adafruit's Grand Central M4 Express with samd51p20
-- The project is written in Adafruit's CircuitPython
-- The project is very performance sensitive. As currently coded, it is already pushing the microprocessor to its limits, and the current performance is just barely sufficient.
-- Given this, when designing any code changes, always make sure to consider the impact on performance.
+- The project is intended to run on a microprocessor, usually a PiMoroni Pico Plus 2 W - RP2350.
+- The project is written in MicroPython
+- The project is very performance sensitive. When designing any code changes, always make sure to
+  consider the impact on performance.

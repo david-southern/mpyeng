@@ -2,42 +2,66 @@
 # import time
 
 from machine import Pin
-from utils.eng_utils import ENABLE_SWITCHBOARD, disabledString, logger
+
+from utils.device_manager import Systems, DeviceManager
+from utils.eng_utils import logger
 
 
 class SwitchboardEndpoint:
-    def __init__(self, uid: int, name: str, pin_num: int):
-        self.uid = int(uid)
+    def __init__(self, name: str, is_source: bool = True):
         self.__name = name
-        self.__pin_num = pin_num
-        self.__pin = Pin(pin_num, Pin.IN, Pin.PULL_UP) if ENABLE_SWITCHBOARD else None
-        logger.info(f"Created SwitchboardEndpoint: {self}{disabledString(ENABLE_SWITCHBOARD)}")
-
-    def deinit(self):
-        pass  # machine.Pin has no deinit
+        self.__is_source = is_source
+        self.__pin = DeviceManager.ResolvePin(name) if DeviceManager.IsEnabled(Systems.ANY_SWITCHBOARD) else None
+        self.__name = f"{'SwSource' if is_source else 'SwSink'}({name})"
+        logger.info(f"Created SwitchboardEndpoint: {self}")
 
     @property
-    def UID(self) -> int:
-        return self.uid
-
-    @property
-    def Name(self) -> str:
+    def UID(self):
         return self.__name
 
     @property
-    def Pin(self) -> int:
-        return self.__pin_num
+    def Name(self):
+        return self.__name
 
     @property
-    def DIO(self) -> "Pin | None":
+    def IsSource(self):
+        return self.__is_source
+
+    @property
+    def DIO(self):
         return self.__pin
 
     def __str__(self):
-        return f"{self.Name}/{self.Pin}{disabledString(ENABLE_SWITCHBOARD)}"
+        return self.Name
+
+
+class SwitchboardSource(SwitchboardEndpoint):
+    def __init__(self, name: str):
+        super().__init__(name, is_source=True)
+        self.__connectedSinks: list[SwitchboardSink] = []
+        if self.DIO:
+            self.DIO.Pin.init(mode=Pin.OUT)
+            self.DIO.Pin.off()
+
+    @property
+    def ConnectedSinks(self) -> "list[SwitchboardSink]":
+        return self.__connectedSinks
+
+
+class SwitchboardSink(SwitchboardEndpoint):
+    def __init__(self, name: str):
+        super().__init__(name, is_source=False)
+        self.__connectedSource: SwitchboardSource | None = None
+        if self.DIO:
+            self.DIO.Pin.init(mode=Pin.IN)
+
+    @property
+    def ConnectedSource(self) -> "SwitchboardSource | None":
+        return self.__connectedSource
 
 
 class Switchboard:
-    def __init__(self, uid: int, name: str, sources: list[SwitchboardEndpoint], sinks: list[SwitchboardEndpoint]):
+    def __init__(self, uid: int, name: str, sources: list[SwitchboardSource], sinks: list[SwitchboardSink]):
         self.uid = int(uid)
         self.__name = name
 
@@ -49,34 +73,7 @@ class Switchboard:
         self.__sources = sources
         self.__sinks = sinks
 
-        if ENABLE_SWITCHBOARD:
-            for source in self.__sources:
-                if source.DIO:
-                    source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
-
-            for sink in self.__sinks:
-                if sink.DIO:
-                    sink.DIO.init(Pin.IN, pull=Pin.PULL_UP)
-
-        logger.info(f"Created Switchboard: {self}{disabledString(ENABLE_SWITCHBOARD)}")
-
-    def deinit(self):
-        # Release the DIO pins
-        if ENABLE_SWITCHBOARD:
-            for source in self.__sources:
-                source.deinit()
-            for sink in self.__sinks:
-                sink.deinit()
-
-    def __enter__(self):
-        """No-op used by Context Managers."""
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        """
-        Automatically de-initializes when exiting a context.
-        """
-        self.deinit()
+        logger.info(f"Created Switchboard: {self}{DeviceManager.SystemName(Systems.ANY_SWITCHBOARD)}")
 
     @property
     def UID(self) -> int:
@@ -87,23 +84,15 @@ class Switchboard:
         return self.__name
 
     @property
-    def Connections(self) -> list[list[str]]:
+    def Connections(self) -> list[tuple[str, str]]:
         retval = []
 
-        if ENABLE_SWITCHBOARD:
-            for source in self.__sources:
-                if source.DIO:
-                    source.DIO.init(Pin.OUT, value=0)
-
-                for sink in self.__sinks:
-                    if sink.DIO and not sink.DIO.value():
-                        retval.append([source.Name, sink.Name])
-
-                if source.DIO:
-                    source.DIO.value(1)
-                    source.DIO.init(Pin.IN, pull=Pin.PULL_UP)
+        if DeviceManager.IsEnabled(Systems.ANY_SWITCHBOARD):
+            for sink in self.__sinks:
+                if sink.ConnectedSource:
+                    retval.append((sink.ConnectedSource.Name, sink.Name))
 
         return retval
 
     def __str__(self):
-        return f"{self.UID}/{self.Name}{disabledString(ENABLE_SWITCHBOARD)}"
+        return f"{self.UID}/{self.Name}{DeviceManager.SystemName(Systems.ANY_SWITCHBOARD)}"

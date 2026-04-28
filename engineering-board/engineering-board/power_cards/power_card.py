@@ -1,10 +1,10 @@
-from array import array
-
 import random
-from power_cards.animation import BLACK_BUFFER, CardAnimationHelpers
+from power_cards.animation import CARD_PIXEL_COUNT, CardAnimationHelpers
 from power_cards.card_ids import PowerCardIds
 
 CARD_VOLTAGE_THRESHOLD = 0.05
+
+BLACK_BUFFER = bytearray(CARD_PIXEL_COUNT * 3)
 
 
 class PowerCard:
@@ -64,7 +64,7 @@ class PowerCard:
     def VoltageMatches(self, cardVoltage) -> bool:
         return abs(self.__voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
 
-    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> array[int]:
+    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> bytearray:
         if self.__cardAnimation is not None:
             return self.__cardAnimation.PixelBuffer(animationProgress, brightness)
         else:

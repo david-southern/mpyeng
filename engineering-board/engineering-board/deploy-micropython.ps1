@@ -46,10 +46,12 @@ if ($DebugOutput) {
 
 $ignoreDirectories = @(
     '__pycache__',
+    '\.venv',
     '\.vscode',
     '\.git',
     'host_comms',
-    'deployment-utils'
+    'deployment-utils',
+    'typings'
 )
 
 $ignoreFiles = @(
@@ -120,22 +122,39 @@ $deviceDirectories = @(
         Select-Object -Unique
 )
 
+if($DebugOutput) {
+    Write-Host "Initial Device directories:" -ForegroundColor Gray
+    foreach ($dir in $deviceDirectories) {
+        Write-Host "  $dir" -ForegroundColor DarkGray
+    }
+    Write-Host "Initial Device files:" -ForegroundColor Gray
+    foreach ($file in $deviceFiles.Keys) {
+        Write-Host "  $file" -ForegroundColor DarkGray
+    }
+}
+
 foreach ($item in $deployFiles) {
     # $item for a directory: utils\other\thingy.py
     # required $remotePath for the directory: :/utils/other
     $remotePath = $item -replace '\\', '/'
 
     if ($remotePath.Contains('/')) {
-        $remoteDirectory = ':/' + $remotePath.Substring(0, $remotePath.LastIndexOf('/'))
-        $remoteDirectoryNormalized = $remoteDirectory -replace '^:/', ''
+        $remoteDirectoryNormalized = $remotePath.Substring(0, $remotePath.LastIndexOf('/'))
+        $remoteDirectory = ':/' + $remoteDirectoryNormalized
         if ($deviceDirectories -notcontains $remoteDirectoryNormalized) {
             Write-Host "  Creating directory: $remoteDirectory" -ForegroundColor Cyan
             Invoke-Mpremote mkdir $remoteDirectory -IgnoreErrors
             $deviceDirectories += $remoteDirectoryNormalized
+        } elseif ($DebugOutput) {
+            Write-Host "Create directory: Skipping existing: $remoteDirectory" -ForegroundColor DarkGray
         }
     }
 
     $remotePath = ":/" + $remotePath
+
+    if($DebugOutput) {
+        Write-Host "Ensure file: $remotePath" -ForegroundColor DarkGray
+    }
 
     if (-not [string]::IsNullOrEmpty($FilterPattern) -and $item -notmatch $FilterPattern) {
         if ($DebugOutput) {
@@ -146,9 +165,9 @@ foreach ($item in $deployFiles) {
         continue
     }
 
-    $localModified = (Get-Item $item).LastWriteTime
+    $localModified = ((Get-Item $item).LastWriteTime).ToString('o')
     $manifestEntry = $manifest[$item]
-    if (-not $Force -and $null -ne $manifestEntry -and $manifestEntry -eq $localModified.ToString('o')) {
+    if (-not $Force -and $null -ne $manifestEntry -and $manifestEntry -eq $localModified) {
         if ($DebugOutput) {
             Write-Host "  Skipping (unchanged timestamp): $item" -ForegroundColor DarkGray
         } else {
@@ -160,7 +179,7 @@ foreach ($item in $deployFiles) {
     Write-Host "  Copying file: $item" -ForegroundColor Cyan
     Invoke-Mpremote cp -v $item $remotePath
     if (-not $DryRun) {
-        $manifest[$item] = $localModified.ToString('o')
+        $manifest[$item] = $localModified
     }
 }
 
@@ -198,8 +217,8 @@ Write-Host "Deployment complete." -ForegroundColor Green
 # # Step 6: Soft-reset the device so it picks up the new files
 # Write-Host "Resetting device..." -ForegroundColor Cyan
 
-mpremote exec "import machine; machine.reset()"
-mpremote
+# mpremote exec "import machine; machine.reset()"
+# mpremote
 
 # # Invoke the mpremote REPL, and send a Ctrl-D on STDIN to trigger a soft reset.
 # $ctrl_D = [char]0x04

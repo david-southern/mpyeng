@@ -1,6 +1,9 @@
 # Programming Notes
 
-## My Devices - Adafruit Feather TFT ESP32-S3
+## My Devices
+
+- Adafruit Feather TFT ESP32-S3
+- Pimoroni Pico Plus 2 W - RP2350
 
 ```
 > esptool flash-id

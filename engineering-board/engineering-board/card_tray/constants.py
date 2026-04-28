@@ -1,8 +1,8 @@
 from power_cards.animation import CARD_PIXEL_COUNT
 from utils.color_utils import BLUE, GREEN, YELLOW, RED
 
-ENABLE_DEMO_LOGGING = False
-ENABLE_DEMO_ANIMATION = True
+DEMO_LOGGING = False
+DEMO_ANIMATION = True
 
 PIXEL_CARD_TRAYS = 30
 PIXEL_CARD_TRAY_LEDS = 5

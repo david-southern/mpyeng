@@ -1,13 +1,14 @@
 import time
 
 from power_cards.power_card import PowerCard
-from utils.eng_utils import ENABLE_CARD_READER, disabledString, logger
-from utils.mcp3008 import _AnalogIn
+from utils.device_manager import DeviceManager, Systems
+from utils.eng_utils import logger
+from drivers.mcp3008 import MCPAnalogIn
 from card_reader.constants import VOLTAGE_CHECK_FREQUENCY
 
 
 class CardReader:
-    def __init__(self, uid: int, analogIn: _AnalogIn):
+    def __init__(self, uid: int, analogIn: MCPAnalogIn):
         self.uid = int(uid)
 
         self.inputPin = analogIn
@@ -36,5 +37,5 @@ class CardReader:
         return card.UID if card else None
 
     def __str__(self):
-        retval = f"{self.uid}{disabledString(ENABLE_CARD_READER)}"
+        retval = f"{DeviceManager.SystemName(Systems.CARD_READER)}({self.uid})"
         return retval

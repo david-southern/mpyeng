@@ -1,6 +1,5 @@
-import random
-
-from utils.eng_utils import ENABLE_POWER_GRID, SlowLog, disabledString
+from utils.eng_utils import SlowLog
+from utils.device_manager import DeviceManager, Systems
 from utils.pixel_strip_manager import PixelStripManager
 
 
@@ -18,18 +17,11 @@ class PowerGrid:
         self.__pixelStripManager = pixelStripManager
         self.pixelCount = self.__gridSize * self.__gridSize
         self.__pixelIndex = self.__pixelStripManager.ReservePixelRange(self.pixelCount)
+        self.__blackBuffer = bytearray(self.pixelCount * 3)
 
     def Update(self):
         SlowLog(f"Updating Power Card Tray {self.UID} state")
-
-        self.__pixelStripManager.SetPixelData(
-            self.__pixelIndex,
-            self.pixelCount - 1,
-            [
-                (random.randint(0, 255) << 16) | (random.randint(0, 255) << 8) | random.randint(0, 255)
-                for pixIndex in range(self.pixelCount - 1)
-            ],
-        )
+        self.__pixelStripManager.SetPixelData(self.__pixelIndex, self.pixelCount - 1, self.__blackBuffer)
 
     @property
     def UID(self):
@@ -78,4 +70,6 @@ class PowerGrid:
         self.__warnMode = False
 
     def __str__(self):
-        return f"{self.UID}{disabledString(ENABLE_POWER_GRID)}: TGT:{self.TargetLevel}, CUR:{self.CurLevel}"
+        return (
+            f"{DeviceManager.SystemName(Systems.POWER_GRID)}({self.UID}): TGT:{self.TargetLevel}, CUR:{self.CurLevel}"
+        )

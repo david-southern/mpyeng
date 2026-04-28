@@ -1,10 +1,12 @@
 import time
 
+APP_START_TIME = time.ticks_ms()
+
 
 class LoggerClass:
     def timestamp(self):
-        ts = time.ticks_ms() / 1000
-        return f"{ts:.3f}s"
+        ts = time.ticks_diff(time.ticks_ms(), APP_START_TIME) / 1000
+        return f"{ts:7.3f}s"
 
     def info(self, message):
         print(f"[{self.timestamp()}] {message}")
@@ -17,25 +19,6 @@ logger = LoggerClass()
 
 logger.info("Logger initialized.")
 
-ENABLE_PROTOCOL_MANAGER = False
-ENABLE_SLOW_LOG = False
-
-# FYI: Running the TM1637 displays when the board is does not have an external +5V supply causes the
-# Arduino to crash erratically. Not sure why, but it definitely happens. Providing the external +5V
-# supply stops this happening.
-ENABLE_POWER_DISPLAY = False
-
-ENABLE_PIXELS = False
-ENABLE_CARD_READER = False
-ENABLE_POWER_GRID = False
-ENABLE_SWITCHBOARD = False
-ENABLE_LEFT_SWITCHBOARD = False
-ENABLE_RIGHT_SWITCHBOARD = False
-
-ENABLE_LEFT_PIXELS = False
-ENABLE_RIGHT_PIXELS = False
-ENABLE_POWER_TRAY = False
-
 
 def set_flags(flags: dict):
     """Set module-level enable flags from a dict of {flag_name: value} pairs."""
@@ -47,7 +30,9 @@ def set_flags(flags: dict):
 
 # DeviceManager import triggers device identification and sets enable flags
 # via set_flags on this module. Must be imported after flag defaults are defined.
-from utils.device_manager import device_manager  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
+from utils.device_manager import DeviceManager  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
+
+ENABLE_SLOW_LOG = True
 
 SLOW_LOG_FREQUENCY = 1
 slowLogCount = {}
@@ -61,9 +46,24 @@ _timer_intervals = {}
 def register_timer(key, interval_sec: float):
     """Registers a timer with the given key and interval. Must be called before check_timer.
     key: any hashable value (str, tuple, etc.) to identify this timer."""
-    interval_ms = int(interval_sec * 1000)
-    _timer_intervals[key] = interval_ms
-    _timers[key] = time.ticks_add(time.ticks_ms(), interval_ms)
+    _timer_intervals[key] = interval_sec
+    _timers[key] = time.ticks_ms()
+
+
+def timer_elapsed_sec(key) -> float:
+    """Returns the number of seconds elapsed since the last time check_timer returned True for this key.
+    Raises ValueError if the key has not been registered with register_timer."""
+    if key not in _timer_intervals:
+        raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
+    now = time.ticks_ms()
+    return time.ticks_diff(now, _timers[key]) / 1000
+
+
+def reset_timer(key):
+    """Resets the timer for the given key to start counting from now."""
+    if key not in _timer_intervals:
+        raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
+    _timers[key] = time.ticks_ms()
 
 
 def check_timer(key) -> bool:
@@ -72,9 +72,8 @@ def check_timer(key) -> bool:
     Raises ValueError if the key has not been registered with register_timer."""
     if key not in _timer_intervals:
         raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
-    now = time.ticks_ms()
-    if time.ticks_diff(now, _timers[key]) >= 0:
-        _timers[key] = time.ticks_add(_timers[key], _timer_intervals[key])
+    if timer_elapsed_sec(key) >= _timer_intervals[key]:
+        reset_timer(key)
         return True
     return False
 
@@ -96,12 +95,8 @@ def SlowLog(message: str):
         return
 
     for logMessage, logCount in slowLogCount.items():
-        logger.info(f"PixelManager{disabledString(ENABLE_PIXELS)}: (rpt: {logCount}) {logMessage}")
+        logger.info(f"SlowLog: (rpt: {logCount}) {logMessage}")
     slowLogCount = {}
-
-
-def disabledString(enabled: bool):
-    return "" if enabled else "(DISABLED)"
 
 
 def safeString(thingy, defaultString):
@@ -116,16 +111,11 @@ def shortString(string, maxLen=200):
     return string
 
 
-def format_hex(val):
-    return f"0x{int(val):02X}"
+def gridToStripIndex(x: int, y: int, width: int = 8, height: int = 8) -> int:
+    """Convert a Quadrant I (x, y) grid coordinate to the bottom-up serpentine layout that our
+    NeoPixel grids use."""
+    return y * width + (x if y % 2 == 0 else (width - 1 - x))
 
 
 def format_hex_list(listVal, delimiter=", "):
-    return delimiter.join(f"{format_hex(val)}" for val in listVal)
-
-
-def _xy_to_index(x: int, y: int, width: int = 8, height: int = 8) -> int:
-    """Convert an x, y grid coordinate the the Serpentine layout with y-flip that our NeoPixel
-    grids use."""
-    y = height - 1 - y
-    return y * width + (x if y % 2 == 0 else (width - 1 - x))
+    return delimiter.join(f"0x{int(val):02X}" for val in listVal)

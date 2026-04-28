@@ -1,81 +1,84 @@
-def to_neopixel(color: tuple[int, int, int] | "Color" | int) -> int:
+"""Utility functions for color manipulation, including conversions between different formats and
+basic operations like clamping and interpolation. NOTE: these functions are designed to work with
+RGB colors represented as packed ints (e.g., 0xRRGGBB), as using tuples (required by the vanilla
+NeoPixel code) would be too slow for the performance-dependent parts of the codebase due to GC
+thrashing caused by allocation of thousands of objects (tuples), which is extremely expensive. As
+written, none of these function do any heap allocation, so they should be usable in basic NeoPixel
+code without causing GC thrashing. Having said that, function calls in Python are also very
+expensive, so for a tight animation loop, you should pre-bake your frame buffers so that the hot
+path is just copying slices of byte arrays.
+"""
+
+# NeoPixels typically use GRB order, but this can be changed if needed
+NEOPIXEL_BYTE_OFFSET_R = 1
+NEOPIXEL_BYTE_OFFSET_G = 0
+NEOPIXEL_BYTE_OFFSET_B = 2
+
+NEO_PACKED_OFFSETS = {
+    "R": 8,
+    "G": 16,
+    "B": 0,
+}
+
+
+def to_neo_packed(red: int, green: int, blue: int) -> int:
     """Convert the color to a single integer in the format expected by NeoPixel libraries."""
-    if isinstance(color, Color):
-        return color.to_neopixel()
-    elif isinstance(color, int):
-        return color
-    else:
-        return (color[0] << 16) | (color[1] << 8) | color[2]
+    return (
+        ((red & 0xFF) << NEO_PACKED_OFFSETS["R"])
+        | ((green & 0xFF) << NEO_PACKED_OFFSETS["G"])
+        | ((blue & 0xFF) << NEO_PACKED_OFFSETS["B"])
+    )
 
 
-def hex_to_rgb(hex_color: str) -> list[int]:
-    """Convert a hex color string to an (R, G, B) list."""
+def neo_packed_to_buffer(color: int, buf: bytearray, offset: int):
+    """Convert a neo_packed color integer to its RGB components and write them into a bytearray buffer at the specified offset."""
+    buf[offset + NEOPIXEL_BYTE_OFFSET_R] = (color >> NEO_PACKED_OFFSETS["R"]) & 0xFF
+    buf[offset + NEOPIXEL_BYTE_OFFSET_G] = (color >> NEO_PACKED_OFFSETS["G"]) & 0xFF
+    buf[offset + NEOPIXEL_BYTE_OFFSET_B] = (color >> NEO_PACKED_OFFSETS["B"]) & 0xFF
+
+
+def neo_packed_red(color: int) -> int:
+    """Extract the red component from a neo_packed color integer."""
+    return (color >> NEO_PACKED_OFFSETS["R"]) & 0xFF
+
+
+def neo_packed_green(color: int) -> int:
+    """Extract the green component from a neo_packed color integer."""
+    return (color >> NEO_PACKED_OFFSETS["G"]) & 0xFF
+
+
+def neo_packed_blue(color: int) -> int:
+    """Extract the blue component from a neo_packed color integer."""
+    return (color >> NEO_PACKED_OFFSETS["B"]) & 0xFF
+
+
+def hex_to_neo_packed(hex_color: str) -> int:
+    """Convert a hex color string to a neo_packed int."""
     hex_color = hex_color.lstrip("#")
     if len(hex_color) != 6:
         raise ValueError("Hex color must be in the format #RRGGBB")
-    return [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
+    return to_neo_packed(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
 
-class Color:
-    def __init__(self, input_color: str | tuple[int, int, int] | "Color"):
-        if isinstance(input_color, str):
-            rgb = hex_to_rgb(input_color)
-            self.R = self.clamp(rgb[0])
-            self.G = self.clamp(rgb[1])
-            self.B = self.clamp(rgb[2])
-        elif isinstance(input_color, tuple):
-            self.R = self.clamp(input_color[0])
-            self.G = self.clamp(input_color[1])
-            self.B = self.clamp(input_color[2])
-        elif isinstance(input_color, Color):
-            self.R = self.clamp(input_color.R)
-            self.G = self.clamp(input_color.G)
-            self.B = self.clamp(input_color.B)
-
-    def clamp(self, value: int | float) -> int:
-        return max(0, min(255, int(value)))
-
-    def copy_from(self, other: "Color") -> "Color":
-        self.R = other.R
-        self.G = other.G
-        self.B = other.B
-        return self
-
-    def set_rgb(self, r: int, g: int, b: int) -> "Color":
-        self.R = r
-        self.G = g
-        self.B = b
-        return self
-
-    def lerp(self, end: "Color", progress: float) -> "Color":
-        self.R = self.clamp(self.R + (end.R - self.R) * progress)
-        self.G = self.clamp(self.G + (end.G - self.G) * progress)
-        self.B = self.clamp(self.B + (end.B - self.B) * progress)
-        return self
-
-    def scale(self, factor: float) -> "Color":
-        self.R = self.clamp(self.R * factor)
-        self.G = self.clamp(self.G * factor)
-        self.B = self.clamp(self.B * factor)
-        return self
-
-    def copy(self) -> "Color":
-        return Color((self.R, self.G, self.B))
-
-    def to_neopixel(self) -> int:
-        """Convert the color to a single integer in the format expected by NeoPixel libraries."""
-        return (self.R << 16) | (self.G << 8) | self.B
-
-    def to_tuple(self) -> tuple[int, int, int]:
-        """Convert the color to an (R, G, B) tuple."""
-        return (self.R, self.G, self.B)
+def lerp(start: int, end: int, progress: float) -> int:
+    """Linearly interpolate between two neo_packed color integers."""
+    r = int(neo_packed_red(start) + (neo_packed_red(end) - neo_packed_red(start)) * progress)
+    g = int(neo_packed_green(start) + (neo_packed_green(end) - neo_packed_green(start)) * progress)
+    b = int(neo_packed_blue(start) + (neo_packed_blue(end) - neo_packed_blue(start)) * progress)
+    return to_neo_packed(r, g, b)
 
 
-BLACK: Color = Color("#000000")
-WHITE: Color = Color("#FFFFFF")
-RED: Color = Color("#FF0000")
-GREEN: Color = Color("#00FF00")
-BLUE: Color = Color("#0000FF")
-CYAN: Color = Color("#00FFFF")
-MAGENTA: Color = Color("#FF00FF")
-YELLOW: Color = Color("#FFFF00")
+def scale(color: int, factor: float) -> int:
+    return to_neo_packed(
+        int(neo_packed_red(color) * factor), int(neo_packed_green(color) * factor), int(neo_packed_blue(color) * factor)
+    )
+
+
+BLACK: int = hex_to_neo_packed("#000000")
+WHITE: int = hex_to_neo_packed("#FFFFFF")
+RED: int = hex_to_neo_packed("#FF0000")
+GREEN: int = hex_to_neo_packed("#00FF00")
+BLUE: int = hex_to_neo_packed("#0000FF")
+CYAN: int = hex_to_neo_packed("#00FFFF")
+MAGENTA: int = hex_to_neo_packed("#FF00FF")
+YELLOW: int = hex_to_neo_packed("#FFFF00")

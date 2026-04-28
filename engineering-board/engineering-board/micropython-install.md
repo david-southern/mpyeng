@@ -1,15 +1,26 @@
 # Deploying MicroPython to the Adafruit Feather TFT ESP32-S3
 
-These instructions replace CircuitPython with MicroPython on the
-Adafruit Feather TFT ESP32-S3 (4 MB Flash, 2 MB PSRAM).
+These instructions replace CircuitPython with MicroPython.
 
-Board reference: <https://learn.adafruit.com/adafruit-esp32-s3-tft-feather>
+Board reference: FEATHER ESP32-S3
+
+- <https://www.adafruit.com/product/5483>
+- <https://learn.adafruit.com/adafruit-esp32-s3-tft-feather>
+
+Board reference: Raspberry Pi Pico 2 W:
+
+- <https://www.raspberrypi.com/products/raspberry-pi-pico-2>
+- <https://www.adafruit.com/product/6243>
+- Pinout: <https://pip-assets.raspberrypi.com/categories/1088-raspberry-pi-pico-2-w/documents/RP-008305-DS-1-pico-2-w-pinout.pdf>
 
 ---
 
 ## Step 1 — Download MicroPython firmware
 
-Go to: <https://micropython.org/download/ESP32_GENERIC_S3/>
+Go to:
+
+- <https://micropython.org/download/ESP32_GENERIC_S3/>
+- <https://micropython.org/download/RPI_PICO2_W/>
 
 Download the latest **`.bin`** release (v1.28.0, 2026-04-06 as of writing).
 

@@ -1,15 +1,14 @@
 import random
 import time
 from machine import Pin
+from utils.device_manager import DeviceManager, Systems
 from utils.eng_utils import (
-    ENABLE_POWER_DISPLAY,
-    ENABLE_POWER_GRID,
     check_timer,
     register_timer,
     logger,
 )
 
-if ENABLE_POWER_DISPLAY:
+if DeviceManager.IsEnabled(Systems.POWER_DISPLAY):
     from power_display.display_manager import PowerDisplayManager
 
 from utils.protocol_resources import (
@@ -24,7 +23,7 @@ from utils.protocol_resources import (
     TransformerPower,
 )
 
-if ENABLE_POWER_GRID:
+if DeviceManager.IsEnabled(Systems.POWER_GRID):
     from power_grid.grid_manager import PowerGridManager
 
 
@@ -81,9 +80,9 @@ TIMER_DEMO_DATA = "demo_data"
 
 register_timer(TIMER_DEMO_DATA, RANDOM_POWER_UPDATE_FREQ)
 
-ENABLE_TEST_BUTTONS = False
+TEST_BUTTONS = False
 
-if ENABLE_TEST_BUTTONS:
+if TEST_BUTTONS:
     warp_green = Debouncer(Pin(4, Pin.IN, Pin.PULL_UP))  # TODO: verify GP4 for ESP32-S3 wiring
     warp_yellow = Debouncer(Pin(5, Pin.IN, Pin.PULL_UP))  # TODO: verify GP5 for ESP32-S3 wiring
     warp_red = Debouncer(Pin(6, Pin.IN, Pin.PULL_UP))  # TODO: verify GP6 for ESP32-S3 wiring
@@ -110,12 +109,12 @@ def set_shield_power(power: int):
     logger.info(f"DEMOS: Shield Power to {power}")
 
 
-class DemoDataManager:
+class DemoDataManagerClass:
     __firstUpdate = True
 
     @staticmethod
     def update_demo_data():
-        if ENABLE_TEST_BUTTONS:
+        if TEST_BUTTONS:
             warp_green.update()
             warp_yellow.update()
             warp_red.update()
@@ -144,27 +143,27 @@ class DemoDataManager:
             if DemoDataManager.__firstUpdate:
                 DemoDataManager.__firstUpdate = False
                 for _, wing in enumerate(DEMO_ENGINE_POWER_DATA):
-                    if ENABLE_POWER_GRID:
+                    if DeviceManager.IsEnabled(Systems.POWER_GRID):
                         PowerGridManager.SetWingMaxPower(wing.Name, wing.MaxPower)
-                    if ENABLE_POWER_DISPLAY:
+                    if DeviceManager.IsEnabled(Systems.POWER_DISPLAY):
                         PowerDisplayManager.SetDisplayValue(wing.Name, wing.MaxPower)
 
                 for _, transformer in enumerate(DEMO_TRANSFORMER_POWER_DATA):
-                    if ENABLE_POWER_GRID:
+                    if DeviceManager.IsEnabled(Systems.POWER_GRID):
                         PowerGridManager.SetTransformerMaxPower(transformer.Name, transformer.MaxPower)
-                    if ENABLE_POWER_DISPLAY:
+                    if DeviceManager.IsEnabled(Systems.POWER_DISPLAY):
                         PowerDisplayManager.SetDisplayMaxValue(transformer.Name, transformer.MaxPower)
 
             for power_resource in DEMO_ENGINE_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
-                if ENABLE_POWER_GRID:
+                if DeviceManager.IsEnabled(Systems.POWER_GRID):
                     PowerGridManager.SetWingTargetPower(power_resource.Name, power_resource.PowerUsage)
 
             for power_resource in DEMO_TRANSFORMER_POWER_DATA:
                 power_resource.PowerUsage = random.randint(0, power_resource.MaxPower)
-                if ENABLE_POWER_GRID:
+                if DeviceManager.IsEnabled(Systems.POWER_GRID):
                     PowerGridManager.SetTransformerTargetPower(power_resource.Name, power_resource.PowerUsage)
-                if ENABLE_POWER_DISPLAY:
+                if DeviceManager.IsEnabled(Systems.POWER_DISPLAY):
                     PowerDisplayManager.SetDisplayCurValue(power_resource.Name, power_resource.PowerUsage)
 
             for power_resource in DEMO_SYSTEM_POWER_DATA:
@@ -205,3 +204,6 @@ class DemoDataManager:
     @staticmethod
     def AddSystemPowerResource(power_resource: SystemPower):
         DEMO_SYSTEM_POWER_DATA.append(power_resource)
+
+
+DemoDataManager = DemoDataManagerClass()

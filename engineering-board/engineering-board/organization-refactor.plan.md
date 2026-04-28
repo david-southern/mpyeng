@@ -19,7 +19,7 @@ engineering-board/
 │
 ├── utils/
 │   ├── __init__.py                (empty)
-│   ├── eng_utils.py               (LoggerClass, timers, SlowLog, disabledString)
+│   ├── eng_utils.py               (LoggerClass, timers, SlowLog)
 │   ├── device_manager.py          (DeviceManager class + singleton)
 │   ├── color_utils.py             (Color class, color constants)
 │   ├── profiling.py               (profiling system)
