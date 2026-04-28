@@ -46,10 +46,12 @@ if ($DebugOutput) {
 
 $ignoreDirectories = @(
     '__pycache__',
+    '\.venv',
     '\.vscode',
     '\.git',
     'host_comms',
-    'deployment-utils'
+    'deployment-utils',
+    'typings'
 )
 
 $ignoreFiles = @(
@@ -198,8 +200,8 @@ Write-Host "Deployment complete." -ForegroundColor Green
 # # Step 6: Soft-reset the device so it picks up the new files
 # Write-Host "Resetting device..." -ForegroundColor Cyan
 
-mpremote exec "import machine; machine.reset()"
-mpremote
+# mpremote exec "import machine; machine.reset()"
+# mpremote
 
 # # Invoke the mpremote REPL, and send a Ctrl-D on STDIN to trigger a soft reset.
 # $ctrl_D = [char]0x04

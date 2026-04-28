@@ -17,7 +17,10 @@ Board reference: Raspberry Pi Pico 2 W:
 
 ## Step 1 — Download MicroPython firmware
 
-Go to: <https://micropython.org/download/ESP32_GENERIC_S3/>
+Go to:
+
+- <https://micropython.org/download/ESP32_GENERIC_S3/>
+- <https://micropython.org/download/RPI_PICO2_W/>
 
 Download the latest **`.bin`** release (v1.28.0, 2026-04-06 as of writing).
 

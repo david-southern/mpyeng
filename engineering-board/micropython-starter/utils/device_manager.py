@@ -1,15 +1,31 @@
-from machine import unique_id, PinLike  # pyright: ignore[reportMissingImports]
+# pyright: reportAttributeAccessIssue=false
+
+from machine import unique_id, Pin  # pyright: ignore[reportMissingImports]
 from utils.eng_utils import logger, set_flags
 
 
 class DeviceConfiguration:
+    class PinNames:
+        RIGHT_NEOPIXEL = "right_neopixel_strip"
+        SEVEN_SEG_DATA = "seven_seg_data"
+        SEVEN_SEG_CLK = "seven_seg_clk"
+        SPI_CLK = "spi_sck"
+        SPI_MOSI = "spi_mosi"
+        SPI_MISO = "spi_miso"
+        SPI_CS = "spi_cs"
+        LEFT_WING_SOURCE = "switchboard_left_wing_source"
+        RIGHT_WING_SOURCE = "switchboard_right_wing_source"
+        DIST1_SINK = "switchboard_dist1_sink"
+        DIST1_SOURCE = "switchboard_dist1_source"
+        BUS1_SINK = "switchboard_bus1_sink"
+
     """Immutable Structured configuration for a known device."""
 
     def __init__(
         self,
         name: str,
         functionality_flags: dict[str, bool],
-        pin_reservations: dict[str, list[PinLike]],
+        pin_reservations: dict[str, Pin],
     ):
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "functionality_flags", functionality_flags)
@@ -26,7 +42,7 @@ class DeviceConfiguration:
         return getattr(self, "functionality_flags", {})
 
     @property
-    def PinReservations(self) -> dict[str, list[PinLike]]:
+    def PinReservations(self) -> dict[str, Pin]:
         """Get the pin reservations for this device."""
         return getattr(self, "pin_reservations", {})
 
@@ -48,19 +64,41 @@ class DeviceManagerClass:
                 "ENABLE_SLOW_LOG": True,
             },
             pin_reservations={
-                "neopixel_strip": [12],
-                "seven_seg": [2, 3],
-                "spi_sck": [36],
-                "spi_mosi": [35],
-                "spi_miso": [37],
-                "cs_pins": [9, 10, 11, 12],
-                "switchboard_left_wing_source": [],
-                "switchboard_right_wing_source": [],
-                "switchboard_dist1_sink": [],
-                "switchboard_dist1_source": [],
-                "switchboard_bus1_sink": [],
+                DeviceConfiguration.PinNames.RIGHT_NEOPIXEL: Pin.board.GP16,
+                DeviceConfiguration.PinNames.SEVEN_SEG_DATA: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SEVEN_SEG_CLK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_CLK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_MOSI: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_MISO: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_CS: Pin.board.GP1,
+                DeviceConfiguration.PinNames.LEFT_WING_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.RIGHT_WING_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.DIST1_SINK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.DIST1_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.BUS1_SINK: Pin.board.GP1,
             },
-        )
+        ),
+        "B29EF8BE7E93C6C6": DeviceConfiguration(
+            name="RP2350 Pico W",
+            functionality_flags={
+                "ENABLE_PIXELS": True,
+                "ENABLE_SLOW_LOG": True,
+            },
+            pin_reservations={
+                DeviceConfiguration.PinNames.RIGHT_NEOPIXEL: Pin.board.GP16,
+                DeviceConfiguration.PinNames.SEVEN_SEG_DATA: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SEVEN_SEG_CLK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_CLK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_MOSI: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_MISO: Pin.board.GP1,
+                DeviceConfiguration.PinNames.SPI_CS: Pin.board.GP1,
+                DeviceConfiguration.PinNames.LEFT_WING_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.RIGHT_WING_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.DIST1_SINK: Pin.board.GP1,
+                DeviceConfiguration.PinNames.DIST1_SOURCE: Pin.board.GP1,
+                DeviceConfiguration.PinNames.BUS1_SINK: Pin.board.GP1,
+            },
+        ),
     }
 
     def __init__(self):
@@ -81,9 +119,9 @@ class DeviceManagerClass:
         """Check if a functionality flag is enabled for this device."""
         return self.DEVICE_CONFIGURATION.FunctionalityFlags.get(flag_name, False)
 
-    def ModulePins(self, module_name: str) -> list[PinLike]:
-        """Get the list of pins reserved for a specific module."""
-        return self.DEVICE_CONFIGURATION.PinReservations.get(module_name, [])
+    def ModulePins(self, module_name: str) -> Pin | None:
+        """Get the pin reserved for a specific module."""
+        return self.DEVICE_CONFIGURATION.PinReservations.get(module_name, None)
 
 
 DeviceManager = DeviceManagerClass()

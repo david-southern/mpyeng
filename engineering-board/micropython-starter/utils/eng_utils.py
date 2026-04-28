@@ -6,7 +6,7 @@ APP_START_TIME = time.ticks_ms()
 class LoggerClass:
     def timestamp(self):
         ts = time.ticks_diff(time.ticks_ms(), APP_START_TIME) / 1000
-        return f"{ts:.3f}s"
+        return f"{ts:7.3f}s"
 
     def info(self, message):
         print(f"[{self.timestamp()}] {message}")
@@ -47,9 +47,24 @@ _timer_intervals = {}
 def register_timer(key, interval_sec: float):
     """Registers a timer with the given key and interval. Must be called before check_timer.
     key: any hashable value (str, tuple, etc.) to identify this timer."""
-    interval_ms = int(interval_sec * 1000)
-    _timer_intervals[key] = interval_ms
-    _timers[key] = time.ticks_add(time.ticks_ms(), interval_ms)
+    _timer_intervals[key] = interval_sec
+    _timers[key] = time.ticks_ms()
+
+
+def timer_elapsed_sec(key) -> float:
+    """Returns the number of seconds elapsed since the last time check_timer returned True for this key.
+    Raises ValueError if the key has not been registered with register_timer."""
+    if key not in _timer_intervals:
+        raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
+    now = time.ticks_ms()
+    return time.ticks_diff(now, _timers[key]) / 1000
+
+
+def reset_timer(key):
+    """Resets the timer for the given key to start counting from now."""
+    if key not in _timer_intervals:
+        raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
+    _timers[key] = time.ticks_ms()
 
 
 def check_timer(key) -> bool:
@@ -58,9 +73,8 @@ def check_timer(key) -> bool:
     Raises ValueError if the key has not been registered with register_timer."""
     if key not in _timer_intervals:
         raise ValueError(f"Timer key {repr(key)} has not been registered. Call register_timer first.")
-    now = time.ticks_ms()
-    if time.ticks_diff(now, _timers[key]) >= 0:
-        _timers[key] = time.ticks_add(_timers[key], _timer_intervals[key])
+    if timer_elapsed_sec(key) >= _timer_intervals[key]:
+        reset_timer(key)
         return True
     return False
 
