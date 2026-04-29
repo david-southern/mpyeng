@@ -1,3 +1,6 @@
+from micropython import const
+import micropython
+
 """Utility functions for color manipulation, including conversions between different formats and
 basic operations like clamping and interpolation. NOTE: these functions are designed to work with
 RGB colors represented as packed ints (e.g., 0xRRGGBB), as using tuples (required by the vanilla
@@ -9,47 +12,81 @@ expensive, so for a tight animation loop, you should pre-bake your frame buffers
 path is just copying slices of byte arrays.
 """
 
-# NeoPixels typically use GRB order, but this can be changed if needed
-NEOPIXEL_BYTE_OFFSET_R = 1
-NEOPIXEL_BYTE_OFFSET_G = 0
-NEOPIXEL_BYTE_OFFSET_B = 2
 
-NEO_PACKED_OFFSETS = {
-    "R": 8,
-    "G": 16,
-    "B": 0,
-}
+NEO_PACKED_BPP = const(3)
+
+# NeoPixels typically use GRB order, but this can be changed if needed
+NEOPIXEL_BYTE_OFFSET_R = const(1)
+NEOPIXEL_BYTE_OFFSET_G = const(0)
+NEOPIXEL_BYTE_OFFSET_B = const(2)
+
+NEO_PACKED_OFFSET_R = const(8)
+NEO_PACKED_OFFSET_G = const(16)
+NEO_PACKED_OFFSET_B = const(0)
+
+
+@micropython.viper
+def copy_buffer_pixels(src_buffer: ptr8, dest_buffer: ptr8, dest_pixel_offset: int, pixel_count: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
+    """Copy <pixel_count> pixels from <src_buffer> to <dest_buffer> starting at <dest_pixel_offset>."""
+    dest_byte_offset = dest_pixel_offset * NEO_PACKED_BPP
+    byte_count = pixel_count * NEO_PACKED_BPP
+    for byte_index in range(byte_count):
+        dest_buffer[dest_byte_offset + byte_index] = src_buffer[byte_index]
 
 
 def to_neo_packed(red: int, green: int, blue: int) -> int:
     """Convert the color to a single integer in the format expected by NeoPixel libraries."""
     return (
-        ((red & 0xFF) << NEO_PACKED_OFFSETS["R"])
-        | ((green & 0xFF) << NEO_PACKED_OFFSETS["G"])
-        | ((blue & 0xFF) << NEO_PACKED_OFFSETS["B"])
+        ((red & 0xFF) << NEO_PACKED_OFFSET_R)
+        | ((green & 0xFF) << NEO_PACKED_OFFSET_G)
+        | ((blue & 0xFF) << NEO_PACKED_OFFSET_B)
     )
 
 
-def neo_packed_to_buffer(color: int, buf: bytearray, offset: int):
-    """Convert a neo_packed color integer to its RGB components and write them into a bytearray buffer at the specified offset."""
-    buf[offset + NEOPIXEL_BYTE_OFFSET_R] = (color >> NEO_PACKED_OFFSETS["R"]) & 0xFF
-    buf[offset + NEOPIXEL_BYTE_OFFSET_G] = (color >> NEO_PACKED_OFFSETS["G"]) & 0xFF
-    buf[offset + NEOPIXEL_BYTE_OFFSET_B] = (color >> NEO_PACKED_OFFSETS["B"]) & 0xFF
+@micropython.viper
+def neo_packed_to_buffer(neo_packed: int, buf: ptr8, pixel_index: int, pixel_count: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
+    """Convert a <neo_packed> color integer to its RGB components and write them into <buf> <count> times starting
+    at <buf_index>."""
+    byte_index: int = pixel_index * NEO_PACKED_BPP
+
+    r: int = (neo_packed >> NEO_PACKED_OFFSET_R) & 0xFF
+    g: int = (neo_packed >> NEO_PACKED_OFFSET_G) & 0xFF
+    b: int = (neo_packed >> NEO_PACKED_OFFSET_B) & 0xFF
+
+    if pixel_count == 1:
+        buf[byte_index + NEOPIXEL_BYTE_OFFSET_R] = r
+        buf[byte_index + NEOPIXEL_BYTE_OFFSET_G] = g
+        buf[byte_index + NEOPIXEL_BYTE_OFFSET_B] = b
+    else:
+        for copy_index in range(pixel_count):
+            buf[byte_index + NEOPIXEL_BYTE_OFFSET_R] = r
+            buf[byte_index + NEOPIXEL_BYTE_OFFSET_G] = g
+            buf[byte_index + NEOPIXEL_BYTE_OFFSET_B] = b
+            byte_index += NEO_PACKED_BPP
 
 
-def neo_packed_red(color: int) -> int:
+def buffer_to_neo_packed(buf: bytearray, buf_index: int):
+    """Return a neo_packed color integer from its RGB components in a bytearray buffer at the specified offset."""
+    return (
+        (buf[buf_index + NEOPIXEL_BYTE_OFFSET_R] << NEO_PACKED_OFFSET_R)
+        | (buf[buf_index + NEOPIXEL_BYTE_OFFSET_G] << NEO_PACKED_OFFSET_G)
+        | (buf[buf_index + NEOPIXEL_BYTE_OFFSET_B] << NEO_PACKED_OFFSET_B)
+    )
+
+
+def neo_packed_red(neo_packed: int) -> int:
     """Extract the red component from a neo_packed color integer."""
-    return (color >> NEO_PACKED_OFFSETS["R"]) & 0xFF
+    return (neo_packed >> NEO_PACKED_OFFSET_R) & 0xFF
 
 
-def neo_packed_green(color: int) -> int:
+def neo_packed_green(neo_packed: int) -> int:
     """Extract the green component from a neo_packed color integer."""
-    return (color >> NEO_PACKED_OFFSETS["G"]) & 0xFF
+    return (neo_packed >> NEO_PACKED_OFFSET_G) & 0xFF
 
 
-def neo_packed_blue(color: int) -> int:
+def neo_packed_blue(neo_packed: int) -> int:
     """Extract the blue component from a neo_packed color integer."""
-    return (color >> NEO_PACKED_OFFSETS["B"]) & 0xFF
+    return (neo_packed >> NEO_PACKED_OFFSET_B) & 0xFF
 
 
 def hex_to_neo_packed(hex_color: str) -> int:
@@ -60,25 +97,36 @@ def hex_to_neo_packed(hex_color: str) -> int:
     return to_neo_packed(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
 
-def lerp(start: int, end: int, progress: float) -> int:
+def lerp_neo_packed(start_neo_packed: int, end_neo_packed: int, progress: float) -> int:
     """Linearly interpolate between two neo_packed color integers."""
-    r = int(neo_packed_red(start) + (neo_packed_red(end) - neo_packed_red(start)) * progress)
-    g = int(neo_packed_green(start) + (neo_packed_green(end) - neo_packed_green(start)) * progress)
-    b = int(neo_packed_blue(start) + (neo_packed_blue(end) - neo_packed_blue(start)) * progress)
+    r = int(
+        neo_packed_red(start_neo_packed)
+        + (neo_packed_red(end_neo_packed) - neo_packed_red(start_neo_packed)) * progress
+    )
+    g = int(
+        neo_packed_green(start_neo_packed)
+        + (neo_packed_green(end_neo_packed) - neo_packed_green(start_neo_packed)) * progress
+    )
+    b = int(
+        neo_packed_blue(start_neo_packed)
+        + (neo_packed_blue(end_neo_packed) - neo_packed_blue(start_neo_packed)) * progress
+    )
     return to_neo_packed(r, g, b)
 
 
-def scale(color: int, factor: float) -> int:
+def scale_neo_packed(neo_packed: int, factor: float) -> int:
     return to_neo_packed(
-        int(neo_packed_red(color) * factor), int(neo_packed_green(color) * factor), int(neo_packed_blue(color) * factor)
+        int(neo_packed_red(neo_packed) * factor),
+        int(neo_packed_green(neo_packed) * factor),
+        int(neo_packed_blue(neo_packed) * factor),
     )
 
 
-BLACK: int = hex_to_neo_packed("#000000")
-WHITE: int = hex_to_neo_packed("#FFFFFF")
-RED: int = hex_to_neo_packed("#FF0000")
-GREEN: int = hex_to_neo_packed("#00FF00")
-BLUE: int = hex_to_neo_packed("#0000FF")
-CYAN: int = hex_to_neo_packed("#00FFFF")
-MAGENTA: int = hex_to_neo_packed("#FF00FF")
-YELLOW: int = hex_to_neo_packed("#FFFF00")
+BLACK: int = const(hex_to_neo_packed("#000000"))
+WHITE: int = const(hex_to_neo_packed("#FFFFFF"))
+RED: int = const(hex_to_neo_packed("#FF0000"))
+GREEN: int = const(hex_to_neo_packed("#00FF00"))
+BLUE: int = const(hex_to_neo_packed("#0000FF"))
+CYAN: int = const(hex_to_neo_packed("#00FFFF"))
+MAGENTA: int = const(hex_to_neo_packed("#FF00FF"))
+YELLOW: int = const(hex_to_neo_packed("#FFFF00"))

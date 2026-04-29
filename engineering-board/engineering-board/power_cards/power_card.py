@@ -1,10 +1,11 @@
 import random
-from power_cards.animation import CARD_PIXEL_COUNT, CardAnimationHelpers
+from power_cards.animation import CARD_GRID_PIXELS, CardAnimationHelpers
 from power_cards.card_ids import PowerCardIds
+from utils.color_utils import NEO_PACKED_BPP
 
 CARD_VOLTAGE_THRESHOLD = 0.05
 
-BLACK_BUFFER = bytearray(CARD_PIXEL_COUNT * 3)
+BLACK_BUFFER = bytes([0] * (CARD_GRID_PIXELS * NEO_PACKED_BPP))
 
 
 class PowerCard:
@@ -64,9 +65,15 @@ class PowerCard:
     def VoltageMatches(self, cardVoltage) -> bool:
         return abs(self.__voltage - cardVoltage) < CARD_VOLTAGE_THRESHOLD
 
-    def PixelBuffer(self, animationProgress: float, brightness: float = 1.0) -> bytearray:
+    def AnimationFrame(self, animationProgress: float):
         if self.__cardAnimation is not None:
-            return self.__cardAnimation.PixelBuffer(animationProgress, brightness)
+            return self.__cardAnimation.AnimationFrame(animationProgress)
+        else:
+            return -1
+
+    def PixelBuffer(self, animationFrame: int) -> bytes:
+        if self.__cardAnimation is not None and animationFrame >= 0:
+            return self.__cardAnimation.PixelBuffer(animationFrame)
         else:
             return BLACK_BUFFER
 

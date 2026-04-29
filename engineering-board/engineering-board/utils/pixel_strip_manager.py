@@ -1,10 +1,8 @@
-import micropython
-
-import neopixel
+from drivers.local_neopixel import LocalNeoPixel
 from machine import Pin
 from utils.device_manager import DeviceManager, Systems
-from utils.eng_utils import check_timer, register_timer, SlowLog, logger
-from utils.profiling import register_profile, start_profile, stop_profile
+from utils.eng_utils import check_timer, log_free_ram, register_timer, logger
+from utils.profiling import profile_name, start_profile, stop_profile
 
 # Power Consumption notes: Powering 768 red (255,0,0) pixels at 10% brightness pulls 1.35 amps, according to my
 # multimeter.  Increasing the brightness to 0.2 draws 2.3 amps.  If you increase the brightness, make sure that your
@@ -29,28 +27,12 @@ PIXEL_BRIGHTNESS = 0.9
 PIXEL_REFRESH_SECONDS = 0.05
 TIMER_PIXEL_REFRESH = "pixel_refresh"
 
-PROFILE_PIXELS = register_profile("pixel_update")
-
-
-@micropython.viper
-def _unpack_neopacked_to_buf(src: ptr32, dst: ptr8, dst_byte_offset: int, src_length: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
-    """Unpack <src_length> neo_packed ints from <src> into our NeoPixel.buf, which is a bytearray.
-    <src> must be array('I'); <dst> must be bytearray."""
-    copy_index: int = 0
-    while copy_index < src_length:
-        neo_packed: int = src[copy_index]
-        base: int = dst_byte_offset + copy_index * 3
-        # neo_packed ints are already in the correct byte order for the strip layout, per the
-        # color_utils.NEO_PACKED_PIXEL_OFFSETS constant, so just copy them in
-        dst[base] = (neo_packed >> 16) & 0xFF
-        dst[base + 1] = (neo_packed >> 8) & 0xFF
-        dst[base + 2] = neo_packed & 0xFF
-        copy_index += 1
-
 
 class PixelStripManager:
     def __init__(self, LED_DATA_PIN: Pin, TOTAL_LED_COUNT: int, profileKey: list | None = None):
-        self.name = f"{DeviceManager.SystemName(Systems.ANY_PIXEL_STRIP)}({profileKey[0]})" if profileKey else ""
+        self.name = (
+            f"{DeviceManager.SystemName(Systems.ANY_PIXEL_STRIP)}({profile_name(profileKey)})" if profileKey else ""
+        )
         self.LED_DATA_PIN = LED_DATA_PIN
         self.TOTAL_LED_COUNT = TOTAL_LED_COUNT
         self.currentPixelIndex = 0
@@ -63,11 +45,12 @@ class PixelStripManager:
         )
 
         if DeviceManager.IsEnabled(Systems.ANY_PIXEL_STRIP):
-            self.pixels = neopixel.NeoPixel(LED_DATA_PIN, TOTAL_LED_COUNT)
+            log_free_ram(f"{self.name} init - before NeoPixel allocation")
+            self.pixels = LocalNeoPixel(LED_DATA_PIN, TOTAL_LED_COUNT)
 
             logger.info(f"{self.name}: Clearing {TOTAL_LED_COUNT} total pixels")
 
-            self.pixels.fill((0, 0, 0))
+            self.pixels.fill(0, 0, TOTAL_LED_COUNT)
             self.pixels.write()
 
     def ReservePixelRange(self, pixelCount: int) -> int:
@@ -81,59 +64,70 @@ class PixelStripManager:
 
         return reservedPixelIndex
 
-    def SetPixelData(self, startIndex: int, pixelCount: int, pixelData: bytearray):
+    def FillPixelData(self, neo_packed_color: int, pixelStartIndex: int, pixelCount: int):
         if not DeviceManager.IsEnabled(Systems.ANY_PIXEL_STRIP):
             return
 
         if pixelCount < 1:
-            logger.error(f"SetPixelRangeColor: pixelCount {pixelCount} is invalid.")
+            logger.error(f"FillPixelData: pixelCount {pixelCount} is invalid.")
             return
 
-        if pixelCount != len(pixelData):
+        if pixelStartIndex < 0 or pixelStartIndex >= self.TOTAL_LED_COUNT:
             logger.error(
-                f"SetPixelRangeColor: pixelCount {pixelCount} does not match length of pixelData {len(pixelData)}."
+                f"FillPixelData: Pixel start index {pixelStartIndex} is out of range [0, {self.TOTAL_LED_COUNT - 1}]."
             )
             return
 
-        if startIndex < 0 or startIndex >= self.TOTAL_LED_COUNT:
-            logger.error(f"SetPixelRangeColor: Pixel start index {startIndex} is out of range.")
-            return
-
-        endIndex = startIndex + pixelCount - 1
+        endIndex = pixelStartIndex + pixelCount - 1
 
         if endIndex < 0 or endIndex >= self.TOTAL_LED_COUNT:
-            logger.error(f"SetPixelRangeColor: Pixel end index {endIndex} is out of range.")
+            logger.error(f"FillPixelData: Pixel end index {endIndex} is out of range [0, {self.TOTAL_LED_COUNT - 1}].")
             return
 
-        SlowLog(f"{self.name}: Setting Pixel range {startIndex}-{endIndex}")
-
-        self.pixels.buf[startIndex * 3 : (startIndex + pixelCount) * 3] = pixelData
+        self.pixels.fill(neo_packed_color, pixelStartIndex, pixelCount)
 
         self.__dirty = True
 
-    def ShowPixels(self):
+    def SetPixelData(self, pixelData: bytes, pixelStartIndex: int, pixelCount: int):
         if not DeviceManager.IsEnabled(Systems.ANY_PIXEL_STRIP):
             return
 
+        if pixelCount < 1:
+            logger.error(f"SetPixelData: pixelCount {pixelCount} is invalid.")
+            return
+
+        if pixelStartIndex < 0 or pixelStartIndex >= self.TOTAL_LED_COUNT:
+            logger.error(
+                f"SetPixelData: Pixel start index {pixelStartIndex} is out of range [0, {self.TOTAL_LED_COUNT - 1}]."
+            )
+            return
+
+        endIndex = pixelStartIndex + pixelCount - 1
+
+        if endIndex < 0 or endIndex >= self.TOTAL_LED_COUNT:
+            logger.error(f"SetPixelData: Pixel end index {endIndex} is out of range [0, {self.TOTAL_LED_COUNT - 1}].")
+            return
+
+        self.pixels.set_buf(pixelData, pixelStartIndex, pixelCount)
+
+        self.__dirty = True
+
+    def Update(self):
         if not self.__dirty:
             return
 
-        SlowLog("Showing pixel data")
-        if self.profileKey:
-            start_profile(self.profileKey)
-        self.pixels.write()
-        if self.profileKey:
-            stop_profile(self.profileKey)
-        self.__dirty = False
-
-    def Update(self):
         if not DeviceManager.IsEnabled(Systems.ANY_PIXEL_STRIP):
             return
 
         if check_timer((id(self), TIMER_PIXEL_REFRESH)):
-            start_profile(PROFILE_PIXELS)
-            self.ShowPixels()
-            stop_profile(PROFILE_PIXELS)
+            if self.profileKey:
+                start_profile(self.profileKey)
+
+            self.pixels.write()
+            self.__dirty = False
+
+            if self.profileKey:
+                stop_profile(self.profileKey)
 
     def __str__(self):
         return f"{self.name}"

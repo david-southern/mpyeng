@@ -2,16 +2,18 @@ from utils.eng_utils import register_timer, check_timer
 from utils.device_manager import DeviceManager, PinNames, Systems
 from utils.pixel_strip_manager import PixelStripManager
 from utils.profiling import register_profile, start_profile, stop_profile
-from card_tray.constants import PIXEL_CARD_TRAYS, PIXEL_CARD_TRAY_TOTAL_LEDS
+from card_tray.constants import CARD_TRAY_COUNT, CARD_TRAY_TOTAL_PIXELS
 from card_tray.power_card_tray import PowerCardTray
 
-CARD_ANIMATION_TARGET_FPS = 7
+CARD_ANIMATION_TARGET_FPS = 10
 ANIMATION_UPDATE_FREQUENCY_SEC = 1.0 / CARD_ANIMATION_TARGET_FPS
 TIMER_POWER_TRAY_UPDATE = "tray_update"
 
 
 register_timer(TIMER_POWER_TRAY_UPDATE, ANIMATION_UPDATE_FREQUENCY_SEC)
-PROFILE_TRAYS = register_profile("power_trays")
+PROFILE_TRAYS = register_profile(f"power_trays*{CARD_TRAY_COUNT}")
+
+PROFILE_PSM = register_profile("psm_right")
 
 
 class PowerTrayManagerClass:
@@ -24,10 +26,10 @@ class PowerTrayManagerClass:
 
         strip_data_pin = DeviceManager.ResolvePin(PinNames.Pixels.CARD_TRAY).Pin
 
-        self.RIGHT_STRIP_LED_COUNT = PIXEL_CARD_TRAY_TOTAL_LEDS * PIXEL_CARD_TRAYS
-        self.RightPixelStrip = PixelStripManager(strip_data_pin, self.RIGHT_STRIP_LED_COUNT)
+        self.RIGHT_STRIP_LED_COUNT = CARD_TRAY_TOTAL_PIXELS * CARD_TRAY_COUNT
+        self.RightPixelStrip = PixelStripManager(strip_data_pin, self.RIGHT_STRIP_LED_COUNT, PROFILE_PSM)
         self.TestPowerCardTrays = [
-            PowerCardTray(tray_index, self.RightPixelStrip) for tray_index in range(PIXEL_CARD_TRAYS)
+            PowerCardTray(tray_index, self.RightPixelStrip) for tray_index in range(CARD_TRAY_COUNT)
         ]
 
     def Update(self):

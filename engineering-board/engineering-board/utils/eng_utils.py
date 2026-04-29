@@ -1,3 +1,4 @@
+import gc
 import time
 
 APP_START_TIME = time.ticks_ms()
@@ -18,6 +19,18 @@ class LoggerClass:
 logger = LoggerClass()
 
 logger.info("Logger initialized.")
+
+
+# Record free RAM at startup for baseline comparison in logs
+def log_free_ram(label: str = ""):
+    """Log the current free RAM after forcing a garbage collection for consistent readings."""
+    gc.collect()
+    free = gc.mem_free()
+    prefix = f"[{label}] " if label else ""
+    logger.info(f"{prefix}Free RAM: {free} bytes")
+
+
+log_free_ram("power-on")
 
 
 def set_flags(flags: dict):

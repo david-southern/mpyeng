@@ -1,22 +1,26 @@
-from array import array
-import micropython
-
 from power_cards.card_ids import PowerCardIds
-from utils.color_utils import NEOPIXEL_BYTE_OFFSET_R, NEOPIXEL_BYTE_OFFSET_G, NEOPIXEL_BYTE_OFFSET_B, NEO_PACKED_OFFSETS
+from utils.color_utils import (
+    NEO_PACKED_BPP,
+    NEO_PACKED_OFFSET_B,
+    NEO_PACKED_OFFSET_G,
+    NEO_PACKED_OFFSET_R,
+    NEOPIXEL_BYTE_OFFSET_R,
+    NEOPIXEL_BYTE_OFFSET_G,
+    NEOPIXEL_BYTE_OFFSET_B,
+)
 
 from utils.profiling import log_free_ram
 
 log_free_ram("pre-animation-baking")
 
+ANIMATION_BRIGHTNESS = 0.15
+
 CARD_WIDTH = 8
 CARD_HEIGHT = 8
-CARD_PIXEL_COUNT = CARD_WIDTH * CARD_HEIGHT
-
-# Globally shared render buffer (single pre-allocated array, reused every frame — caller must consume before next call)
-GLOBAL_RENDER_BUFFER = bytearray(CARD_PIXEL_COUNT * 3)
+CARD_GRID_PIXELS = CARD_WIDTH * CARD_HEIGHT
 
 # Globally shared palette LUT (regenerated when brightness changes)
-GLOBAL_PALETTE_LOOKUP = array("I", [0] * 256)
+GLOBAL_PALETTE_LOOKUP = [0] * 256
 GLOBAL_PALETTE_BRIGHTNESS: float = -1.0
 
 
@@ -186,17 +190,38 @@ class CardAnimationHelpers:
         return CARD_ANIMATION_DEFS[spec_id]
 
 
-@micropython.viper
-def _expand_frame_lut(frame: ptr8, lut: ptr32, buf: ptr8, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
-    i: int = 0
-    while i < n:
-        # avoid the function calls to neo_packed_red/green/blue(lut_value) for this
-        # performance-critical method
-        lut_value = lut[frame[i]]
-        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_R] = (lut_value >> NEO_PACKED_OFFSETS["R"]) & 0xFF
-        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_G] = (lut_value >> NEO_PACKED_OFFSETS["G"]) & 0xFF
-        buf[i * 3 + NEOPIXEL_BYTE_OFFSET_B] = (lut_value >> NEO_PACKED_OFFSETS["B"]) & 0xFF
-        i += 1
+CardAnimationHelpers.ensure_palettes(ANIMATION_BRIGHTNESS)
+
+
+# @micropython.viper
+# def _expand_frame_lut(frame: ptr8, lut: ptr32, buf: ptr8, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
+
+
+def _expand_frame_from_lut(frame: bytes, lut: list[int]):
+    retval = [0] * len(frame) * NEO_PACKED_BPP
+    for frame_index in range(len(frame)):
+        lut_value: int = lut[frame[frame_index]]
+        buf_red = (lut_value >> NEO_PACKED_OFFSET_R) & 0xFF
+        buf_green = (lut_value >> NEO_PACKED_OFFSET_G) & 0xFF
+        buf_blue = (lut_value >> NEO_PACKED_OFFSET_B) & 0xFF
+        buf_index = frame_index * NEO_PACKED_BPP
+        retval[buf_index + NEOPIXEL_BYTE_OFFSET_R] = buf_red
+        retval[buf_index + NEOPIXEL_BYTE_OFFSET_G] = buf_green
+        retval[buf_index + NEOPIXEL_BYTE_OFFSET_B] = buf_blue
+
+    return bytes(retval)
+
+
+def bake_frames(frames: list[bytes]) -> list[bytes]:
+    retval = []
+    for frame in frames:
+        # In the raw frame data, each byte is a palette index 0–255. We bake this into an immutable
+        # bytes of packed RGB values for direct writing to the NeoPixel buffer. This is a
+        # significant CPU+memory optimization, as it moves the per-pixel palette lookup and packing
+        # out of the animation loop and into a one-time setup step.
+        retval.append(_expand_frame_from_lut(frame, GLOBAL_PALETTE_LOOKUP))
+
+    return retval
 
 
 class PowerCardAnimation:
@@ -209,24 +234,17 @@ class PowerCardAnimation:
     ):
         self.id = uid
         self.name = name
-        self._frames = frames
+        self._frames = bake_frames(frames)
+        log_free_ram(f"{self.name} Baking Animation Frames")
         self.animation_duration = animation_duration
 
-    def PixelBuffer(self, cycle_progress: float, brightness: float = 1.0) -> bytearray:
-        global GLOBAL_PALETTE_LOOKUP, GLOBAL_RENDER_BUFFER
-
-        """Translate baked frame bytes to packed neopixel ints via global LUT lookup.
-        Returns the shared render buffer — caller must consume before the next PixelBuffer call.
-        """
-        CardAnimationHelpers.ensure_palettes(brightness)
-
+    def AnimationFrame(self, cycle_progress: float):
         nf = len(self._frames)
         frame_idx = int(cycle_progress * nf) % nf
-        frame = self._frames[frame_idx]
+        return frame_idx
 
-        _expand_frame_lut(frame, GLOBAL_PALETTE_LOOKUP, GLOBAL_RENDER_BUFFER, CARD_PIXEL_COUNT)
-
-        return GLOBAL_RENDER_BUFFER
+    def PixelBuffer(self, frame_idx: int):
+        return self._frames[frame_idx]
 
 
 # ruff: noqa: E402

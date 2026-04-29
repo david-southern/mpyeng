@@ -19,11 +19,11 @@ class Systems:
     CARD_READER = "CardReaders"
     POWER_GRID = "PowerGrids"
     ANY_SWITCHBOARD = "Switchboard"
-    LEFT_SWITCHBOARD = "LeftSwitchboards"
-    RIGHT_SWITCHBOARD = "RightSwitchboards"
+    LEFT_SWITCHBOARD = "LeftSwitchboard"
+    RIGHT_SWITCHBOARD = "RightSwitchboard"
     ANY_PIXEL_STRIP = "PixelStrip"
-    LEFT_PIXELS = "LeftPixels"
-    RIGHT_PIXELS = "RightPixels"
+    LEFT_PIXEL_STRIP = "LeftPixels"
+    RIGHT_PIXEL_STRIP = "RightPixels"
     POWER_TRAY = "PowerTrays"
 
 
@@ -161,7 +161,7 @@ class DeviceManagerClass:
         "F412FA59B3E0": DeviceConfiguration(
             name=Boards.FEATHER_ESP32_S3_TFT,
             system_flags={
-                Systems.RIGHT_PIXELS: True,
+                Systems.RIGHT_PIXEL_STRIP: True,
                 Systems.POWER_TRAY: True,
             },
             pin_reservations={
@@ -171,11 +171,11 @@ class DeviceManagerClass:
         "B29EF8BE7E93C6C6": DeviceConfiguration(
             name=Boards.RP2350_PICO2_W,
             system_flags={
-                Systems.RIGHT_PIXELS: True,
+                Systems.RIGHT_PIXEL_STRIP: True,
                 Systems.POWER_TRAY: True,
             },
             pin_reservations={
-                PinNames.Pixels.CARD_TRAY: NamedPin("GP16"),  # NamedPin("GP26"),
+                PinNames.Pixels.CARD_TRAY: NamedPin("GP26"),
                 # These SPI pin values come from the REPL: import machine; spi = machine.SPI(0):
                 # sck=18, mosi=19, miso=16
                 PinNames.CardReader.SPI_CLK: NamedPin("GP18"),
@@ -223,13 +223,13 @@ class DeviceManagerClass:
             )
 
         # Now set the ANY_ systems to be the OR of their component system flags
-        self.DEVICE_CONFIGURATION.SystemFlags[Systems.ANY_SWITCHBOARDS] = self.IsEnabled(
+        self.DEVICE_CONFIGURATION.SystemFlags[Systems.ANY_SWITCHBOARD] = self.IsEnabled(
             Systems.LEFT_SWITCHBOARD
         ) or self.IsEnabled(Systems.RIGHT_SWITCHBOARD)
 
-        self.DEVICE_CONFIGURATION.SystemFlags[Systems.ANY_PIXELS] = self.IsEnabled(
-            Systems.LEFT_PIXELS
-        ) or self.IsEnabled(Systems.RIGHT_PIXELS)
+        self.DEVICE_CONFIGURATION.SystemFlags[Systems.ANY_PIXEL_STRIP] = self.IsEnabled(
+            Systems.LEFT_PIXEL_STRIP
+        ) or self.IsEnabled(Systems.RIGHT_PIXEL_STRIP)
 
     def IsEnabled(self, system_name: str) -> bool:
         """Check if a system flag is enabled for this device."""

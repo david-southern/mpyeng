@@ -1,15 +1,15 @@
-from power_cards.animation import CARD_PIXEL_COUNT
-from utils.color_utils import BLUE, GREEN, YELLOW, RED
+from power_cards.animation import CARD_GRID_PIXELS
+from utils.color_utils import BLUE, GREEN, YELLOW, RED, scale_neo_packed
 
 DEMO_LOGGING = False
 DEMO_ANIMATION = True
 
-PIXEL_CARD_TRAYS = 30
-PIXEL_CARD_TRAY_LEDS = 5
+CARD_TRAY_COUNT = 30
+CARD_TRAY_STATUS_PIXELS = 5
 
-PIXEL_CARD_TRAY_TOTAL_LEDS = CARD_PIXEL_COUNT + PIXEL_CARD_TRAY_LEDS * 2
+CARD_TRAY_TOTAL_PIXELS = CARD_GRID_PIXELS + CARD_TRAY_STATUS_PIXELS * 2
 
-TRAY_BRIGHTNESS = 0.15
+CARD_TRAY_BRIGHTNESS = 0.15
 
 
 class PowerStateEnum:
@@ -20,16 +20,12 @@ class PowerStateEnum:
     ERROR = 4
 
 
-def _color_to_scaled_int(color, brightness):
-    return (int(color.R * brightness) << 16) | (int(color.G * brightness) << 8) | int(color.B * brightness)
-
-
 CARD_TRAY_COLORS = {
     PowerStateEnum.OFF: 0,
-    PowerStateEnum.FULL_POWER: _color_to_scaled_int(GREEN, TRAY_BRIGHTNESS),
-    PowerStateEnum.PARTIAL_POWER: _color_to_scaled_int(YELLOW, TRAY_BRIGHTNESS),
-    PowerStateEnum.NO_POWER: _color_to_scaled_int(RED, TRAY_BRIGHTNESS),
-    PowerStateEnum.ERROR: _color_to_scaled_int(BLUE, TRAY_BRIGHTNESS),
+    PowerStateEnum.FULL_POWER: scale_neo_packed(GREEN, CARD_TRAY_BRIGHTNESS),
+    PowerStateEnum.PARTIAL_POWER: scale_neo_packed(YELLOW, CARD_TRAY_BRIGHTNESS),
+    PowerStateEnum.NO_POWER: scale_neo_packed(RED, CARD_TRAY_BRIGHTNESS),
+    PowerStateEnum.ERROR: scale_neo_packed(BLUE, CARD_TRAY_BRIGHTNESS),
 }
 
 TRAY_DEMO_CHANGE_SECONDS = 6.0

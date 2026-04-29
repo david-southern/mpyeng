@@ -1,4 +1,3 @@
-from utils.eng_utils import SlowLog
 from utils.device_manager import DeviceManager, Systems
 from utils.pixel_strip_manager import PixelStripManager
 
@@ -17,11 +16,9 @@ class PowerGrid:
         self.__pixelStripManager = pixelStripManager
         self.pixelCount = self.__gridSize * self.__gridSize
         self.__pixelIndex = self.__pixelStripManager.ReservePixelRange(self.pixelCount)
-        self.__blackBuffer = bytearray(self.pixelCount * 3)
 
     def Update(self):
-        SlowLog(f"Updating Power Card Tray {self.UID} state")
-        self.__pixelStripManager.SetPixelData(self.__pixelIndex, self.pixelCount - 1, self.__blackBuffer)
+        self.__pixelStripManager.FillPixelData(0, self.__pixelIndex, self.pixelCount)
 
     @property
     def UID(self):

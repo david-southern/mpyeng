@@ -1,7 +1,6 @@
-import gc
 import time
 
-from utils.eng_utils import logger
+from utils.eng_utils import log_free_ram, logger
 
 _profiles = {}
 _active_count = 0
@@ -18,14 +17,6 @@ _KEY = 5  # profile name string (for error messages and report)
 _ticks_ms = time.ticks_ms
 
 
-def log_free_ram(label: str = ""):
-    """Log the current free RAM after forcing a garbage collection for consistent readings."""
-    gc.collect()
-    free = gc.mem_free()
-    prefix = f"[{label}] " if label else ""
-    logger.info(f"{prefix}Free RAM: {free} bytes")
-
-
 def register_profile(key: str) -> list:
     """Registers a named profile and returns a handle for use with start_profile/stop_profile."""
     handle = [
@@ -38,6 +29,11 @@ def register_profile(key: str) -> list:
     ]  # [count, total, max, overlapping, start_time, key]
     _profiles[key] = handle
     return handle
+
+
+def profile_name(handle: list) -> str:
+    """Returns the profile name for a given handle."""
+    return handle[_KEY]
 
 
 def start_profile(handle: list):
@@ -162,7 +158,3 @@ def report_all_profiles():
     # Restart any profiles that were stopped before the report
     for key in active_at_report:
         start_profile(_profiles[key])
-
-
-# Record free RAM at startup for baseline comparison in logs
-log_free_ram("power-on")
