@@ -1,10 +1,9 @@
 # 06 — Stakeholders and School Program Context
 
-David's understanding, gathered over five years of conversations with Alex DeBirk —
-the school's STEM / space-sim teacher — and one in-person tour of the bridge. **David
-has never been on-site for an actual run.** Treat the details below as second-hand
-and approximate; clarify in the system-analyst interview if any of it turns out to
-be load-bearing.
+David's understanding, gathered over five years of conversations with Alex DeBirk — the school's
+STEM / space-sim teacher — and helping with construction of the bridge, installation of warp core,
+etc. **David has never been on-site for an actual run.** Treat the details below as second-hand and
+approximate; clarify in the system-analyst interview if any of it turns out to be load-bearing.
 
 ## The program
 
@@ -17,19 +16,30 @@ of that is unclear.
 
 ## The space
 
-- **The bridge.** The main set — a fully decorated room that genuinely looks and
-  feels like a starship bridge. DMX lighting, full sound design, rumble panels,
-  the works. Alex once demoed a "red alert, damage to the starboard wing"
-  scenario for David in person; reportedly very impressive.
-- **Two ~5×5′ rooms at the back of the bridge.**
-  - **Engineering room** — this project's eventual home.
-  - **Medbay / security** — repurposed depending on the scenario.
-- **The hallway and "transporter."** A corridor leaves the bridge through an
-  opaque rotating door (the in-fiction transporter). It leads to —
+- **The bridge.** The main set — fully decorated, DMX lighting, full sound
+  rig, rumble panels, the works. Alex once demoed a "red alert, damage to
+  the starboard wing" scenario for David in person; reportedly very
+  impressive.
+- **The engineering room.** Roughly 5×5′ of human-usable space (true
+  east-west extent is closer to 8–9 ft including the control desk's
+  footprint). Holds **this project's engineering boards** (placement TBD;
+  see [07](07-physical-installation.md)), the **warp-core prop** (a
+  Raspberry-Pi-driven NeoPixel display already deployed, mounted on the
+  west wall above the control station), and the **control station** —
+  the desk that will run the Mac executive. **Physically separate from
+  the bridge — not visible from there, and no intercom.** Access is
+  through the medbay / security room. Bridge↔engineering communication
+  during a mission happens by shouting through the wall or by a runner —
+  a real puzzle-design constraint: **scenarios cannot depend on precise
+  verbal coordination across that boundary.**
+- **The medbay / security room.** Repurposed depending on the scenario;
+  also the corridor between the bridge and the engineering room.
+- **The hallway and "transporter."** A corridor leaves the bridge through
+  an opaque rotating door (the in-fiction transporter). It leads to —
 - **The Galileo.** A physical prop of an away shuttle, sized to send 4–5
   patrons out on a mission. As of David's visit ~a year ago, still under
-  construction. Possibly used as a static set in the meantime; exact current
-  status unknown.
+  construction. Possibly used as a static set in the meantime; exact
+  current status unknown.
 
 ## The student teams
 

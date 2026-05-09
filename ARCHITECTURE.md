@@ -4,6 +4,10 @@ Living document. Updated as decisions are confirmed in conversation. If somethin
 here, it's either not yet discussed or not yet confirmed for the forward direction.
 For broader (but more speculative) familiarization notes, see `_familiarization/`.
 
+**Decisions are renegotiable by default.** Entries explicitly tagged `committed` are
+locked — don't reopen without an explicit ask. See
+[CLAUDE.md § Design flexibility](CLAUDE.md#design-flexibility).
+
 ---
 
 ## Repo strategy
@@ -58,6 +62,57 @@ on hand currently, three roles assigned, one spare. More can be added if needed.
 onboard Wi-Fi means each board is its own peer to the executive — see
 [Comms](#comms) below.
 
+### Board variant on hand
+
+The actual Pico 2 W in David's stock is the **Pimoroni Pico Plus 2 W**
+(Adafruit product 6243). Same RP2350 + Raspberry Pi RM2 wireless module as
+the bare Pico 2 W, with a few extras worth knowing about:
+
+- **8 MB onboard PSRAM.** Substantially more memory headroom than the bare
+  Pico 2 W. Relevant to the
+  [drop-the-palette / 4-byte-aligned-ints animation refactor](TODO.md#captured-perf-idea--drop-the-palette-store-full-rgb-ints).
+- **USB-C** for power and programming.
+- **Qwiic / STEMMA QT (I2C) connector** and a **JST-SH 3-pin SWD debug
+  header.**
+- **No U.FL pad on the carrier.** The RM2's onboard chip antenna is the
+  only easy Wi-Fi option; an external antenna would require module-level
+  soldering. Reflected in the
+  [Wi-Fi remediation order](TODO.md#confirm-wi-fi-works-inside-the-panel-frame).
+- Otherwise standard Pico 2 W pinout.
+
+### Frame allocation
+
+The three Picos distribute across the two physical frames as follows:
+
+- **Right frame:** the card-tray controller. Owns everything on the right
+  board — 30 trays, bus seven-segs, bus switchboard sinks, card
+  identification.
+- **Left frame:** the other two Picos, dividing left-board responsibility.
+  Likely split: one handles the NeoPixel grids (wings + transformer 8×8s),
+  the other handles the seven-segs and switchboard endpoints. Final split
+  will depend on per-Pico load once we benchmark.
+
+**The switchboard spans both frames.** Sources live on the left board
+(wing outputs, transformer outputs); sinks live on both (transformer
+inputs on left, bus inputs on right). The current polling-based
+switchboard implementation can't scan across two physically separate
+Picos — it requires per-source-pulse coordination with sinks. We've
+committed to **no installed wiring between frames** (cables are the
+patrons' transient guitar leads, nothing else), which forces a redesign:
+sources broadcast a distinguishing pattern, sinks read it independently
+and report what they see. This is now **pre-MVP and on the critical
+path** — see
+[TODO § Switchboard protocol redesign](TODO.md#switchboard-protocol-redesign).
+
+### Performance target
+
+Animation target is **30 FPS** for all NeoPixel grids, with seven-seg
+and switchboard updates appearing visually instant to the kids. Goal is
+not committed — it can relax if the hardware doesn't reach it — but it's
+the design driver behind the PIO + Viper work and the multi-Pico
+topology. David's preference is to **add more Picos before adding
+inter-frame wiring or sacrificing 30 FPS**.
+
 This is a **vague plan** at the topology level — the responsibility split above is
 the current intent but pin maps and exact subsystem boundaries are not yet decided.
 
@@ -75,6 +130,12 @@ multi-Pico topology. Adding a Pico to the fleet is:
 
 A single firmware image can therefore continue to ship to all three Picos. No
 per-controller fork.
+
+The current `KNOWN_DEVICES` registry also contains an entry for an ESP32-S3 Feather
+TFT — that's **dev/test legacy from the migration, not a deployment target**.
+Leave the entry and any ESP32-specific code paths alone for now (they're useful as
+a backup dev board), but don't let their presence shape design decisions; they'll
+be removed before we ship.
 
 ---
 
@@ -137,19 +198,91 @@ the only option at the time.
 
 ### Forward direction
 
-**Wi-Fi + TCP/JSON.** USB-host is being retired. **Each Pico runs its own TCP server
-and connects independently to the [executive layer](#executive-layer).** There is
-no inter-Pico communication by design — all coordination flows through the executive.
-The Picos never speak to the simulator directly; the executive owns that link.
+**Wi-Fi + MQTT.** USB-host is being retired and the existing custom TCP/JSON
+code is also a transitional shape — the wire protocol from each Pico to the
+[executive](#executive-layer) is **MQTT**, mediated by a broker. Better fit
+than custom TCP for "many publishers, one broker," and it keeps the long-tail
+option open of the executive logic eventually moving inside Horizons (which
+reportedly ships with an MQTT integration point), with the Picos publishing
+to that broker directly.
 
-The Pico 2 W's onboard Wi-Fi makes "every controller is its own peer" the natural
-shape, so we'll only add an inter-Pico bus (UART / SPI / I2C between boards) if a
-real reason emerges. None has so far.
+This is a decision, not a `committed` lock — renegotiable per the
+[design-flexibility principle](CLAUDE.md#design-flexibility) if we hit
+specific problems with MQTT in MicroPython or with the broker model.
+
+Each Pico is its own peer to the broker. There is no inter-Pico communication
+by design — all coordination flows through the broker / executive. The Picos
+never speak to the simulator directly; the executive owns that link.
 
 Outstanding hardware verification: the panel frames are sheet metal — see
 [TODO.md § Confirm Wi-Fi works inside the panel frame](TODO.md#confirm-wi-fi-works-inside-the-panel-frame).
-If the frame is too RF-opaque, fallbacks include an external antenna lead through the
-frame, a wired access point, or partially walking back the USB → Wi-Fi refactor.
+If the frame is too RF-opaque, fallbacks include an external antenna lead
+through the frame, a wired access point, or partially walking back the
+USB → Wi-Fi refactor.
+
+### Broker placement
+
+The MQTT broker lives on **the Mac executive itself for now**. The Mac is an
+~5-year-old Mac Mini — somewhat underpowered, but the broker load at our
+scale shouldn't stress it.
+
+**Future option to revisit** (gated on the
+[Wi-Fi-in-frame question](TODO.md#confirm-wi-fi-works-inside-the-panel-frame)
+landing): move the broker — and potentially the executive itself — to one of
+the **two high-spec PCs in Alex's control booth** that already run Thorium.
+Reasons it's attractive:
+
+- More horsepower than the Mac Mini.
+- Horizons reportedly ships with its own MQTT broker, so if Horizons becomes
+  the deployment target, integrating against the control-booth broker is a
+  smaller delta than running our own.
+
+Reason it's not yet committed: the control booth is across the space-sim
+suite from the engineering room, compounding the Wi-Fi signal-attenuation
+question. Needs the network-signal work to land first before this is even a
+serious option.
+
+---
+
+## Diagnostics
+
+A deployed Pico lives inside a sealed metal frame with no console attached. When
+something goes wrong — TCP can't reach the executive after a Mac swap, a sensor
+init fails, a watchdog fires — the classic "look at the serial output" path
+isn't available.
+
+**Each Pico signals unrecoverable errors through whatever display surface it
+owns** (`committed`):
+
+- **Card-tray controller** and **left-panel controller** — flash distinctive
+  red patterns on their NeoPixels.
+- **Switchboard / display controller** — flash numeric error codes on the
+  seven-segment displays.
+
+The model is the old PC BIOS POST beep-codes idea: a known-distinctive output
+that doesn't depend on comms or a working host. Future-us walks up to the rig,
+sees "this Pico is flashing red, that's not normal," greps the codebase for the
+pattern, and finds out what failed.
+
+**Implementation requirement:** every error pattern is documented as a code
+comment at the point where it's raised — pattern shape / number plus a
+plain-English description — so the failure can be diagnosed without logs, a
+console, or a working executive.
+
+The initial motivating case is the fixed-IP-bind failure scenario from
+[Comms](#comms) hardening, but the framework applies generally to any
+hard-to-diagnose unrecoverable error.
+
+In addition, **each deployed Pico exposes a hidden USB port through the
+frame** (`committed`, MVP-required) — patron-invisible but accessible without
+opening the frame. Visual signaling is the read-only error-reporting path;
+USB pass-through is what makes firmware updates and interactive debugging
+possible post-deploy. Without it, any code change to a deployed Pico would
+require disassembling the frame, which isn't viable. The two together cover
+the read and write sides of deployed-Pico maintenance.
+
+Code catalog, per-Pico implementation, and USB-pass-through design candidates
+live in [TODO.md § Diagnostics](TODO.md#diagnostics).
 
 ---
 
@@ -253,11 +386,13 @@ topics that need their own session; others are smaller disambiguations.
 
 ### Design topics
 
-- **Comms hardening / security.** The executive ↔ Pico TCP and the Pico Wi-Fi
-  configuration need to be hardened so school kids on the same network can't reach
-  the Picos or the executive outside the intended interface. Threat model is "school
-  kid with a network sniffer," not nation-state — but the firmware is currently wide
-  open. Tracked in [TODO § Security / hardening](TODO.md#security--hardening).
+- **Comms hardening / security.** Application-layer only — `committed`: no SSID
+  work, no router configuration, no VLANs. Hardening lives in the firmware and
+  executive. Starting point is **fixed-IP bind on each Pico's TCP listener**
+  (no TLS, optional shared-secret as a second layer); the deploy-path story for
+  the IP-bind is the real open question. Threat model is "school kid with a
+  network scanner," not nation-state. Tracked in
+  [TODO § Security / hardening](TODO.md#security--hardening).
 - **Warp-core prop integration.** The bridge has a pre-existing warp-core prop —
   ~1000–1500 NeoPixels driven by what's probably a Raspberry Pi 3 — that the
   executive will need to coordinate alongside the engineering-board controllers.
@@ -283,19 +418,10 @@ topics that need their own session; others are smaller disambiguations.
 
 ### Smaller disambiguations
 
-- **Wire-protocol shape.** Currently custom JSON over TCP. Might stay; might move to
-  MQTT (especially attractive if Horizons ends up the deployment target).
-  - David note: Pretty sure Micropython can do MQTT. I sort of like the idea of having the executive
-    <==> pico link being MQTT even if we're still on Thorium. Horizons has a number of extensibility
-    points (we need to get you read in on that at some point) I could see a future where the
-    executive lives in Horizons and the Picos talk to it directly.
-- **ESP32-S3 in `KNOWN_DEVICES`.** Today's registry has one ESP32-S3 (Feather TFT)
-  and one Pico 2 W. Forward direction is three Pico 2 W roles. Does the ESP32-S3
-  retire from the registry, stay around for dev/test, or take some specific role?
-  - David Note: ESP32 is off the table. I still have it, but I'm pretty sure we'll get better
-    results from RP2350, especially given the PIO work. Keep the current ESP32 code around in case I
-    need another board for dev/test, but it will not be in the final deployment. Do not make any
-    design or architectural decisions around it, I'll remove it before compromising our design.
+- **Horizons read-in.** Horizons reportedly has several extensibility points
+  worth understanding properly — both the MQTT integration point and whatever
+  else is in there. Decision-relevant for the eventual sim choice and for
+  whether the executive logic ever moves inside Horizons.
 - **Hardware-asset story.** `engineering-board-assets/`, OpenSCAD models,
   manufacturing files — including which were correctly vs. incorrectly removed in
   the 2026-05-08 `main`-branch cleanup.

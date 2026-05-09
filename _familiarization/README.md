@@ -3,14 +3,28 @@
 Initial pass written by Claude during a 45-minute hand-off, 2026-05-08. Treat as a
 first-impression brief; corrections welcome.
 
-| File | What's in it |
-| --- | --- |
-| [01-nature-of-code.md](01-nature-of-code.md) | What kind of code this is — languages, runtimes, target hardware, conventions |
-| [02-project-explanation.md](02-project-explanation.md) | What the project IS — Thorium engineering bridge, audience, subdirectory map |
-| [03-technical-overview.md](03-technical-overview.md) | Architecture, boot order, animation pipeline, comms, profiling |
-| [04-refactoring-backlog.md](04-refactoring-backlog.md) | Tier-1/2/3 refactoring opportunities for maintenance and code quality |
-| [05-next-steps.md](05-next-steps.md) | In-flight work, new features, verification, docs — ordered by closeness to current line of work |
-| [06-school-context.md](06-school-context.md) | Stakeholders and the school's space-simulator program — context for who designs / authors / consumes what |
+| File | Audience | What's in it |
+| --- | --- | --- |
+| [01-nature-of-code.md](01-nature-of-code.md) | Developers | What kind of code this is — languages, runtimes, target hardware, conventions |
+| [02-project-explanation.md](02-project-explanation.md) | Developers | What the project IS — Thorium engineering bridge, audience, subdirectory map |
+| [03-technical-overview.md](03-technical-overview.md) | Developers | Architecture, boot order, animation pipeline, comms, profiling |
+| [04-refactoring-backlog.md](04-refactoring-backlog.md) | Developers | Refactoring opportunities for maintenance and code quality |
+| [05-next-steps.md](05-next-steps.md) | Developers  | In-flight work, new features, verification, docs — ordered by closeness to current line of work. Pretty technical, Project Managers (Alex) might want to have a look, but we really need to create a higher-level doc for Alex. |
+| [06-school-context.md](06-school-context.md) | Stakeholders | David's running notes on the school's space-sim program — internal background |
+| [07-physical-installation.md](07-physical-installation.md) | Developers, Alex, Sim teams | Physical rig — frames, panels, where it lives, what's behind the patron-facing surface |
+| [08-subsystems-and-interaction.md](08-subsystems-and-interaction.md) | Developers, Alex, Sim teams | Subsystem catalog: what each thing on the board IS, how it's used, firmware mapping, early puzzle thinking |
+
+**Audience legend:**
+
+- *Developers* — anyone writing or reviewing firmware, executive, or
+  tooling code.
+- *Alex* — the school's STEM / space-sim teacher; smart but with a physics
+  background and basic programming knowledge. The on-site domain partner.
+- *Sim teams* — the student teams contributing to the simulator: content
+  (animations, visuals), authors / actors (scenario design and in-room
+  performance), and admin / second-chair (operating the simulator during
+  a mission).
+- *Stakeholders* — the full space-sim group, other teachers, school admin, and etc???.
 
 ## Confidence map
 

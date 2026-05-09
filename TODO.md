@@ -27,33 +27,160 @@ Native poppler is the lowest-friction option since `Read` already knows how to u
 
 ### MicroPython emulator + iteration loop for Claude
 
-**Priority: Task #1, before any new firmware design work begins.** The PIO design
-session is gated on this.
+**Priority: Task #1, before any new firmware design work begins.** The PIO
+design session is gated on this.
 
-The current iteration loop is: Claude proposes a change → David flashes it to a Pico
-→ watches the result → reports back. That cycle is slow enough that it heavily
-constrains how many design iterations we can run per session. Investing in tooling
-that lets Claude exercise the firmware directly should pay back many times over.
+The current iteration loop is: Claude proposes a change → David flashes it to
+a Pico → watches the result → reports back. That cycle is slow enough that it
+heavily constrains how many design iterations we run per session. Tooling that
+lets Claude exercise the firmware directly should pay back many times over.
 
-Two acceptable shapes for the goal:
+#### Pencilled in: Wokwi as the primary emulator
 
-- **MicroPython emulator on David's PC**, ideally with enough hardware fidelity to
-  run the firmware unmodified (or with minimal hooks). Candidates worth a serious
-  look:
-  - The MicroPython **`unix-port`** REPL (real MP, no hardware modules — fine for
-    pure-Python code paths, useless for `machine` / `rp2` / `neopixel`).
-  - **Wokwi** — browser-based MicroPython sim with simulated peripherals; reportedly
-    has Pico support and NeoPixel rendering.
-  - A **custom shim layer** that stubs `machine`, `rp2`, `neopixel` against a
-    headless renderer or a logging mock. Lower fidelity but tight integration with
-    Claude's tooling.
-- **Direct hardware access** — a path for Claude to push code to a connected Pico
-  via `mpremote`, drive the REPL, and read state back. Probably the highest-fidelity
-  answer but depends on whether Claude's Bash sandbox can hold a serial handle
-  reliably. Worth testing.
+Investigation 2026-05-09 — **Wokwi is the chosen path** (not `committed`;
+revisit if it fights us in practice). Reasons:
 
-Either path is a win; both is best (emulator for fast iteration, real hardware for
-final verification).
+- **PIO support works** for `@rp2.asm_pio` programs — verified via the
+  `micropython-pio-7segment` example. The WS2812 driver should run as-is.
+- **NeoPixel rendering is real** and configurable (rows × cols, serpentine
+  wiring, square/circle pixelate modes). Visualizing one card animation at a
+  time in the browser is a genuine win.
+- **CLI + MCP integration** for AI-driven sim runs: `wokwi-cli` is headless,
+  supports YAML automation scenarios with `--expect-text` / screenshot
+  capture, and ships **experimental MCP** support so Claude can drive sims
+  directly.
+- **Free for personal use** (with the caveats below).
+
+Accepted caveats:
+
+- **RP2350 not yet supported in Wokwi.** Wokwi runs RP2040 (original Pico,
+  Pico W). We'll target RP2040 for emulator runs. Should be a one-config
+  change — the firmware uses no RP2350-specific surface (same `@rp2.asm_pio`
+  syntax, same `machine` / `network` modules; RP2040's 264 KB SRAM is plenty
+  for our footprint). Verify before committing.
+- **Public projects on the free tier.** Unlisted/private projects require a
+  paid plan. Revisit if the project becomes sensitive enough that public
+  exposure is a problem.
+- **Performance characteristics don't reflect real hardware** — functional
+  correctness yes, timing no. Final perf tuning still requires real hardware.
+
+Reference links to review:
+
+- [Wokwi MicroPython docs](https://docs.wokwi.com/guides/micropython)
+- [Wokwi Pi Pico reference](https://docs.wokwi.com/parts/wokwi-pi-pico)
+- [Wokwi CLI usage](https://docs.wokwi.com/wokwi-ci/cli-usage)
+- [Wokwi CLI getting started (CI / Actions)](https://docs.wokwi.com/wokwi-ci/getting-started)
+- [Wokwi automation scenarios](https://docs.wokwi.com/wokwi-ci/automation-scenarios)
+- [`wokwi-cli` GitHub](https://github.com/wokwi/wokwi-cli)
+- [LED matrix component docs](https://docs.wokwi.com/parts/wokwi-led-matrix)
+- [`micropython-pio-7segment` worked example](https://wokwi.com/projects/300936948537623048)
+- [Wokwi pricing](https://wokwi.com/pricing)
+- [RP2350 support tracking issue](https://github.com/wokwi/rp2040js/issues/142)
+
+#### Backup: `rp2040-pio-emulator` for PIO-only verification
+
+[NathanY3G/rp2040-pio-emulator](https://github.com/NathanY3G/rp2040-pio-emulator)
+is a pure-Python PIO state-machine emulator that supports both RP2040 and
+**RP2350**. Apache-2.0, mature (v0.87.0 March 2026). Provides pin-level
+waveform observation — perfect for verifying WS2812 GRB timing without
+hardware.
+
+Held as a backup for the specific case where Wokwi falls through or where
+waveform-level rigor matters more than visual rendering. Doesn't replace
+Wokwi — no firmware-level emulation, no NeoPixel visualization, accepts only
+raw assembled instructions rather than `@rp2.asm_pio` source. The
+one-stop-shop value of Wokwi is what's pencilling it in over this option.
+
+#### Concrete next moves
+
+1. Verify the firmware runs unchanged on an RP2040 target (or in Wokwi
+   pointed at Pico W). Probably yes; one config flip.
+2. Stand up a Wokwi project mirroring the firmware structure.
+3. Install `wokwi-cli` locally; try the MCP integration so Claude can drive
+   sims headlessly from session.
+4. Decide free-vs-paid tier based on how much of the codebase ends up
+   visible in the Wokwi project.
+
+#### Direct-hardware access (complementary, not replaced)
+
+A path for Claude to push code to a connected Pico via `mpremote`, drive
+the REPL, and read state back is still wanted as the **final verification
+step** — perf testing, hardware-specific bugs, "does this actually work on
+the deployed board." Wokwi is for fast iteration; real hardware is for
+ground truth. Plan for both.
+
+### Explore text / CAD-style hardware descriptions as a context-cheap photo alternative
+
+Photos are good for "let me see what this looks like" but expensive in tokens
+even after downsampling (~2k tokens per 1500-px image, multiplied across a
+session). For repeated context — the same frame geometry, the same panel
+layout referenced across many sessions — a **structured text description** is
+much cheaper without losing the geometric information that matters.
+
+Idea worth trying: rough orthographic "CAD-style" views of the frame and
+panels as ASCII or compact SVG, with dimensions and labeled features. Check
+them in alongside the photos and reference them from
+`_familiarization/07-physical-installation.md` for geometry-focused
+questions. Photos stay around for the visual cases (texture, color, finish,
+"is this seated correctly?") that text can't carry.
+
+Not urgent. Try once the photos and the physical-installation doc are
+settled and see if the text descriptions can carry routine work.
+
+---
+
+## Alex / sim-team collaboration
+
+### Professionalize the documentation tone for Alex hand-off (target: 2026-05-10)
+
+**Bumped from Long-range to near-term.** Alex is ready to read these docs —
+David has been in contact with him and committed to sending them, probably
+tomorrow.
+
+Important context update: **Alex has been using Claude since spring 2026.**
+That raises his effective ceiling well above the "physics background, basic
+programming" baseline currently in the audience legend. Update the
+[familiarization README audience legend](_familiarization/README.md) and
+anywhere else Alex's level is implied (doc 06 framing, etc.).
+
+The cleanup pass:
+
+- Replace "kids" with "students" (or specific team names: content team,
+  scenario / actors team, second-chair team).
+- Tone down parenthetical asides and inside-jokes; keep substance, cut
+  working-conversation flavor.
+- Audit for any references that wouldn't make sense to a reader who
+  hasn't been part of the David ↔ Claude conversation history.
+- Fold in the Alex-skill-update on first read.
+
+Bar for "done": David would send any of these docs to Alex without a
+follow-up apology email.
+
+### Set up the "Claude space sim" starter repo for Alex's coding team
+
+Alex has a coding-team idea brewing again, and David committed to spinning
+up an empty starter repo Alex's team can clone to begin hacking on
+Horizons.
+
+Starter repo contents:
+
+- A repo-level **`CLAUDE.md`** with working-style guidance reframed for the
+  space-sim domain (Horizons hacking, not microcontroller firmware).
+- Possibly **custom agents** if any of ours port well — e.g. a Horizons-API
+  research agent, a scenario-design helper.
+- Possibly **skills** — TBD; brainstorm what's actually useful for their
+  workflow once we understand it better.
+- A starter README orienting a new collaborator on what the repo is, what
+  Horizons is, what they'd use Claude for.
+
+Scope for Alex's team (per David):
+
+- **Yes:** Horizons integration / extensibility work, possibly the animation
+  editor (over time, as they ramp).
+- **No:** the engineering-board microcontroller firmware. That stays with
+  David and Claude.
+
+Coordinate scope and timing with Alex once he has bandwidth to engage.
 
 ---
 
@@ -79,6 +206,83 @@ from during the TCP refactor. Five small fixes:
   (`deploy-micropython.ps1` and any `mpremote cp` patterns) so the C# tree never gets
   copied to a Pico.
 
+### Merge `card_reader/` into `card_tray/`
+
+Historical artifact: the firmware splits the Power Card Tray hardware
+into two modules — `card_tray/` (LEDs, state) and `card_reader/`
+(MCP3008 ADC scan). The split dates from an earlier RFID-based card-ID
+attempt that didn't make it past the prototype phase (worked, but ID
+misses were too frequent — speculatively from interference between 30
+adjacent low-gain antennas). The current resistor-divider scheme
+should logically live with the rest of the tray code.
+
+Refactor:
+
+- Merge `card_reader/` into `card_tray/`. The `CardReader` /
+  `CardReaderManager` classes become tray-internal.
+- Collapse `Systems.POWER_TRAY` and `Systems.CARD_READER` flags into a
+  single per-device flag.
+- Update `device_manager.py` `KNOWN_DEVICES` entries accordingly.
+
+Not urgent. Do during the next pass through the card-handling code.
+
+### Switchboard protocol redesign — **pre-MVP, critical path**
+
+Current implementation works and is tested, but is crude — a polling
+scan that brings each source high in turn and reads each sink to see
+which goes high, then drops the source and tries the next. Linear in
+sources × sinks per scan cycle, **and assumes a single Pico drives
+both ends of the patch panel**.
+
+The single-Pico assumption no longer holds. The
+[multi-frame topology](ARCHITECTURE.md#frame-allocation) puts switchboard
+sources on the left frame and bus-input sinks on the right frame, with
+**no installed wiring between frames** (committed; only the patrons'
+transient guitar cables cross the gap). The current scan can't span
+that boundary — coordinating per-source-pulse timing across two Picos
+over MQTT-via-Mac round-trips will not be low-enough latency.
+
+Forward direction: sources **broadcast a distinguishing pattern**;
+sinks read the pattern continuously and publish which source they're
+seeing. Likely a custom serial-style protocol rather than I2C — the
+cable runs are 6′ of 1/4″ audio cable per connection, electrically
+closer to "long unshielded line" than "short PCB trace." A
+NeoPixel-style self-clocking pulse train with **~10 ms pulse widths**
+gives margin against noise and attenuation; a short framing pulse
+delimits each pattern repeat.
+
+Wins from the rewrite: scan-time independent of (sources × sinks);
+real-time connection feedback rather than per-cycle latency; correct
+behavior across the multi-Pico topology; better behavior under cable
+noise.
+
+**Bumped from "code cleanup, not urgent" to MVP-required.** Without
+this, the multi-frame topology doesn't function. Schedule it before
+the executive integration work starts so we don't build executive
+behavior on a switchboard model that's about to change.
+
+### Revisit power-card categories with the animation refactor
+
+`power_cards/categories.py` currently maps cards into groupings (life
+support, weapons, propulsion, sensors, …). The grouping was an early
+classification attempt during animation authoring and **doesn't line
+up with the Thorium system list** any more — categories haven't been
+maintained as cards came and went. Most current animations are
+monochrome; one or two were experimental multi-color cases.
+
+When we revisit, the questions:
+
+- Do per-card categories still serve a purpose now that the palette
+  LUT is going away (see
+  [§ Captured perf idea](#captured-perf-idea--drop-the-palette-store-full-rgb-ints))?
+- If yes, what's the right grouping — should it match a Thorium-side
+  taxonomy, or be a separate engineering-board concept?
+- Does the grouping inform animation visual style (shared color
+  palette per category, etc.) or is it purely metadata?
+
+Pairs naturally with the
+[animation designer overhaul](#animation-designer-overhaul) work.
+
 ---
 
 ## Security / hardening
@@ -94,36 +298,95 @@ the executive outside its intended surface** — David's prior, from his own
 high-school self, is that a non-trivial subset of any age group enjoys exactly this
 kind of mischief.
 
-Surfaces to think about when we get to this:
+### Approach — `committed`
 
-- **TCP listeners on each Pico** — bind only to the executive's IP rather than
-  `0.0.0.0`? Add a shared-secret handshake on connect? Move to TLS / mutual auth
-  (heavy on a Pico, but possible)?
-  - DavidS note: No TLS, it's not that bad. The single-IP bind sounds good, but lets talk about the
-    configuration/deploy path there. I don't want to have to remember why the Picos broke if someone
-    else swaps out the Mac or changes network config in the future.
-- **Wi-Fi network** — separate SSID for the engineering-board kit, isolated from
-  the patron-accessible school network? VLAN / firewall rules?
-  - DavidS note: I'm almost positive Alex has his own (school approved) WiFi router in the control
-    closet. Access to the school network won't happen, they are very protective. I've asked for VPN
-    access before, and was shut down immediately. Having said that, not sure we could get another
-    router approved, so unless we can run multiple SSIDs off the same router, we'll probably have
-    take that off the table.
-- **The executive itself** — what management surfaces does it expose, and are any
-  of them reachable from the school LAN?
-  - DavidS note: We will definitely put it on the isolated router. But I have no idea of that setup.
-    I **think** Alex had the school's IT guy set it up, but it's very possible he just plugged it in
-    himself. I don't know if it has any security in either case. The school guy is always
-    overloaded, even if he configured it, he might not have considered it a threat if it is isolated
-    from the school network. Almost sure that it is broadcasting it's SSID, but again, not
-    confirmed. Regardless of all this, I don't want to open a network discussion with Alex. Next
-    time I am onsite, I'll ask if I can take a look at the router config (assuming I even remember),
-    but for now let's assume that it's an isolated network that we can't modify and design
-    accordingly.
+**Application-layer hardening only.** We use whatever Wi-Fi network the kit
+finds itself on (almost certainly Alex's school-approved router in the control
+closet) and design as if it's wide open — no SSID work, no VLANs, no router
+configuration. The hardening lives entirely in the firmware and executive code.
+
+### Surfaces
+
+- **TCP listeners on each Pico — fixed-IP bind as the starting point.** Bind to
+  the executive's IP rather than `0.0.0.0`. **No TLS** — overkill for the threat
+  model and heavy on a Pico. Optional shared-secret handshake stays on the table
+  as a second layer.
+
+  The deploy story for the IP-bind needs real design effort: if the Mac is
+  swapped or the network changes DHCP behavior, we don't want a future
+  debugging session that starts with "the Picos stopped working and nobody
+  remembers why." Possible shapes: self-discovery on first boot, config-by-mDNS
+  hostname, a clearly-documented manual refresh path, or some combination.
+- **The executive's management surfaces.** Whatever Mac-side process or web
+  interface the executive exposes, assume it's reachable by anything on the
+  same Wi-Fi. Don't bind admin endpoints to `0.0.0.0`; require auth on anything
+  state-changing; log access.
 
 Don't over-engineer; the threat model is "school kid with curiosity and a network
 scanner," not nation-state. But the firmware as it stands is wide open and that's
 not deploy-ready.
+
+---
+
+## Diagnostics
+
+### Define the on-device error-signaling catalog
+
+Per the [diagnostics commitment](ARCHITECTURE.md#diagnostics): each Pico
+signals unrecoverable errors through its own display surface, BIOS-POST-beep
+style. Work needed:
+
+- **Catalog the error codes** we want to surface. Initial seeds:
+  - "Cannot reach executive at the configured IP" — the Mac-swap / IP-bind
+    failure that motivated this whole approach.
+  - Likely early additions: `secrets.py` missing or malformed, peripheral
+    init failure (NeoPixel chain, MCP3008, TM1637), unrecognized device ID
+    in `KNOWN_DEVICES`, watchdog-triggered reset.
+- **Pattern vocabulary per display surface.**
+  - NeoPixel-driven controllers (card-tray, left-panel) — red-flash patterns.
+    Possible shapes: number-of-blinks (3 fast / 5 slow / etc.), pixel-location
+    (corner-only / full-strip / specific row), or hybrid. Pick a vocabulary
+    that's easy to read at a glance from across the room.
+  - Seven-segment controller — numeric codes (`E01`, `E02`, …) with a blinking
+    attention-getter so it's clearly distinct from normal display content.
+- **Code-comment requirement.** Every place in firmware that raises a pattern
+  carries a comment with the pattern shape / number and a one-line English
+  description, so future-us can grep the codebase by what they're seeing on
+  the rig.
+- **Implementation.** A small diagnostics module per Pico that owns the
+  error-signaling loop. Must run independently of comms — this is the fallback
+  when comms is broken.
+
+Bar for "done": a future debugging session that opens with "the card-tray
+Pico is flashing this pattern" can be resolved by greping the firmware for the
+pattern code and reading the comment, without needing logs, a console, or the
+executive running.
+
+### Hidden USB pass-through for console + firmware updates (`committed`, MVP-required)
+
+Once the rig is fully deployed, opening a panel frame is a **big lift** —
+fasteners, the panel itself, delicate wiring inside. The visual diagnostics
+above cover the read-only error-reporting case, but two things still require
+a USB connection to each Pico:
+
+- **Firmware updates** — bug fixes, feature additions, configuration tweaks.
+  Without USB access, we have **no way to change anything on a deployed Pico**
+  short of cracking the frame open. That's not viable.
+- **Interactive debugging** via the serial REPL when an unanticipated failure
+  needs more than a flashing pattern can convey.
+
+Design problem: find a way to **invisibly expose a USB port for each Pico**
+on the outside of the frame, so future maintenance never needs to crack the
+frame open. Possible shapes:
+
+- Bulkhead-mount USB connector on a patron-invisible edge of the frame (back,
+  underside, behind a removable decorative cover).
+- Short pigtail from the Pico inside to a USB-C panel-mount jack.
+- Magnetic or latched cover so the port sits flush when not in use.
+
+**Required for MVP.** Lock the design in *before* the frame goes in for final
+installation — retrofitting a hole into a sealed metal frame is much worse
+than designing one in.
 
 ---
 
@@ -144,22 +407,49 @@ data in whatever final shape the firmware expects.
 has additional performance-refactor ideas for the designer-to-firmware pipeline that
 he wants to discuss when we get there.
 
-#### Captured perf idea — 4-byte-aligned ints throughout
+#### Captured perf idea — drop the palette, store full RGB ints
 
-When we revisit perf after the PIO design lands, the relevant fact is that the WS2812
-PIO program consumes **4 bytes per pixel** from the TX FIFO (32-bit autopull with
-`pull_thresh=24`) but only uses 24 of them (G, R, B) — the high byte of every 32-bit
-word is discarded by the next autopull. The current Viper optimization plan was written
-when the firmware was bit-banging and a 3-byte-per-pixel storage shape was the natural
-match. The Pico has plenty of SRAM, so we're no longer memory-constrained.
+When we revisit perf after the PIO design lands, the relevant facts are:
 
-Hypothesis worth testing once the PIO design settles: store and manipulate frame data
-as **proper 32-bit ints throughout** — accepting one byte of padding per pixel — and
-expect that to outperform shuffling 3-byte sequences. Viper in particular should
-generate tighter code if 4-byte alignment is guaranteed at every step (`ptr32` reads
-and writes without extra masking). The output of the designer needs to agree with
-whatever shape the firmware lands on, which is why this idea anchors here rather than
-purely in `viper-animation-optimization.plan.md`.
+- The WS2812 PIO program consumes **4 bytes per pixel** from the TX FIFO (32-bit
+  autopull with `pull_thresh=24`) but only uses 24 of them (G, R, B) — the high
+  byte of every 32-bit word is discarded by the next autopull.
+- The existing palette-LUT-plus-byte-indices format was a **RAM-pressure
+  workaround** from when we were bit-banging on memory-constrained boards. One
+  byte per pixel + a 256-entry lookup got the stored animations small enough to
+  fit. The Pico has plenty of SRAM; we no longer have that constraint.
+
+Forward direction: **drop the 256-entry palette indirection and store animation
+frame data as raw 32-bit ints throughout** (one full RGB value per pixel, with
+the high byte of each word as padding to match the PIO consumption shape).
+This pulls double duty:
+
+- **Performance.** Viper should generate tighter code with guaranteed 4-byte
+  alignment — `ptr32` reads and writes without extra masking, no LUT
+  indirection, no expansion step in `PixelBuffer()`.
+- **Tooling alignment.** The designer no longer has to maintain a palette
+  abstraction the firmware doesn't use. Output format and on-board format are
+  the same. Should make any third-party-tool integration in the next bullet
+  much simpler.
+
+#### Designer-side consequence — single shared swatch palette (`committed`)
+
+The palette LUT did one thing well that we want to preserve: it enforced a
+limited shared palette across all of a card's animations, which kept things
+visually coherent. **Removing the LUT means the designer needs to take that
+job over.**
+
+Decision: **one hard-coded swatch palette shared across all cards**, with
+**no free-form or custom-color picker in the editor**. Authoring colors stay
+in-palette by construction. **The swatch is the existing 256-entry palette
+LUT** — that's already the de-facto color set every current animation works
+in, so adopting it directly means no migration of color data and no new
+color-curation work. If Alex or the content team want more flexibility,
+they can ask.
+
+This shapes the tool we pick — or build — in the next bullet: it has to
+either support a fixed-indexed-palette mode natively (Aseprite, Piskel) or
+expose enough configuration that we can lock the palette down on our side.
 
 ### Make the designer actually a designer (CRUD)
 
@@ -197,18 +487,14 @@ Candidates worth a serious look:
 - **WLED** — has a 2D effect engine and a mature ecosystem. Way more than we need, but
   its file format / effect library might be a useful reference.
 
-DavidS note: I'm fine paying up to $100 for a tool that saves us time. Also, regarding the palette
-question, once the PIO stuff lands, I'd like to remove the pallete stuff. That's when we thought we
-were RAM constrained, and we were trying the get the stored animations down to one byte per pixel.
-Thus the 256 element palette. Now that we don't have memory problems, let's store the raw frame data
-in the same full-int format we'll be using. Should make the animation tool integration easier as
-well? Also note: the palette LUT scheme did serve to make sure that all colors in an animation were
-consistent, which was nice for the designer. If we remove the palette, we'll want to make sure the
-designer still has some way to manage color consistency across the all animations (and probably the
-rest of the lighting??).
+Budget for a paid tool that saves real time: **up to ~$100 is fine**. Aseprite
+specifically is well under that and is the strongest candidate on the list.
 
-Outcome decides whether the previous TODO (full CRUD rewrite) stays in scope or shrinks
-to "write a one-way exporter from `<tool>` to `power_cards/frames/*.py`."
+Outcome decides whether the previous TODO (full CRUD rewrite) stays in scope or
+shrinks to "write a one-way exporter from `<tool>` to `power_cards/frames/*.py`."
+Note that whichever path we take, the tool will need a way to enforce color
+consistency across animations now that the palette LUT is going away — see the
+design-consequence note above.
 
 ---
 
@@ -216,39 +502,79 @@ to "write a one-way exporter from `<tool>` to `power_cards/frames/*.py`."
 
 ### Confirm Wi-Fi works inside the panel frame
 
-Each panel mounts to a thick sheet-metal frame shaped like a 3D trapezoid (frustum-like)
-~4″ deep front-to-back, with a large opening on the front face for the panel itself.
-All electronics — Picos, NeoPixel chains, MCP3008s, TM1637s — live inside the frame.
+**Bumped to early priority** — the frames are at David's home now, and a
+representative test can run in the basement (one intervening wall, can put the
+access point ~60 ft away). No need to wait for the on-site deploy environment.
 
-Sheet metal is an enclosure. 2.4 GHz Wi-Fi inside an enclosed metal box is asking for
-trouble: potential Faraday-cage attenuation, multipath issues, and dropped packets to
-the Pico 3 controller (which carries the external comms responsibility).
+Reminder on the production-room layout that this test eventually has to
+work in: the engineering room is roughly 5×5′ usable (8–9 ft east-west).
+**Warp core sits on the west wall** above the control station; the
+**boards are pencilled in to the north-east corner** (final placement
+TBD with Alex). With that geometry, the panel faces are oriented
+neither directly toward the control-closet router (down the hall) nor
+toward the warp core — the repeater likely wants to live on the
+south-west or south wall, not on the warp core. Cameras already in the
+room give cover for hiding additional small gear. Final placement
+follows the board placement.
 
-- DavidS note: Worth mentioning that if I am correct about the WiFi router situation, the access
-  point is in a room on the other side of the space sim suite, probably around 30-40 feet away with
-  multiple walls in between. Need to keep that in mind as well. I wouldn't be surprised if that was
-  a long reach for the pico antenna. Do they have "antenna extenders" that might help, esp getting
-  outside of the frame? Would have to be invidible to the patrons, but I could come up with some
-  "piping" decoration around the frame?
+Each panel mounts to a thick sheet-metal frame shaped like a 3D trapezoid
+(frustum-like) ~4″ deep front-to-back, with a large opening on the front face for
+the panel itself. All electronics — Picos, NeoPixel chains, MCP3008s, TM1637s —
+live inside the frame. Sheet metal is an enclosure; 2.4 GHz Wi-Fi inside an
+enclosed metal box risks Faraday-cage attenuation, multipath issues, and dropped
+packets.
 
-This needs to be verified before we commit final hardware to the Wi-Fi/TCP comms path.
-A cheap test: temporarily mount a Pico 2 W inside a representative frame, connect it
-to the test access point, log RSSI and packet loss across normal room distances and
-through-wall scenarios.
+Worse, the production environment likely has the access point in a different
+room across the space-sim suite — Alex's school-approved router lives in the
+control closet, probably 30–40 ft away with multiple walls between it and the
+engineering room. That's a long reach for the Pico 2 W's onboard chip antenna
+even before the frame's contribution. The basement test stresses the
+distance dimension at home; the frame's own attenuation is the part we can
+actually verify locally.
 
-- DavidS: I've got the frames with me. Only one wall in the basement, but I could put it 60 feet away. Let's
-  prioritize a test earlier rather than later.
-- DavidS: This is completely in the wrong section, but I just thought about it. I've stared initial
-  work on the prop build itself. Would pictures of the frames, the WIP left and right panels, etc.
-  be helpful to you? Don't need it for documentation, anyone who reads this will have the hardware
-  on hand, and I don't want to waste your context if it's not useful.
+What to measure: RSSI, packet loss, and TCP-reconnect frequency at 60 ft
+through one wall, with the Pico inside a representative frame. Compare against
+the same Pico outside the frame at the same distance to isolate the frame
+contribution. Repeat at shorter distances for a sanity baseline.
 
-Fallbacks if signal is unusable:
+If signal is unusable, remediation options in rough preference order:
 
-- External antenna lead poked through a small hole in the frame (Pico 2 W has a U.FL
-  pad — confirm).
-- Wi-Fi access-point cabled into the frame (defeats the purpose of going wireless).
-- Walk back the USB→Wi-Fi refactor and stay on USB-host comms.
+- **Wi-Fi repeater in the engineering room.** Most attractive option — a single
+  added box can solve the suite-distance / through-walls problem cleanly with
+  no per-Pico hardware work. There's a candidate mount point on the warp core
+  itself, directly in front of the boards and near the ceiling, with good line
+  of sight to the Picos inside the frames. Worth trying first if the test
+  shows the problem is "too far from the AP" rather than "the frame is opaque
+  to RF" — those are different failure modes and want different fixes.
+- **External antenna via a U.FL pigtail.** **Ruled out.** Confirmed against the
+  [RM2 datasheet](../docs/rm2-datasheet.pdf): the RM2 wireless module that
+  every Pi-RM2-based Pico 2 W uses has a fixed inverted-F PCB antenna and
+  **no RF pin on any of its 21 pads**. The Pimoroni Pico Plus 2 W carrier
+  doesn't add a U.FL pad either. The only physical path to an external
+  antenna is lifting the antenna trace on the RM2 module and soldering coax
+  directly — fine-pitch surgery on a $20 part with high risk of damaging
+  the module or its impedance matching. The "switch to a different
+  RP2350 board with U.FL" workaround is also out: boards like the
+  [iLabs Challenger+ RP2350 WiFi6/BLE5](https://ilabs.se/product/challenger-rp2350-wifi6-ble5-ipex3/)
+  exist (RP2350 + ESP32-C6 + IPEX3 connector) but switching mid-project
+  would require rewriting the network stack against a different wireless
+  chip — not worth it to dodge a problem the in-room repeater solves
+  cleanly. **External antenna is off the table.**
+- **Wi-Fi access-point cabled into the frame** (defeats the purpose of going
+  wireless, but technically works).
+
+(USB-host as a deployment fallback is **off the table** — Wi-Fi/MQTT is the
+committed direction and adding installed inter-frame cables for comms
+contradicts the no-installed-cables-between-frames preference. The hidden
+USB pass-through per Pico is still in scope but only for **debugging and
+firmware updates**; see
+[§ Hidden USB pass-through](#hidden-usb-pass-through-for-console--firmware-updates-committed-mvp-required).)
+
+**Downstream of this test:** once the signal-attenuation picture is clear,
+revisit broker placement — the control-booth PCs become a serious option for
+hosting the MQTT broker (and possibly the executive) only if signal in the
+engineering room is solid enough to reach across the suite. See
+[ARCHITECTURE.md § Broker placement](ARCHITECTURE.md#broker-placement).
 
 ---
 
@@ -337,6 +663,41 @@ factors that crept in). Code to look at: `SSG.Client/Pages/SystemDisplay.razor*`
 the TypeScript renderer / orbital code under
 `SSG.Client/wwwroot/js/` (`ssg.renderer.ts`, `celestial-object.ts`, `ssg.utils.ts`).
 David would specifically like a Claude pass over this when the time comes.
+
+### Re-route the left-board wiring on its back side
+
+The back of the Left Engineering Board is a hand-built rat's nest from the
+prior incarnation — see `docs/images/left-board-back.jpeg`. Many wires
+routed freehand, masking-tape labels everywhere, no orthogonal discipline.
+
+A year or so back David had to demo the board and a couple of wires had
+pulled free; tracing them back through the chaos took non-trivial time. The
+maintenance burden grows every visit.
+
+Cleanup wanted, **low priority and low urgency** — but worth doing before
+the next time we need to debug the board, not during:
+
+- Re-route wires in an orthogonal layout (horizontal/vertical runs only,
+  right-angle turns).
+- Tape or otherwise secure each run to the back of the board so wires don't
+  migrate or pull free.
+- Re-label legibly — printed labels or a proper legend, not the
+  masking-tape tags that are there now.
+
+Goal: future-Dave can chase a pulled wire in five minutes, not forty-five.
+
+### Make tray magnet wells look white
+
+The four neodymium magnets in each Power Card Tray sit in printed wells
+covered by a thin layer (0.25–0.5 mm) of white 3D-printer filament. The
+covering exists; cosmetics are the issue — the wells are visually
+distinguishable from the rest of the white tray face and break the
+clean look. Cards aren't affected (their magnets are intentionally
+exposed for contact).
+
+Find a way to make the tray-side wells visually disappear into the
+surrounding white — thicker filament cap, post-processing paint, a
+different material, etc. Aesthetic-only; doesn't affect function.
 
 ### Audio / DMX integration with the bridge
 

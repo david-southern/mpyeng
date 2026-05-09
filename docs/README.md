@@ -9,3 +9,6 @@ prefer PDFs over screenshots.
 
 This directory is **not** for project-internal documentation — that lives at the repo
 root (`ARCHITECTURE.md`, `TODO.md`, `_familiarization/`) or per-subsystem.
+
+Hi-res reference photos of the rig itself live under [`images/`](images/) — see
+that subdirectory's `README.md` for the index.
