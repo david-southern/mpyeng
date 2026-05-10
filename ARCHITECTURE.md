@@ -113,6 +113,14 @@ the design driver behind the PIO + Viper work and the multi-Pico
 topology. David's preference is to **add more Picos before adding
 inter-frame wiring or sacrificing 30 FPS**.
 
+**Realized state (2026-05-09):** the right-board card-tray controller (single Pico 2 W,
+2,220 pixels on one chain at 800 kbps) is wire-bound at **~12 FPS effective**. PIO write
+takes ~67 ms (2,220 px × 30 µs); the loop is now ~99% CPU-saturated, with the WS2812 line
+the bottleneck — not Python, not the PIO program, not the buffer copy. Reaching 30 FPS on
+this Pico requires either bumping the PIO bit rate (WS2812B variants typically tolerate
+1.0–1.6 Mbps over short runs) or splitting the chain into two parallel state machines on
+different data pins. Other controllers driving smaller chains are not wire-bound.
+
 This is a **vague plan** at the topology level — the responsibility split above is
 the current intent but pin maps and exact subsystem boundaries are not yet decided.
 

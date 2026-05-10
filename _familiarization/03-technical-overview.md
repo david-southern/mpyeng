@@ -92,7 +92,10 @@ This is where the design effort is concentrated and where the Viper optimization
 5. **PowerCardTray.Update()** runs three `SetPixelData` calls per tray per frame:
    top-status (5 px), grid (64 px), bottom-status (5 px). 30 trays × 3 = **90 calls/frame**.
 6. **NeoPixel wire transfer.** `np.write()` triggers the PIO state machine to clock all
-   2,220 LEDs out at 800 kHz — fixed cost ~6 ms, not a bottleneck.
+   2,220 LEDs out at 800 kbps — **fixed cost ~67 ms; this is the dominant bottleneck.**
+   The right-board card-tray controller is wire-bound at ~12 FPS effective. See
+   `docs/ws2812-timing.xlsx` for the math; raising this ceiling requires bumping the PIO
+   bit rate or splitting the chain across parallel state machines.
 
 The optimization plan (`viper-animation-optimization.plan.md`) replaces steps 3 and 4 with
 `@micropython.viper` functions, switches the buffers to `array.array('I')` to expose

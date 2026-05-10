@@ -83,12 +83,13 @@ The codebase mixes PascalCase (`IsEnabled`, `Power`, `SetPixelData`) with snake_
 free functions (which is roughly the *current* split, just unwritten). Document the choice
 in `AGENTS.md` so it's not relitigated each session.
 
-### R12. Move `ANIMATION_TARGET_FPS` and other magic numbers into constants per package
-Constants like `ANIMATION_TARGET_FPS` (currently 5, per the optimization plan), tray pixel
-counts, brightness defaults, profile-report cadence — surface these in each
-package's `constants.py` with comments on the units and tuning rationale. Several are
-inlined in `main.py` today (`HEARTBEAT_FREQUENCY_SEC`, `PROFILE_REPORT_FREQUENCY_SEC`,
-`DEMO_DATA_FREQUENCY_SEC`, `PROTOCOL_FREQUENCY_SEC`).
+### R12. Move `CARD_ANIMATION_TARGET_FPS` and other magic numbers into constants per package
+Constants like `CARD_ANIMATION_TARGET_FPS` (now 30 in `card_tray/tray_manager.py`,
+intentionally above the wire-bound ceiling), tray pixel counts, brightness defaults,
+profile-report cadence — surface these in each package's `constants.py` with comments
+on the units and tuning rationale. Several are inlined in `main.py` today
+(`HEARTBEAT_FREQUENCY_SEC`, `PROFILE_REPORT_FREQUENCY_SEC`, `DEMO_DATA_FREQUENCY_SEC`,
+`PROTOCOL_FREQUENCY_SEC`).
 
 ### R13. `PowerGrid.SetPixelData` caller compatibility
 The Viper plan flags that `PowerGrid.Update()` passes a list comprehension to

@@ -6,14 +6,14 @@ work.
 
 ## In flight (finish these)
 
-### N1. Land the Viper animation optimization
-`viper-animation-optimization.plan.md` is detailed and ready. Six tasks: convert the global
-buffers to `array.array('I')`, add `_expand_frame_lut` + `_unpack_pixels_to_buf` Viper
-functions, collapse the three `SetPixelData` calls per tray into one, then benchmark and
-bump `ANIMATION_TARGET_FPS` (currently 5). Expected outcome: 2,220 LEDs at a usable frame
-rate without Python interpreter overhead per pixel. **Wall-clock estimate (you + me):
-1–2 sessions.** Most of the mechanical work is straightforward; the "did it actually go
-faster" benchmarking is the part that matters.
+### N1. Land the Viper animation optimization — **DONE 2026-05-09**
+Plan was renamed and superseded by `pio-animation-design.plan.md`; the original
+`viper-animation-optimization.plan.md` was deleted. Buffers moved to `array.array('I')`,
+LUT expansion baked at startup (`bake_frames`), strip write goes through a per-instance
+PIO state machine. `CARD_ANIMATION_TARGET_FPS` is now 30 (formerly 10) — but the
+right-board controller turned out to be wire-bound at **~12 FPS effective** on the WS2812
+800 kbps line, not CPU-bound. Pushing higher requires bumping `WS2812_PIO_FREQ` in
+`drivers/local_neopixel.py` or splitting the chain.
 
 ### N2. Finish the PIO-based NeoPixel rewrite
 The HEAD commit is `0819260 First part of re-writing NeoPixel to use PIO rather than

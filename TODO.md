@@ -27,8 +27,12 @@ Native poppler is the lowest-friction option since `Read` already knows how to u
 
 ### MicroPython emulator + iteration loop for Claude
 
-**Priority: Task #1, before any new firmware design work begins.** The PIO
-design session is gated on this.
+**Deprioritized 2026-05-09.** David called for trying the PIO refactor
+directly on real hardware first; if it lands cleanly there, the emulator
+investment is no longer urgent. Pull this back up if hardware iteration
+turns out to be too slow to keep momentum on the next perf round.
+
+(Original framing kept below for reference.)
 
 The current iteration loop is: Claude proposes a change → David flashes it to
 a Pico → watches the result → reports back. That cycle is slow enough that it

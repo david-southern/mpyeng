@@ -24,7 +24,11 @@ PIXEL_BRIGHTNESS = 0.9
 # strip data at a regular interval in case of interference or other issues causing the strip to lose
 # data.
 
-PIXEL_REFRESH_SECONDS = 0.05
+# Inner refresh gate. Set to 30 Hz so it never bounds the outer loop —
+# CARD_ANIMATION_TARGET_FPS in card_tray/tray_manager.py drives the actual cadence, and the
+# WS2812 wire (2,220 px × 30 µs/px ≈ 67 ms at 800 kbps) bounds the realized rate at ~12 FPS
+# effective on the right-board card-tray controller. See docs/ws2812-timing.xlsx.
+PIXEL_REFRESH_SECONDS = 0.033
 TIMER_PIXEL_REFRESH = "pixel_refresh"
 
 
@@ -88,7 +92,9 @@ class PixelStripManager:
 
         self.__dirty = True
 
-    def SetPixelData(self, pixelData: bytes, pixelStartIndex: int, pixelCount: int):
+    def SetPixelData(self, pixelData, pixelStartIndex: int, pixelCount: int):
+        """Copy <pixelCount> pixels from <pixelData> (array.array('I') of neo-packed ints, or any
+        4-byte-aligned packed-int buffer) into the strip starting at <pixelStartIndex>."""
         if not DeviceManager.IsEnabled(Systems.ANY_PIXEL_STRIP):
             return
 

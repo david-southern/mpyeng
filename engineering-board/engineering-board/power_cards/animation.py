@@ -1,14 +1,7 @@
-from power_cards.card_ids import PowerCardIds
-from utils.color_utils import (
-    NEO_PACKED_BPP,
-    NEO_PACKED_OFFSET_B,
-    NEO_PACKED_OFFSET_G,
-    NEO_PACKED_OFFSET_R,
-    NEOPIXEL_BYTE_OFFSET_R,
-    NEOPIXEL_BYTE_OFFSET_G,
-    NEOPIXEL_BYTE_OFFSET_B,
-)
+import array
 
+from power_cards.card_ids import PowerCardIds
+from utils.color_utils import to_neo_packed
 from utils.profiling import log_free_ram
 
 log_free_ram("pre-animation-baking")
@@ -89,10 +82,14 @@ class CardAnimationHelpers:
         ps_1 = ps - 1
         lut = GLOBAL_PALETTE_LOOKUP
 
+        # All entries are stored in the project's neo-packed format (0x00GGRRBB) so they can be
+        # written directly into the strip buffer with no per-pixel byte shuffling. We use the
+        # to_neo_packed() helper to keep the bit layout in one place.
+
         # Grey ramp (0–19): index 0 = black, index 19 = bright white
         for i in range(ps):
             v = int(i / ps_1 * 255 * brightness)
-            lut[i] = (v << 16) | (v << 8) | v
+            lut[i] = to_neo_packed(v, v, v)
 
         # Color categories — 8 blocks of 20, each lerped dim→bright × brightness.
         # Order matches palette layout: Weapons, Propulsion, Utility, Yellow, Power,
@@ -116,7 +113,7 @@ class CardAnimationHelpers:
                 r = int((dr + (br - dr) * t) * brightness)
                 g = int((dg + (bg - dg) * t) * brightness)
                 b = int((db + (bb - db) * t) * brightness)
-                lut[offset + i] = (r << 16) | (g << 8) | b
+                lut[offset + i] = to_neo_packed(r, g, b)
 
         # Spectrum hues (180–229): 50 deterministic HSV entries, full S+V, scaled by
         # brightness. Manual HSV→RGB — colorsys is not available on CircuitPython.
@@ -141,7 +138,7 @@ class CardAnimationHelpers:
                 r, g, b = t_val, 0, v_val
             else:
                 r, g, b = v_val, 0, q
-            lut[sp_offset + i] = (r << 16) | (g << 8) | b
+            lut[sp_offset + i] = to_neo_packed(r, g, b)
 
         # Special spots (230–249): pre-defined RGB values × brightness
         _b = brightness
@@ -171,7 +168,7 @@ class CardAnimationHelpers:
             (cls.SLATE, (90, 100, 120)),
             (cls.ICE_BLUE, (180, 220, 255)),
         ]:
-            lut[index] = (int(r * _b) << 16) | (int(g * _b) << 8) | int(b * _b)
+            lut[index] = to_neo_packed(int(r * _b), int(g * _b), int(b * _b))
 
         # TBD entries (250–255): black
         for i in range(250, 256):
@@ -193,34 +190,14 @@ class CardAnimationHelpers:
 CardAnimationHelpers.ensure_palettes(ANIMATION_BRIGHTNESS)
 
 
-# @micropython.viper
-# def _expand_frame_lut(frame: ptr8, lut: ptr32, buf: ptr8, n: int):  # pyright: ignore[reportUndefinedVariable] # noqa: F821
-
-
-def _expand_frame_from_lut(frame: bytes, lut: list[int]):
-    retval = [0] * len(frame) * NEO_PACKED_BPP
-    for frame_index in range(len(frame)):
-        lut_value: int = lut[frame[frame_index]]
-        buf_red = (lut_value >> NEO_PACKED_OFFSET_R) & 0xFF
-        buf_green = (lut_value >> NEO_PACKED_OFFSET_G) & 0xFF
-        buf_blue = (lut_value >> NEO_PACKED_OFFSET_B) & 0xFF
-        buf_index = frame_index * NEO_PACKED_BPP
-        retval[buf_index + NEOPIXEL_BYTE_OFFSET_R] = buf_red
-        retval[buf_index + NEOPIXEL_BYTE_OFFSET_G] = buf_green
-        retval[buf_index + NEOPIXEL_BYTE_OFFSET_B] = buf_blue
-
-    return bytes(retval)
-
-
-def bake_frames(frames: list[bytes]) -> list[bytes]:
+def bake_frames(frames):
+    """Convert each source frame (bytes() of palette indices) into an array.array('I') of
+    neo-packed pixel ints, ready for direct copy into the NeoPixel buffer. Runs once at
+    startup; eliminates per-frame palette indirection from the animation hot path."""
     retval = []
+    lut = GLOBAL_PALETTE_LOOKUP
     for frame in frames:
-        # In the raw frame data, each byte is a palette index 0–255. We bake this into an immutable
-        # bytes of packed RGB values for direct writing to the NeoPixel buffer. This is a
-        # significant CPU+memory optimization, as it moves the per-pixel palette lookup and packing
-        # out of the animation loop and into a one-time setup step.
-        retval.append(_expand_frame_from_lut(frame, GLOBAL_PALETTE_LOOKUP))
-
+        retval.append(array.array("I", [lut[idx] for idx in frame]))
     return retval
 
 

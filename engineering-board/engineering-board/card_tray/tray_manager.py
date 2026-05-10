@@ -5,7 +5,11 @@ from utils.profiling import register_profile, start_profile, stop_profile
 from card_tray.constants import CARD_TRAY_COUNT, CARD_TRAY_TOTAL_PIXELS
 from card_tray.power_card_tray import PowerCardTray
 
-CARD_ANIMATION_TARGET_FPS = 10
+# Outer animation tick. Set above the empirical wire-bound ceiling (~12 FPS at 800 kbps for
+# 2,220 pixels — see docs/ws2812-timing.xlsx) so the loop runs as fast as the PIO write
+# allows. To raise the realized ceiling, bump WS2812_PIO_FREQ in drivers/local_neopixel.py
+# or split the chain into parallel state machines on different data pins.
+CARD_ANIMATION_TARGET_FPS = 30
 ANIMATION_UPDATE_FREQUENCY_SEC = 1.0 / CARD_ANIMATION_TARGET_FPS
 TIMER_POWER_TRAY_UPDATE = "tray_update"
 

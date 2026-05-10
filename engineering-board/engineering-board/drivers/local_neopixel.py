@@ -1,18 +1,19 @@
 # pyright: reportUndefinedVariable=false
 # ruff: noqa: F821
 
-# Code retrieved from:
-# <https://github.com/micropython/micropython-lib/blob/master/micropython/drivers/led/neopixel/neopixel.py>
+# WS2812 NeoPixel driver for MicroPython on the RP2350, using a PIO state machine.
+#
+# PIO program adapted from:
+#   <https://github.com/micropython/micropython-lib/blob/master/micropython/drivers/led/neopixel/neopixel.py>
+#   NeoPixel driver for MicroPython
+#   MIT license; Copyright (c) 2016 Damien P. George, 2021 Jim Mussared
 
-# NeoPixel driver for MicroPython
-# MIT license; Copyright (c) 2016 Damien P. George, 2021 Jim Mussared
-
-from utils.color_utils import NEO_PACKED_BPP, buffer_to_neo_packed, copy_buffer_pixels, neo_packed_to_buffer
-
-# Example using the RP2350's Programmable IO to drive a set of WS2812 LEDs.
+import array
 
 from machine import Pin
 import rp2
+
+from utils.color_utils import copy_buffer_pixels, neo_packed_to_buffer
 
 
 # Define the WS2812 LED driver PIO program.
@@ -22,14 +23,13 @@ import rp2
 # * pull_thresh = the number of bits that must be in the OSR before autopull will trigger.
 @rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW, out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=True, pull_thresh=24)
 def ws2812_program():
-
     # Timing for WS2812 pixel strips @ 800K bits/second:
     # * Ref: <https://cdn-shop.adafruit.com/datasheets/WS2812.pdf>
     # * Each pixel expects to receive 24 bits of data, 8 bits each of GRB (in that order)
     # * Each bit is signaled by a high pulse followed by a low pulse. The duration of the high and
     # low pulses determines whether the bit is a 0 or a 1.
     # * The total duration of one bit must be 1250 nanoseconds
-    # 
+    #
     # Individual logic bits are encoded as:
     # * LOGICAL BIT 0:
     #   * High for 350 nanoseconds
@@ -40,31 +40,31 @@ def ws2812_program():
     #
     # Finally, a low signal of at least 50 microseconds is needed at the end of each frame to
     # 'latch' (apply) the pixels and prepare the strip to start a new frame.
-    # 
+    #
     # Note: each pixel past the first does "internal reshaping amplification" so that the signal
     # doesn't degrade as it travels down the strip.
-    # 
+    #
     # From the micropython-lib source code for 800kbps timing, the timing values in nanoseconds
     # (400, 850, 800, 450)
-    # 
+    #
     # At 800Kbps, with 8M PIO cycles per second, the logic timings look like this: (integer cycle
     # counts)
     # * LOGICAL 0: High 2 cycles, Low 8 cycles
     # * LOGICAL 1: High 7 cycles, Low 3 cycles
-    # 
-    # Thus the timings below:    
+    #
+    # Thus the timings below:
     # * T1 = 2 ==> The 2 high cycles of LOGICAL 0, and the first 2 high cycles of LOGICAL 1
     # * T2 = 5 ==> The first 5 low cycles of LOGICAL 0, and the remaining 5 high cycles of LOGICAL 1
     # * T3 = 3 ==> The remaining 3 low cycles of LOGICAL 0, and the 3 low cycles of LOGICAL 1
-    # 
-    # Note that this program does not appear to enforce the 50 microsecond latch time at the end of
-    # each frame. I guess callers are responsible for making sure not to send a new frame within 50
-    # microseconds of the previous frame?
-    
+    #
+    # Note that this program does not enforce the 50-microsecond latch time at the end of each
+    # frame. Callers must avoid sending a new frame within 50 microseconds of the previous one. In
+    # practice the periodic refresh in PixelStripManager handles this.
+
     T1 = 2
     T2 = 5
     T3 = 3
-    
+
     # This is where the PIO program will resume when the wrap() instruction is reached.
     wrap_target()
 
@@ -87,8 +87,8 @@ def ws2812_program():
     # 24 bits have been shifted out of the OSR, a new word will automatically be pulled from the
     # FIFO into the OSR. The remaining 8 bits in the OSR will be ignored, and the next 24 bits will
     # be shifted out for the next pixel. (This is why when pushing data into the state machine FIFO,
-    # we have to shift the pixel data left by 8 bits, so that the 0xRRGGBB00 data is in the upper 24
-    # bits of the word, and the lower 8 bits are just padding that will be ignored)
+    # we have to shift the pixel data left by 8 bits, so that the 0xGGRRBB00 data is in the upper 24
+    # bits of the word, and the lower 8 bits are just padding that will be ignored.)
     out(x, 1).side(0)[T3 - 1]
 
     # Push the side pin high for T1 (2 cycles) - remember the .side() takes effect before the
@@ -99,7 +99,7 @@ def ws2812_program():
     # total of 7 cycles high for a LOGICAL 1, then jump to "bitloop" to push the pin low for T3 (3
     # cycles), making up the full LOGICAL 1 timing of 7 cycles high and 3 cycles low.
     jmp("bitloop").side(1)[T2 - 1]
-    
+
     label("do_zero")
 
     # If X was 0 in the jmp instruction, then the pin has been high for 2 cycles, so drive it low
@@ -107,79 +107,60 @@ def ws2812_program():
     # low, to make a total of 8 low cycles, establishing the full LOGICAL 0 timing of 2 high cycles
     # and 8 low cycles
     nop().side(0)[T2 - 1]
-    
+
     wrap()
 
 
-# Configure the number of WS2812 LEDs.
-NUM_LEDS = 8
-# Create the PIO StateMachine with the ws2812 program, outputting on Pin(22) (as a side-set pin).
-STATE_MACHINE_ID = 0
-WORD_SHIFT = 8
-sm = rp2.StateMachine(STATE_MACHINE_ID, ws2812_program, freq=8_000_000, sideset_base=Pin(22))
+# WS2812 expects 800 kbps; with 8M PIO cycles per second per the timing math above.
+WS2812_PIO_FREQ = 8_000_000
 
-# Start the StateMachine, it will wait for data on its FIFO.
-sm.active(1)
-
-# Display a pattern on the LEDs via an array of LED RGB values.
-ar = array.array("I", [0 for _ in range(NUM_LEDS)])
-
-# Cycle colours.
-for i in range(4 * NUM_LEDS):
-    for j in range(NUM_LEDS):
-        r = j * 100 // (NUM_LEDS - 1)
-        b = 100 - j * 100 // (NUM_LEDS - 1)
-        if j != i % NUM_LEDS:
-            r >>= 3
-            b >>= 3
-        ar[j] = r << 16 | b
-    sm.put(
-        ar, WORD_SHIFT
-    )  # Push 32 bit words onto the state machine's FIFO input, shifting each word left by WORD_SHIFT (word << WORD_SHIFT) bits. This is necessary because the RGB packing in each word of the array is 0x00RRGGBB, while the ws2812_program expects the data to be left-aligned in the 32-bit word (0xRRGGBB00).
-    time.sleep_ms(50)
-
-# Fade out.
-for i in range(24):
-    for j in range(NUM_LEDS):
-        ar[j] >>= 1
-    sm.put(ar, WORD_SHIFT)
-    time.sleep_ms(50)
+# Each FIFO word is one packed pixel int (0x00GGRRBB). sm.put() shifts each word left by this many
+# bits before pushing to the FIFO so the GRB triple lands in the upper 24 bits of the word, where
+# the PIO program shifts it out MSB-first.
+WS2812_PUT_SHIFT = 8
 
 
 class LocalNeoPixel:
-    # G R B W
-    ORDER = (1, 0, 2, 3)
+    """WS2812 NeoPixel strip driven by a per-instance RP2 PIO state machine.
 
-    def __init__(self, pin, n, timing=1):
+    Buffer layout: array.array('I'), one neo-packed int per pixel (0x00GGRRBB). The 4-byte
+    alignment matches the PIO autopull width — see color_utils for the wire-format rationale.
+    """
+
+    # Class-level counter that hands out a unique state-machine ID per LocalNeoPixel instance.
+    # The RP2350 has 12 state machines (3 PIO blocks × 4 SMs); we expect ~3 instances total
+    # across the firmware, comfortably within budget.
+    _next_sm_id = 0
+
+    def __init__(self, pin: Pin, n: int):
         self.pin = pin
         self.n = n
-        self.buf = bytearray(n * NEO_PACKED_BPP)
-        self.pin.init(pin.OUT)
-        # Timing arg can either be 1 for 800kHz or 0 for 400kHz,
-        # or a user-specified timing ns tuple (high_0, low_0, high_1, low_1).
-        self.timing = (
-            ((400, 850, 800, 450) if timing else (800, 1700, 1600, 900)) if isinstance(timing, int) else timing
-        )
+        self.buf = array.array("I", [0] * n)
 
-    def __len__(self):
+        sm_id = LocalNeoPixel._next_sm_id
+        LocalNeoPixel._next_sm_id += 1
+        self.sm = rp2.StateMachine(sm_id, ws2812_program, freq=WS2812_PIO_FREQ, sideset_base=pin)
+        self.sm.active(1)
+
+    def __len__(self) -> int:
         return self.n
 
-    def __setitem__(self, pixel_index, neo_packed: int):
-        """Set the pixel at <pixel_index> to neo_packed color value."""
-        neo_packed_to_buffer(neo_packed, self.buf, pixel_index, 1)
+    def __setitem__(self, pixel_index: int, neo_packed: int):
+        """Set the pixel at <pixel_index> to <neo_packed> (a packed 0x00GGRRBB color int)."""
+        self.buf[pixel_index] = neo_packed
 
-    def __getitem__(self, pixel_index):
-        buf_offset = pixel_index * NEO_PACKED_BPP
-        return buffer_to_neo_packed(self.buf, buf_offset)
+    def __getitem__(self, pixel_index: int) -> int:
+        return self.buf[pixel_index]
 
     def fill(self, neo_packed: int, dest_pixel_offset: int, pixel_count: int):
+        """Set <pixel_count> pixels starting at <dest_pixel_offset> all to <neo_packed>."""
         neo_packed_to_buffer(neo_packed, self.buf, dest_pixel_offset, pixel_count)
 
-    def set_buf(self, source_buf: bytes, dest_pixel_offset: int, pixel_count: int):
-        """Set the internal NeoPixel buffer to the provided bytearray starting at buf_offset for
-        len(buf) bytes."""
+    def set_buf(self, source_buf, dest_pixel_offset: int, pixel_count: int):
+        """Copy <pixel_count> pixels from <source_buf> into self.buf at <dest_pixel_offset>.
+        <source_buf> must be 4-byte-aligned (array.array('I') is)."""
         copy_buffer_pixels(source_buf, self.buf, dest_pixel_offset, pixel_count)
 
     def write(self):
-        # BITSTREAM_TYPE_HIGH_LOW = 0
-        # bitstream(self.pin, 0, self.timing, self.buf)
+        """Push the entire buffer to the PIO state machine for output to the strip."""
+        self.sm.put(self.buf, WS2812_PUT_SHIFT)

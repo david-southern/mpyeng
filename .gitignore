@@ -6,6 +6,7 @@ bin/
 *.user
 node_modules
 __pycache__
+.ruff_cache/
 
 
 # Don't check in any virtual environments

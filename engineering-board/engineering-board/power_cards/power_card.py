@@ -1,11 +1,14 @@
+import array
 import random
+
 from power_cards.animation import CARD_GRID_PIXELS, CardAnimationHelpers
 from power_cards.card_ids import PowerCardIds
-from utils.color_utils import NEO_PACKED_BPP
 
 CARD_VOLTAGE_THRESHOLD = 0.05
 
-BLACK_BUFFER = bytes([0] * (CARD_GRID_PIXELS * NEO_PACKED_BPP))
+# All-zero pixel buffer used as a "no card / blank" frame. array.array('I'), one neo-packed
+# int per pixel, matching the format every animation frame uses post-bake.
+BLACK_BUFFER = array.array("I", [0] * CARD_GRID_PIXELS)
 
 
 class PowerCard:
@@ -71,7 +74,10 @@ class PowerCard:
         else:
             return -1
 
-    def PixelBuffer(self, animationFrame: int) -> bytes:
+    def PixelBuffer(self, animationFrame: int):
+        """Return the baked pixel buffer for <animationFrame> (an array.array('I') of
+        neo-packed pixel ints), or BLACK_BUFFER if there's no animation or the frame index
+        is invalid."""
         if self.__cardAnimation is not None and animationFrame >= 0:
             return self.__cardAnimation.PixelBuffer(animationFrame)
         else:

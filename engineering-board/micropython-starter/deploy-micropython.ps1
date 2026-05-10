@@ -49,6 +49,7 @@ $ignoreDirectories = @(
     '\.venv',
     '\.vscode',
     '\.git',
+    '\.ruff_cache',
     'host_comms',
     'deployment-utils',
     'typings'
