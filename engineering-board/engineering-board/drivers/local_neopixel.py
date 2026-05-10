@@ -111,7 +111,11 @@ def ws2812_program():
     wrap()
 
 
-# WS2812 expects 800 kbps; with 8M PIO cycles per second per the timing math above.
+# WS2812 spec is 800 kbps (10 PIO cycles/bit × 8 MHz). 16 MHz (1.6 Mbps) was tried 2026-05-09
+# on a single ~80-pixel card grid and produced no output at all — the chips didn't latch the
+# signal. The card grids in use are cheap, likely original WS2812 (not WS2812B-V5), which have
+# tighter timing tolerance and don't run above spec. Don't bother retrying overclock without
+# different hardware. Higher FPS path: split the chain across multiple state machines.
 WS2812_PIO_FREQ = 8_000_000
 
 # Each FIFO word is one packed pixel int (0x00GGRRBB). sm.put() shifts each word left by this many

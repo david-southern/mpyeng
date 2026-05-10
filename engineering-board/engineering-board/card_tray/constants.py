@@ -4,7 +4,7 @@ from utils.color_utils import BLUE, GREEN, YELLOW, RED, scale_neo_packed
 DEMO_LOGGING = False
 DEMO_ANIMATION = True
 
-CARD_TRAY_COUNT = 30
+CARD_TRAY_COUNT = 5  # TEMP 2026-05-09: simulating 1-of-6 chains for split-chain perf preview; restore to 30
 CARD_TRAY_STATUS_PIXELS = 5
 
 CARD_TRAY_TOTAL_PIXELS = CARD_GRID_PIXELS + CARD_TRAY_STATUS_PIXELS * 2

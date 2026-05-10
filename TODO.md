@@ -133,6 +133,53 @@ settled and see if the text descriptions can carry routine work.
 
 ---
 
+## Animation pipeline performance
+
+### Split the right-board pixel chain across 6 parallel PIO state machines
+
+Right-board card-tray controller is wire-bound at ~12 FPS effective on the current single
+2,220-pixel chain (800 kbps WS2812). To reach the 30 FPS target, split the chain into
+**6 parallel chains of 5 cards each (370 px / chain)**, one per PIO state machine on its
+own data pin. RP2350 has 12 SMs (3 PIO blocks × 4 SMs); we'd use 6, comfortably within
+budget.
+
+Empirical preview 2026-05-09 — temporarily set `CARD_TRAY_COUNT = 5` to simulate one
+chain in isolation: per-chain wire time **11.0 ms** (matches 370 × 30 µs), outer loop
+hit **~29.3 Hz**, idle **75–80%**. Confirms there's plenty of CPU headroom to coordinate
+6 SMs *if* the writes can run in parallel.
+
+**Hardware change:** 5 additional GPIO data pins on the Pico 2 W; chain re-wired into 6
+segments; data lines routed to those pins.
+
+#### Software path A — DMA-driven parallel writes (preferred)
+
+`sm.put(buf, shift)` blocks the CPU until the FIFO drains, so naïve sequential writes to
+6 SMs serialize back to ~67 ms total — zero perf win. The clean fix is per-SM DMA: 6 DMA
+channels, each draining its own buffer into its SM's TX FIFO, kicked off simultaneously.
+CPU is free during the ~11 ms parallel blast. MicroPython's `rp2` module exposes DMA
+primitives but the integration is non-trivial; plan on a focused session.
+
+#### Software path B — Viper round-robin FIFO feeder (pivot if DMA bogs down)
+
+A `@micropython.viper` function that round-robins word-by-word puts into all 6 SM TX
+FIFO registers in a tight inner loop. CPU is busy for the full ~11 ms window (vs free
+under DMA), but parallel SM drain still delivers the ~6× wire-time win. Less clean,
+faster to land. Use this if DMA work bogs down.
+
+#### Verification
+
+- Per-chain wire time stays ~11 ms.
+- All 6 SMs drain in parallel — total wall clock ≈ 11 ms, not ~67 ms.
+- Effective FPS on the full board reaches 30.
+
+#### Cleanup
+
+Revert temporary `CARD_TRAY_COUNT = 5` in `card_tray/constants.py` back to 30 (or to
+the per-chain count, depending on how the split is structured) once the split is in
+place. The TEMP marker comment makes it visible in `git status`.
+
+---
+
 ## Alex / sim-team collaboration
 
 ### Professionalize the documentation tone for Alex hand-off (target: 2026-05-10)
