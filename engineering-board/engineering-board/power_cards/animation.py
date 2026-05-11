@@ -251,6 +251,8 @@ from power_cards.frames import co2_scrubbers
 from power_cards.frames import oxygen_generators
 from power_cards.frames import gravity_field
 
+log_free_ram("anim-overhead")
+
 CARD_ANIMATION_DEFS = {
     PowerCardIds.FUSION_ENGINES_ID: PowerCardAnimation(
         uid=PowerCardIds.FUSION_ENGINES_ID,

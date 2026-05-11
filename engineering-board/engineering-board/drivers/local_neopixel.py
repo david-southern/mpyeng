@@ -118,17 +118,34 @@ def ws2812_program():
 # different hardware. Higher FPS path: split the chain across multiple state machines.
 WS2812_PIO_FREQ = 8_000_000
 
-# Each FIFO word is one packed pixel int (0x00GGRRBB). sm.put() shifts each word left by this many
-# bits before pushing to the FIFO so the GRB triple lands in the upper 24 bits of the word, where
-# the PIO program shifts it out MSB-first.
-WS2812_PUT_SHIFT = 8
+# RP2350 PIO MMIO bases. Each block has its 4 TX FIFO registers at base + 0x10 + 4*sm_index;
+# DMA writes 32-bit pixel words straight into a state machine's TX FIFO at this address.
+_PIO_BASE = (0x50200000, 0x50300000, 0x50400000)
+
+
+@micropython.viper
+def _preshift_to_wire_buf(src: ptr32, dst: ptr32, n: int):
+    """Pre-shift each 32-bit pixel word in <src> left by 8 into <dst>. Converts the in-memory
+    neo-packed format 0x00GGRRBB into the wire/PIO format 0xGGRRBB00 that the WS2812 PIO program
+    consumes (with autopull + pull_thresh=24 + SHIFT_LEFT, only the upper 24 bits of each FIFO
+    word reach the wire, MSB-first). The historical sm.put(buf, 8) call did this shift inline;
+    with DMA the driver owns it. Cost is ~30 ns/word in Viper — negligible vs. the 30 µs/px
+    line rate."""
+    i: int = 0
+    while i < n:
+        dst[i] = int(src[i]) << 8
+        i += 1
 
 
 class LocalNeoPixel:
-    """WS2812 NeoPixel strip driven by a per-instance RP2 PIO state machine.
+    """WS2812 NeoPixel strip driven by a per-instance RP2 PIO state machine, fed via DMA.
 
     Buffer layout: array.array('I'), one neo-packed int per pixel (0x00GGRRBB). The 4-byte
     alignment matches the PIO autopull width — see color_utils for the wire-format rationale.
+    A shadow wire buffer of the same shape is held internally; on write() it's populated by
+    Viper-shifting each pixel word into the upper 24 bits, then DMA pushes it word-by-word to
+    the SM's TX FIFO, paced by the SM's TX DREQ. CPU is free during the wire blast (e.g.
+    ~11 ms for 370 px at 800 kbps), bounded only by the brief Viper pre-shift.
     """
 
     # Class-level counter that hands out a unique state-machine ID per LocalNeoPixel instance.
@@ -140,11 +157,28 @@ class LocalNeoPixel:
         self.pin = pin
         self.n = n
         self.buf = array.array("I", [0] * n)
+        self._wire_buf = array.array("I", [0] * n)
 
         sm_id = LocalNeoPixel._next_sm_id
         LocalNeoPixel._next_sm_id += 1
         self.sm = rp2.StateMachine(sm_id, ws2812_program, freq=WS2812_PIO_FREQ, sideset_base=pin)
         self.sm.active(1)
+
+        # DMA wiring: a channel paced by this SM's TX DREQ, walking _wire_buf and writing each
+        # 32-bit word into the SM's TX FIFO. PIO TX DREQs are packed 0..3 (PIO0), 8..11 (PIO1),
+        # 16..19 (PIO2); the TX FIFO MMIO register is at <pio_base> + 0x10 + 4*sm_in_block.
+        pio_block = sm_id // 4
+        sm_in_block = sm_id % 4
+        self._fifo_addr = _PIO_BASE[pio_block] + 0x10 + 4 * sm_in_block
+        treq = pio_block * 8 + sm_in_block
+
+        self._dma = rp2.DMA()
+        self._dma_ctrl = self._dma.pack_ctrl(
+            size=2,           # 32-bit transfers
+            inc_read=True,    # walk the wire buffer
+            inc_write=False,  # always write the same FIFO register
+            treq_sel=treq,    # paced by the SM's TX DREQ — DMA stalls when FIFO is full
+        )
 
     def __len__(self) -> int:
         return self.n
@@ -166,5 +200,17 @@ class LocalNeoPixel:
         copy_buffer_pixels(source_buf, self.buf, dest_pixel_offset, pixel_count)
 
     def write(self):
-        """Push the entire buffer to the PIO state machine for output to the strip."""
-        self.sm.put(self.buf, WS2812_PUT_SHIFT)
+        """Pre-shift the working buffer into wire format and kick off a DMA push to the SM's
+        TX FIFO. Returns once the DMA is launched; the CPU is free while DMA drains the buffer
+        at the WS2812 line rate. Spins briefly if a prior frame's DMA hasn't finished — in
+        normal operation it's long since done (refresh gate ~33 ms vs ~30 µs/px wire time)."""
+        while self._dma.active():
+            pass
+        _preshift_to_wire_buf(self.buf, self._wire_buf, self.n)
+        self._dma.config(
+            read=self._wire_buf,
+            write=self._fifo_addr,
+            count=self.n,
+            ctrl=self._dma_ctrl,
+            trigger=True,
+        )
